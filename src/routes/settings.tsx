@@ -1,10 +1,32 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useRef } from "react";
-import { Download, Upload, Cloud, Shield, Mic, Zap, Smartphone } from "lucide-react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useRef, useState } from "react";
+import {
+  Download,
+  Upload,
+  Cloud,
+  Shield,
+  Mic,
+  Zap,
+  Smartphone,
+  Fingerprint,
+  LogOut,
+  ShieldCheck,
+  BookOpen,
+  HardDrive,
+} from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { useLang, useWakePhrase, useAutoSaveRaw } from "@/lib/settings-store";
 import { t, type Lang } from "@/lib/i18n";
 import { exportAll, importAll } from "@/lib/db";
+import {
+  getProfile,
+  hasBiometric,
+  isBiometricSupported,
+  isPremium,
+  registerBiometric,
+  removeBiometric,
+  signOut,
+} from "@/lib/auth-store";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({ meta: [{ title: "Settings — Noble" }] }),
@@ -15,15 +37,40 @@ function SettingsPage() {
   const [lang, setLang] = useLang();
   const [wake, setWake] = useWakePhrase();
   const [autoRaw, setAutoRaw] = useAutoSaveRaw();
+  const [bio, setBio] = useState(false);
+  const [premium, setPremium] = useState(false);
+  const nav = useNavigate();
   const fileRef = useRef<HTMLInputElement>(null);
+  const profile = getProfile();
 
-  async function doExport() {
+  useEffect(() => {
+    setBio(hasBiometric());
+    setPremium(isPremium());
+  }, []);
+
+  async function doExport(target: "laptop" | "drive" | "storage") {
     const data = await exportAll();
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
+    const name = `noble-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    if (target === "drive") {
+      // Web share intent to Drive picker (Android) or fallback to download
+      if (navigator.share && navigator.canShare?.({ files: [new File([blob], name)] })) {
+        try {
+          await navigator.share({
+            files: [new File([blob], name, { type: "application/json" })],
+            title: "Noble Backup",
+          });
+          URL.revokeObjectURL(url);
+          return;
+        } catch {
+          /* fall through */
+        }
+      }
+    }
     const a = document.createElement("a");
     a.href = url;
-    a.download = `voicetag-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = name;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -33,14 +80,52 @@ function SettingsPage() {
     try {
       const parsed = JSON.parse(text);
       await importAll(parsed);
-      alert("Imported.");
+      alert(lang === "id" ? "Berhasil diimpor." : "Imported.");
     } catch (err) {
       alert("Invalid file: " + String(err));
     }
   }
 
+  async function toggleBio() {
+    if (bio) {
+      removeBiometric();
+      setBio(false);
+    } else {
+      const ok = await registerBiometric();
+      setBio(ok);
+      if (!ok) alert(lang === "id" ? "Gagal mendaftarkan biometrik." : "Biometric registration failed.");
+    }
+  }
+
   return (
     <AppShell title={t(lang, "settings")}>
+      {profile && (
+        <div className="rounded-2xl bg-gradient-to-br from-primary/10 to-transparent border border-primary/30 p-4 mb-4 flex items-center justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-widest text-muted-foreground">
+              {lang === "id" ? "Pengguna" : "Account"}
+            </p>
+            <p className="text-sm font-semibold mt-1">{profile.name}</p>
+            <p className="text-xs text-muted-foreground">{profile.email}</p>
+            {premium && (
+              <span className="inline-flex items-center gap-1 mt-2 text-[10px] uppercase tracking-widest text-primary">
+                <ShieldCheck size={10} /> Premium
+              </span>
+            )}
+          </div>
+          <button
+            onClick={() => {
+              signOut();
+              nav({ to: "/login" });
+            }}
+            className="text-muted-foreground hover:text-destructive p-2"
+            aria-label={t(lang, "signOut")}
+          >
+            <LogOut size={18} />
+          </button>
+        </div>
+      )}
+
       <Card>
         <Label icon={<Mic size={14} />}>{t(lang, "language")}</Label>
         <div className="grid grid-cols-2 gap-2 mt-2">
@@ -61,42 +146,88 @@ function SettingsPage() {
       </Card>
 
       <Card>
-        <Label icon={<Download size={14} />}>{t(lang, "exportData")}</Label>
-        <button
-          onClick={doExport}
-          className="w-full mt-2 rounded-xl bg-secondary text-secondary-foreground py-2.5 text-sm font-semibold"
+        <Label icon={<Fingerprint size={14} />}>{t(lang, "biometric")}</Label>
+        {!isBiometricSupported() ? (
+          <p className="text-xs text-muted-foreground mt-2">
+            {lang === "id" ? "Perangkat tidak mendukung." : "Not supported on this device."}
+          </p>
+        ) : (
+          <button
+            onClick={toggleBio}
+            className={`w-full mt-2 rounded-xl py-2.5 text-sm font-semibold ${
+              bio
+                ? "bg-destructive/15 text-destructive"
+                : "bg-primary text-primary-foreground"
+            }`}
+          >
+            {bio ? t(lang, "removeBiometric") : t(lang, "registerBiometric")}
+          </button>
+        )}
+      </Card>
+
+      <Card>
+        <Label icon={<ShieldCheck size={14} />}>{t(lang, "premium")}</Label>
+        {premium ? (
+          <p className="text-xs text-primary mt-2">
+            {lang === "id" ? "Premium aktif — AI Gemini terhubung." : "Premium active — Gemini AI enabled."}
+          </p>
+        ) : (
+          <Link
+            to="/activate"
+            className="inline-block mt-2 rounded-xl bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold"
+          >
+            {t(lang, "activatePremium")}
+          </Link>
+        )}
+      </Card>
+
+      <Card>
+        <Label icon={<HardDrive size={14} />}>
+          {lang === "id" ? "Cadangan & Transfer" : "Backup & Transfer"}
+        </Label>
+        <div className="grid grid-cols-1 gap-2 mt-2">
+          <button
+            onClick={() => doExport("laptop")}
+            className="w-full rounded-xl bg-secondary text-secondary-foreground py-2.5 text-sm font-semibold flex items-center justify-center gap-2"
+          >
+            <Download size={14} /> {t(lang, "backupLaptop")}
+          </button>
+          <button
+            onClick={() => doExport("drive")}
+            className="w-full rounded-xl bg-secondary text-secondary-foreground py-2.5 text-sm font-semibold flex items-center justify-center gap-2"
+          >
+            <Cloud size={14} /> {t(lang, "backupDrive")}
+          </button>
+          <button
+            onClick={() => doExport("storage")}
+            className="w-full rounded-xl bg-secondary text-secondary-foreground py-2.5 text-sm font-semibold flex items-center justify-center gap-2"
+          >
+            <HardDrive size={14} /> {t(lang, "backupStorage")}
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/json"
+            className="hidden"
+            onChange={(e) => e.target.files?.[0] && doImport(e.target.files[0])}
+          />
+          <button
+            onClick={() => fileRef.current?.click()}
+            className="w-full rounded-xl bg-secondary text-secondary-foreground py-2.5 text-sm font-semibold flex items-center justify-center gap-2"
+          >
+            <Upload size={14} /> {t(lang, "importData")}
+          </button>
+        </div>
+      </Card>
+
+      <Card>
+        <Label icon={<BookOpen size={14} />}>{t(lang, "guide")}</Label>
+        <Link
+          to="/guide"
+          className="inline-block mt-2 rounded-xl bg-secondary text-secondary-foreground px-4 py-2 text-sm font-semibold"
         >
-          {t(lang, "exportData")}
-        </button>
-        <Label icon={<Upload size={14} />}>{t(lang, "importData")}</Label>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="application/json"
-          className="hidden"
-          onChange={(e) => e.target.files?.[0] && doImport(e.target.files[0])}
-        />
-        <button
-          onClick={() => fileRef.current?.click()}
-          className="w-full mt-2 rounded-xl bg-secondary text-secondary-foreground py-2.5 text-sm font-semibold"
-        >
-          {t(lang, "importData")}
-        </button>
-      </Card>
-
-      <Card>
-        <Label icon={<Cloud size={14} />}>{t(lang, "driveSync")}</Label>
-        <p className="text-xs text-muted-foreground mt-2">{t(lang, "driveSyncSoon")}</p>
-      </Card>
-
-      <Card>
-        <Label icon={<Shield size={14} />}>{t(lang, "privacy")}</Label>
-        <p className="text-xs text-muted-foreground mt-2">{t(lang, "privacyBody")}</p>
-      </Card>
-
-      <Card>
-        <Label icon={<Mic size={14} />}>{t(lang, "assistantHelp")}</Label>
-        <p className="text-xs text-muted-foreground mt-2">{t(lang, "assistantBody")}</p>
+          {lang === "id" ? "Buka panduan" : "Open guide"}
+        </Link>
       </Card>
 
       <Card>
@@ -105,7 +236,7 @@ function SettingsPage() {
         <input
           value={wake}
           onChange={(e) => setWake(e.target.value)}
-          placeholder="open voicetag"
+          placeholder="Aurora Start"
           className="mt-2 w-full rounded-xl bg-secondary text-secondary-foreground px-3 py-2 text-sm"
         />
       </Card>
@@ -134,6 +265,11 @@ function SettingsPage() {
       </Card>
 
       <Card>
+        <Label icon={<Shield size={14} />}>{t(lang, "privacy")}</Label>
+        <p className="text-xs text-muted-foreground mt-2">{t(lang, "privacyBody")}</p>
+      </Card>
+
+      <Card>
         <Label icon={<Smartphone size={14} />}>{t(lang, "androidSetup")}</Label>
         <p className="text-xs text-muted-foreground mt-2 whitespace-pre-line leading-relaxed">
           {t(lang, "androidSetupBody")}
@@ -141,7 +277,7 @@ function SettingsPage() {
       </Card>
 
       <p className="text-center text-[10px] text-muted-foreground mt-6">
-        Noble prototype · v0.1
+        Noble · v0.2 · {lang === "id" ? "Suara Anda, disimpan lokal" : "Your voice, kept local"}
       </p>
     </AppShell>
   );

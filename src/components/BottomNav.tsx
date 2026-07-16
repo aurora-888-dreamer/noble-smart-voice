@@ -2,9 +2,9 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   Home,
   CheckSquare,
+  Calendar as CalendarIcon,
+  BookOpen,
   Users,
-  Plane,
-  GanttChart,
   Settings as SettingsIcon,
 } from "lucide-react";
 import { useLang } from "@/lib/settings-store";
@@ -15,10 +15,10 @@ export function BottomNav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const items = [
     { to: "/", label: t(lang, "home"), Icon: Home },
+    { to: "/calendar", label: t(lang, "calendar"), Icon: CalendarIcon },
     { to: "/tasks", label: t(lang, "tasks"), Icon: CheckSquare },
-    { to: "/trips", label: t(lang, "trips"), Icon: Plane },
-    { to: "/projects", label: t(lang, "projects"), Icon: GanttChart },
     { to: "/contacts", label: t(lang, "contacts"), Icon: Users },
+    { to: "/guide", label: t(lang, "guide"), Icon: BookOpen },
     { to: "/settings", label: t(lang, "settings"), Icon: SettingsIcon },
   ] as const;
   return (

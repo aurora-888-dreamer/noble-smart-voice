@@ -14,12 +14,17 @@ import { Route as TripsRouteImport } from './routes/trips'
 import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as RemindersRouteImport } from './routes/reminders'
+import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ProjectsRouteImport } from './routes/projects'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as NotesRouteImport } from './routes/notes'
 import { Route as MeetingsRouteImport } from './routes/meetings'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as GuideRouteImport } from './routes/guide'
 import { Route as ContactsRouteImport } from './routes/contacts'
+import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as AppointmentsRouteImport } from './routes/appointments'
+import { Route as ActivateRouteImport } from './routes/activate'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 
@@ -48,6 +53,11 @@ const RemindersRoute = RemindersRouteImport.update({
   path: '/reminders',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProjectsRoute = ProjectsRouteImport.update({
   id: '/projects',
   path: '/projects',
@@ -68,14 +78,34 @@ const MeetingsRoute = MeetingsRouteImport.update({
   path: '/meetings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuideRoute = GuideRouteImport.update({
+  id: '/guide',
+  path: '/guide',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ContactsRoute = ContactsRouteImport.update({
   id: '/contacts',
   path: '/contacts',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CalendarRoute = CalendarRouteImport.update({
+  id: '/calendar',
+  path: '/calendar',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppointmentsRoute = AppointmentsRouteImport.update({
   id: '/appointments',
   path: '/appointments',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ActivateRoute = ActivateRouteImport.update({
+  id: '/activate',
+  path: '/activate',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AboutRoute = AboutRouteImport.update({
@@ -92,12 +122,17 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/activate': typeof ActivateRoute
   '/appointments': typeof AppointmentsRoute
+  '/calendar': typeof CalendarRoute
   '/contacts': typeof ContactsRoute
+  '/guide': typeof GuideRoute
+  '/login': typeof LoginRoute
   '/meetings': typeof MeetingsRoute
   '/notes': typeof NotesRoute
   '/onboarding': typeof OnboardingRoute
   '/projects': typeof ProjectsRoute
+  '/register': typeof RegisterRoute
   '/reminders': typeof RemindersRoute
   '/settings': typeof SettingsRoute
   '/tasks': typeof TasksRoute
@@ -107,12 +142,17 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/activate': typeof ActivateRoute
   '/appointments': typeof AppointmentsRoute
+  '/calendar': typeof CalendarRoute
   '/contacts': typeof ContactsRoute
+  '/guide': typeof GuideRoute
+  '/login': typeof LoginRoute
   '/meetings': typeof MeetingsRoute
   '/notes': typeof NotesRoute
   '/onboarding': typeof OnboardingRoute
   '/projects': typeof ProjectsRoute
+  '/register': typeof RegisterRoute
   '/reminders': typeof RemindersRoute
   '/settings': typeof SettingsRoute
   '/tasks': typeof TasksRoute
@@ -123,12 +163,17 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/activate': typeof ActivateRoute
   '/appointments': typeof AppointmentsRoute
+  '/calendar': typeof CalendarRoute
   '/contacts': typeof ContactsRoute
+  '/guide': typeof GuideRoute
+  '/login': typeof LoginRoute
   '/meetings': typeof MeetingsRoute
   '/notes': typeof NotesRoute
   '/onboarding': typeof OnboardingRoute
   '/projects': typeof ProjectsRoute
+  '/register': typeof RegisterRoute
   '/reminders': typeof RemindersRoute
   '/settings': typeof SettingsRoute
   '/tasks': typeof TasksRoute
@@ -140,12 +185,17 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/about'
+    | '/activate'
     | '/appointments'
+    | '/calendar'
     | '/contacts'
+    | '/guide'
+    | '/login'
     | '/meetings'
     | '/notes'
     | '/onboarding'
     | '/projects'
+    | '/register'
     | '/reminders'
     | '/settings'
     | '/tasks'
@@ -155,12 +205,17 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/about'
+    | '/activate'
     | '/appointments'
+    | '/calendar'
     | '/contacts'
+    | '/guide'
+    | '/login'
     | '/meetings'
     | '/notes'
     | '/onboarding'
     | '/projects'
+    | '/register'
     | '/reminders'
     | '/settings'
     | '/tasks'
@@ -170,12 +225,17 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/about'
+    | '/activate'
     | '/appointments'
+    | '/calendar'
     | '/contacts'
+    | '/guide'
+    | '/login'
     | '/meetings'
     | '/notes'
     | '/onboarding'
     | '/projects'
+    | '/register'
     | '/reminders'
     | '/settings'
     | '/tasks'
@@ -186,12 +246,17 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
+  ActivateRoute: typeof ActivateRoute
   AppointmentsRoute: typeof AppointmentsRoute
+  CalendarRoute: typeof CalendarRoute
   ContactsRoute: typeof ContactsRoute
+  GuideRoute: typeof GuideRoute
+  LoginRoute: typeof LoginRoute
   MeetingsRoute: typeof MeetingsRoute
   NotesRoute: typeof NotesRoute
   OnboardingRoute: typeof OnboardingRoute
   ProjectsRoute: typeof ProjectsRoute
+  RegisterRoute: typeof RegisterRoute
   RemindersRoute: typeof RemindersRoute
   SettingsRoute: typeof SettingsRoute
   TasksRoute: typeof TasksRoute
@@ -236,6 +301,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RemindersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/projects': {
       id: '/projects'
       path: '/projects'
@@ -264,6 +336,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MeetingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guide': {
+      id: '/guide'
+      path: '/guide'
+      fullPath: '/guide'
+      preLoaderRoute: typeof GuideRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/contacts': {
       id: '/contacts'
       path: '/contacts'
@@ -271,11 +357,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ContactsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/calendar': {
+      id: '/calendar'
+      path: '/calendar'
+      fullPath: '/calendar'
+      preLoaderRoute: typeof CalendarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/appointments': {
       id: '/appointments'
       path: '/appointments'
       fullPath: '/appointments'
       preLoaderRoute: typeof AppointmentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/activate': {
+      id: '/activate'
+      path: '/activate'
+      fullPath: '/activate'
+      preLoaderRoute: typeof ActivateRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/about': {
@@ -298,12 +398,17 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
+  ActivateRoute: ActivateRoute,
   AppointmentsRoute: AppointmentsRoute,
+  CalendarRoute: CalendarRoute,
   ContactsRoute: ContactsRoute,
+  GuideRoute: GuideRoute,
+  LoginRoute: LoginRoute,
   MeetingsRoute: MeetingsRoute,
   NotesRoute: NotesRoute,
   OnboardingRoute: OnboardingRoute,
   ProjectsRoute: ProjectsRoute,
+  RegisterRoute: RegisterRoute,
   RemindersRoute: RemindersRoute,
   SettingsRoute: SettingsRoute,
   TasksRoute: TasksRoute,
