@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/about")({
   head: () => ({
     meta: [
       { title: "Noble — The Executive Memorandum Platform" },
