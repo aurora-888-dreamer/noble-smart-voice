@@ -64,8 +64,7 @@ export function dispatchCommand(raw: string, ctx: Ctx): CommandResult {
   }
   for (const { re, to } of ROUTES) {
     if (re.test(text)) {
-      // @ts-expect-error dynamic path — route table validated at runtime
-      ctx.navigate({ to });
+      ctx.navigate({ to: to as never });
       return { handled: true };
     }
   }
