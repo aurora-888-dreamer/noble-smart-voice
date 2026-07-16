@@ -76,22 +76,39 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
+      { name: "theme-color", content: "#0A192F" },
+      { title: "Noble — Executive Voice Assistant" },
+      {
+        name: "description",
+        content:
+          "A local-first, encrypted, voice-first executive assistant. Notes, tasks, meetings, trips, contacts — offline-ready, bilingual, and installable.",
+      },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-title", content: "Noble" },
+      { property: "og:title", content: "Noble — Executive Voice Assistant" },
+      {
+        property: "og:description",
+        content:
+          "Deep navy. Champagne gold. A local-first, encrypted, voice-first executive assistant.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "Noble — Executive Voice Assistant" },
+      { name: "twitter:description", content: "Local-first, encrypted, voice-first executive assistant." },
     ],
     links: [
       {
         rel: "stylesheet",
         href: appCss,
       },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap",
+      },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "apple-touch-icon", href: "/icon-512.png" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
     ],
   }),
   shellComponent: RootShell,

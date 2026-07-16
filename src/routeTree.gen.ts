@@ -9,8 +9,80 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as VoiceRouteImport } from './routes/voice'
+import { Route as TripsRouteImport } from './routes/trips'
+import { Route as TasksRouteImport } from './routes/tasks'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as RemindersRouteImport } from './routes/reminders'
+import { Route as ProjectsRouteImport } from './routes/projects'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as NotesRouteImport } from './routes/notes'
+import { Route as MeetingsRouteImport } from './routes/meetings'
+import { Route as ContactsRouteImport } from './routes/contacts'
+import { Route as AppointmentsRouteImport } from './routes/appointments'
+import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 
+const VoiceRoute = VoiceRouteImport.update({
+  id: '/voice',
+  path: '/voice',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TripsRoute = TripsRouteImport.update({
+  id: '/trips',
+  path: '/trips',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TasksRoute = TasksRouteImport.update({
+  id: '/tasks',
+  path: '/tasks',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RemindersRoute = RemindersRouteImport.update({
+  id: '/reminders',
+  path: '/reminders',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProjectsRoute = ProjectsRouteImport.update({
+  id: '/projects',
+  path: '/projects',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotesRoute = NotesRouteImport.update({
+  id: '/notes',
+  path: '/notes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MeetingsRoute = MeetingsRouteImport.update({
+  id: '/meetings',
+  path: '/meetings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContactsRoute = ContactsRouteImport.update({
+  id: '/contacts',
+  path: '/contacts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppointmentsRoute = AppointmentsRouteImport.update({
+  id: '/appointments',
+  path: '/appointments',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -19,28 +91,200 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
+  '/appointments': typeof AppointmentsRoute
+  '/contacts': typeof ContactsRoute
+  '/meetings': typeof MeetingsRoute
+  '/notes': typeof NotesRoute
+  '/onboarding': typeof OnboardingRoute
+  '/projects': typeof ProjectsRoute
+  '/reminders': typeof RemindersRoute
+  '/settings': typeof SettingsRoute
+  '/tasks': typeof TasksRoute
+  '/trips': typeof TripsRoute
+  '/voice': typeof VoiceRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
+  '/appointments': typeof AppointmentsRoute
+  '/contacts': typeof ContactsRoute
+  '/meetings': typeof MeetingsRoute
+  '/notes': typeof NotesRoute
+  '/onboarding': typeof OnboardingRoute
+  '/projects': typeof ProjectsRoute
+  '/reminders': typeof RemindersRoute
+  '/settings': typeof SettingsRoute
+  '/tasks': typeof TasksRoute
+  '/trips': typeof TripsRoute
+  '/voice': typeof VoiceRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
+  '/appointments': typeof AppointmentsRoute
+  '/contacts': typeof ContactsRoute
+  '/meetings': typeof MeetingsRoute
+  '/notes': typeof NotesRoute
+  '/onboarding': typeof OnboardingRoute
+  '/projects': typeof ProjectsRoute
+  '/reminders': typeof RemindersRoute
+  '/settings': typeof SettingsRoute
+  '/tasks': typeof TasksRoute
+  '/trips': typeof TripsRoute
+  '/voice': typeof VoiceRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/about'
+    | '/appointments'
+    | '/contacts'
+    | '/meetings'
+    | '/notes'
+    | '/onboarding'
+    | '/projects'
+    | '/reminders'
+    | '/settings'
+    | '/tasks'
+    | '/trips'
+    | '/voice'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/about'
+    | '/appointments'
+    | '/contacts'
+    | '/meetings'
+    | '/notes'
+    | '/onboarding'
+    | '/projects'
+    | '/reminders'
+    | '/settings'
+    | '/tasks'
+    | '/trips'
+    | '/voice'
+  id:
+    | '__root__'
+    | '/'
+    | '/about'
+    | '/appointments'
+    | '/contacts'
+    | '/meetings'
+    | '/notes'
+    | '/onboarding'
+    | '/projects'
+    | '/reminders'
+    | '/settings'
+    | '/tasks'
+    | '/trips'
+    | '/voice'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AboutRoute: typeof AboutRoute
+  AppointmentsRoute: typeof AppointmentsRoute
+  ContactsRoute: typeof ContactsRoute
+  MeetingsRoute: typeof MeetingsRoute
+  NotesRoute: typeof NotesRoute
+  OnboardingRoute: typeof OnboardingRoute
+  ProjectsRoute: typeof ProjectsRoute
+  RemindersRoute: typeof RemindersRoute
+  SettingsRoute: typeof SettingsRoute
+  TasksRoute: typeof TasksRoute
+  TripsRoute: typeof TripsRoute
+  VoiceRoute: typeof VoiceRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/voice': {
+      id: '/voice'
+      path: '/voice'
+      fullPath: '/voice'
+      preLoaderRoute: typeof VoiceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/trips': {
+      id: '/trips'
+      path: '/trips'
+      fullPath: '/trips'
+      preLoaderRoute: typeof TripsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tasks': {
+      id: '/tasks'
+      path: '/tasks'
+      fullPath: '/tasks'
+      preLoaderRoute: typeof TasksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reminders': {
+      id: '/reminders'
+      path: '/reminders'
+      fullPath: '/reminders'
+      preLoaderRoute: typeof RemindersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/projects': {
+      id: '/projects'
+      path: '/projects'
+      fullPath: '/projects'
+      preLoaderRoute: typeof ProjectsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notes': {
+      id: '/notes'
+      path: '/notes'
+      fullPath: '/notes'
+      preLoaderRoute: typeof NotesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/meetings': {
+      id: '/meetings'
+      path: '/meetings'
+      fullPath: '/meetings'
+      preLoaderRoute: typeof MeetingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contacts': {
+      id: '/contacts'
+      path: '/contacts'
+      fullPath: '/contacts'
+      preLoaderRoute: typeof ContactsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/appointments': {
+      id: '/appointments'
+      path: '/appointments'
+      fullPath: '/appointments'
+      preLoaderRoute: typeof AppointmentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -53,17 +297,19 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AboutRoute: AboutRoute,
+  AppointmentsRoute: AppointmentsRoute,
+  ContactsRoute: ContactsRoute,
+  MeetingsRoute: MeetingsRoute,
+  NotesRoute: NotesRoute,
+  OnboardingRoute: OnboardingRoute,
+  ProjectsRoute: ProjectsRoute,
+  RemindersRoute: RemindersRoute,
+  SettingsRoute: SettingsRoute,
+  TasksRoute: TasksRoute,
+  TripsRoute: TripsRoute,
+  VoiceRoute: VoiceRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
