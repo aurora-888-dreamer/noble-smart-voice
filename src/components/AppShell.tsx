@@ -22,7 +22,7 @@ export function AppShell({
           <h1 className="ml-2 text-base font-semibold">{title}</h1>
         </div>
       </header>
-      <main className="mx-auto max-w-md px-4 pt-4 pb-32">{children}</main>
+      <main className="mx-auto max-w-md px-4 pt-4 pb-32 page-slide">{children}</main>
       {showFab && (
         <Link
           to="/voice"

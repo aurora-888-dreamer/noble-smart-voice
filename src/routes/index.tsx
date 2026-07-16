@@ -7,6 +7,7 @@ import { getDb } from "@/lib/db";
 import { useLang } from "@/lib/settings-store";
 import { t } from "@/lib/i18n";
 import { isOnboarded } from "@/lib/settings-store";
+import { isRegistered, isSignedIn } from "@/lib/auth-store";
 import { rehydrateReminders } from "@/lib/reminders";
 
 export const Route = createFileRoute("/")({
@@ -21,6 +22,14 @@ function Home() {
   useEffect(() => {
     if (!isOnboarded()) {
       navigate({ to: "/onboarding" });
+      return;
+    }
+    if (!isRegistered()) {
+      navigate({ to: "/register" });
+      return;
+    }
+    if (!isSignedIn()) {
+      navigate({ to: "/login" });
       return;
     }
     setReady(true);

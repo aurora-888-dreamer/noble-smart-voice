@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { Mic, Bell, Globe } from "lucide-react";
 import { markOnboarded, setStoredLang } from "@/lib/settings-store";
+import { isRegistered } from "@/lib/auth-store";
 import type { Lang } from "@/lib/i18n";
 import { t } from "@/lib/i18n";
 import { requestNotifPermission } from "@/lib/reminders";
@@ -25,11 +26,11 @@ function Onboarding() {
     }
     await requestNotifPermission();
     markOnboarded();
-    nav({ to: "/" });
+    nav({ to: isRegistered() ? "/login" : "/register" });
   }
 
   return (
-    <div className="min-h-dvh bg-background text-foreground">
+    <div className="min-h-dvh bg-background text-foreground page-slide">
       <div className="mx-auto max-w-md px-6 py-12 flex flex-col min-h-dvh">
         <div className="flex-1 flex flex-col justify-center">
           <img
@@ -39,7 +40,12 @@ function Onboarding() {
             height={80}
             className="rounded-2xl shadow-lg mb-6"
           />
-          <h1 className="text-3xl font-bold mb-2">{t(lang, "onboardWelcome")}</h1>
+          <h1
+            className="text-3xl font-semibold mb-2"
+            style={{ fontFamily: "var(--font-serif)" }}
+          >
+            {t(lang, "onboardWelcome")}
+          </h1>
           <p className="text-muted-foreground mb-8">{t(lang, "onboardBody")}</p>
 
           <div className="mb-8">
