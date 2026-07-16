@@ -43,17 +43,18 @@ export function markOnboarded() {
   localStorage.setItem(ONBOARDED_KEY, "1");
 }
 
-// Wake-word phrase (used by the Android assistant shortcut, e.g. "open voicetag")
+// Wake-word phrase (default: "Aurora Start")
+const DEFAULT_WAKE = "Aurora Start";
 export function getWakePhrase(): string {
-  if (typeof window === "undefined") return "open voicetag";
-  return localStorage.getItem(WAKE_KEY) || "open voicetag";
+  if (typeof window === "undefined") return DEFAULT_WAKE;
+  return localStorage.getItem(WAKE_KEY) || DEFAULT_WAKE;
 }
 export function setWakePhrase(v: string) {
   localStorage.setItem(WAKE_KEY, v);
   window.dispatchEvent(new Event("voicetag:wake"));
 }
 export function useWakePhrase(): [string, (v: string) => void] {
-  const [w, setW] = useState<string>("open voicetag");
+  const [w, setW] = useState<string>(DEFAULT_WAKE);
   useEffect(() => {
     setW(getWakePhrase());
     const h = () => setW(getWakePhrase());
