@@ -34,7 +34,7 @@ function Onboarding() {
         <div className="flex-1 flex flex-col justify-center">
           <img
             src="/icon-512.png"
-            alt="VoiceTag"
+            alt="Noble"
             width={80}
             height={80}
             className="rounded-2xl shadow-lg mb-6"

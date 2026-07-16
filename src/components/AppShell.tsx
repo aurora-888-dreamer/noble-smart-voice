@@ -17,7 +17,7 @@ export function AppShell({
       <header className="sticky top-0 z-30 bg-background/80 backdrop-blur border-b border-border">
         <div className="mx-auto max-w-md px-4 py-3 flex items-center gap-2">
           <span className="text-xs font-semibold uppercase tracking-widest text-primary">
-            VoiceTag
+            Noble
           </span>
           <h1 className="ml-2 text-base font-semibold">{title}</h1>
         </div>

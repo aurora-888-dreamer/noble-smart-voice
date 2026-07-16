@@ -7,7 +7,7 @@ import { t, type Lang } from "@/lib/i18n";
 import { exportAll, importAll } from "@/lib/db";
 
 export const Route = createFileRoute("/settings")({
-  head: () => ({ meta: [{ title: "Settings — VoiceTag" }] }),
+  head: () => ({ meta: [{ title: "Settings — Noble" }] }),
   component: SettingsPage,
 });
 
@@ -141,7 +141,7 @@ function SettingsPage() {
       </Card>
 
       <p className="text-center text-[10px] text-muted-foreground mt-6">
-        VoiceTag prototype · v0.1
+        Noble prototype · v0.1
       </p>
     </AppShell>
   );

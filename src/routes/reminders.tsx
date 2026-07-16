@@ -7,7 +7,7 @@ import { useLang } from "@/lib/settings-store";
 import { t } from "@/lib/i18n";
 
 export const Route = createFileRoute("/reminders")({
-  head: () => ({ meta: [{ title: "Reminders — VoiceTag" }] }),
+  head: () => ({ meta: [{ title: "Reminders — Noble" }] }),
   component: RemindersPage,
 });
 

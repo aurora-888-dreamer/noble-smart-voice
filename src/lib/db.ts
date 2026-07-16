@@ -107,7 +107,7 @@ export interface Reminder {
   status: "pending" | "fired" | "dismissed";
 }
 
-class VoiceTagDB extends Dexie {
+class NobleDB extends Dexie {
   notes!: Table<Note, number>;
   messages!: Table<Message, number>;
   tasks!: Table<Task, number>;
@@ -143,13 +143,13 @@ class VoiceTagDB extends Dexie {
   }
 }
 
-let _db: VoiceTagDB | null = null;
-export function getDb(): VoiceTagDB {
+let _db: NobleDB | null = null;
+export function getDb(): NobleDB {
   if (typeof window === "undefined") {
     // SSR guard — never actually queried during SSR
-    return null as unknown as VoiceTagDB;
+    return null as unknown as NobleDB;
   }
-  if (!_db) _db = new VoiceTagDB();
+  if (!_db) _db = new NobleDB();
   return _db;
 }
 

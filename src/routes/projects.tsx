@@ -8,7 +8,7 @@ import { useLang } from "@/lib/settings-store";
 import { t } from "@/lib/i18n";
 
 export const Route = createFileRoute("/projects")({
-  head: () => ({ meta: [{ title: "Project Timeline — VoiceTag" }] }),
+  head: () => ({ meta: [{ title: "Project Timeline — Noble" }] }),
   component: ProjectsPage,
 });
 

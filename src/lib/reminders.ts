@@ -11,7 +11,7 @@ export function requestNotifPermission() {
 
 function fire(r: Reminder) {
   if (typeof Notification !== "undefined" && Notification.permission === "granted") {
-    new Notification("VoiceTag", { body: r.label, icon: "/icon-512.png" });
+    new Notification("Noble", { body: r.label, icon: "/icon-512.png" });
   }
   const db = getDb();
   if (r.id) db.reminders.update(r.id, { status: "fired" });

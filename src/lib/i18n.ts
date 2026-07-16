@@ -2,7 +2,7 @@ export type Lang = "en" | "id";
 
 const dict = {
   en: {
-    appName: "VoiceTag",
+    appName: "Noble",
     tagline: "Speak. Save. Remember.",
     home: "Home",
     voice: "Voice",
@@ -36,12 +36,12 @@ const dict = {
     empty: "Nothing here yet.",
     search: "Search…",
     language: "Language",
-    onboardWelcome: "Welcome to VoiceTag",
+    onboardWelcome: "Welcome to Noble",
     onboardBody:
       "Capture notes, tasks, meetings, appointments, and contacts by voice. Everything stays on your device.",
     onboardMic: "Allow microphone",
     onboardNotif: "Allow notifications",
-    onboardStart: "Start using VoiceTag",
+    onboardStart: "Start using Noble",
     pickLanguage: "Choose your language",
     tryCommands: "Try saying",
     example1: "Save note: buy medicine tonight",
@@ -56,7 +56,7 @@ const dict = {
       "All data is stored locally on this device in your browser. Nothing is uploaded until you connect Drive sync.",
     assistantHelp: "Open by voice",
     assistantBody:
-      "Once installed to your home screen, say “Hey Google, open VoiceTag” to launch the app.",
+      "Once installed to your home screen, say “Hey Google, open Noble” to launch the app.",
     title: "Title",
     content: "Content",
     dueDate: "Due date",
@@ -117,16 +117,16 @@ const dict = {
     removeMilestone: "Remove milestone",
     wakeWord: "Wake phrase",
     wakeWordHint:
-      "Say this to Google Assistant (e.g. \"Hey Google, open VoiceTag\"). You can customise the phrase used in the on-screen hint.",
+      "Say this to Google Assistant (e.g. \"Hey Google, open Noble\"). You can customise the phrase used in the on-screen hint.",
     autoSaveRaw: "Auto-save raw transcript",
     autoSaveRawHint:
       "Skip the review step and save exactly what you said as a Note — perfect for mixed English/Indonesian.",
     androidSetup: "Auto-open on Android",
     androidSetupBody:
-      "1) Install VoiceTag to your Home Screen (Chrome menu → Install app). 2) Open the Google app → Assistant settings → Routines → add a Personal shortcut mapped to opening the installed app. 3) On Android 12+ you can also long-press the app icon and add a shortcut. Then say \"Hey Google, open VoiceTag\".",
+      "1) Install Noble to your Home Screen (Chrome menu → Install app). 2) Open the Google app → Assistant settings → Routines → add a Personal shortcut mapped to opening the installed app. 3) On Android 12+ you can also long-press the app icon and add a shortcut. Then say \"Hey Google, open Noble\".",
   },
   id: {
-    appName: "VoiceTag",
+    appName: "Noble",
     tagline: "Ucapkan. Simpan. Ingat.",
     home: "Beranda",
     voice: "Suara",
@@ -160,12 +160,12 @@ const dict = {
     empty: "Belum ada apa-apa.",
     search: "Cari…",
     language: "Bahasa",
-    onboardWelcome: "Selamat datang di VoiceTag",
+    onboardWelcome: "Selamat datang di Noble",
     onboardBody:
       "Simpan catatan, tugas, rapat, janji, dan kontak dengan suara. Semua tersimpan di perangkat Anda.",
     onboardMic: "Izinkan mikrofon",
     onboardNotif: "Izinkan notifikasi",
-    onboardStart: "Mulai gunakan VoiceTag",
+    onboardStart: "Mulai gunakan Noble",
     pickLanguage: "Pilih bahasa Anda",
     tryCommands: "Coba katakan",
     example1: "Simpan catatan: beli obat malam ini",
@@ -181,7 +181,7 @@ const dict = {
       "Semua data disimpan lokal di peramban perangkat ini. Tidak ada yang dikirim sampai Anda menyambungkan Drive.",
     assistantHelp: "Buka dengan suara",
     assistantBody:
-      "Setelah dipasang di layar utama, katakan “Hey Google, buka VoiceTag” untuk membuka aplikasi.",
+      "Setelah dipasang di layar utama, katakan “Hey Google, buka Noble” untuk membuka aplikasi.",
     title: "Judul",
     content: "Isi",
     dueDate: "Tenggat",
@@ -243,13 +243,13 @@ const dict = {
     removeMilestone: "Hapus tonggak",
     wakeWord: "Frasa bangun",
     wakeWordHint:
-      "Ucapkan ke Google Assistant (mis. \"Hey Google, buka VoiceTag\"). Anda bisa mengubah frasa yang muncul di petunjuk.",
+      "Ucapkan ke Google Assistant (mis. \"Hey Google, buka Noble\"). Anda bisa mengubah frasa yang muncul di petunjuk.",
     autoSaveRaw: "Simpan transkrip apa adanya",
     autoSaveRawHint:
       "Lewati langkah tinjau — langsung simpan sebagai Catatan persis seperti yang diucapkan. Cocok untuk campuran Indonesia/Inggris.",
     androidSetup: "Buka otomatis di Android",
     androidSetupBody:
-      "1) Pasang VoiceTag ke Layar Utama (menu Chrome → Install app). 2) Buka aplikasi Google → pengaturan Assistant → Routines → tambahkan Pintasan pribadi yang membuka aplikasi terpasang. 3) Di Android 12+ Anda juga bisa tekan-lama ikon aplikasi untuk pintasan. Lalu ucapkan \"Hey Google, buka VoiceTag\".",
+      "1) Pasang Noble ke Layar Utama (menu Chrome → Install app). 2) Buka aplikasi Google → pengaturan Assistant → Routines → tambahkan Pintasan pribadi yang membuka aplikasi terpasang. 3) Di Android 12+ Anda juga bisa tekan-lama ikon aplikasi untuk pintasan. Lalu ucapkan \"Hey Google, buka Noble\".",
   },
 } as const;
 
