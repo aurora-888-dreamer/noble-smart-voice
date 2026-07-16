@@ -1,13 +1,18 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { Mic, Square, Check, X, Pencil } from "lucide-react";
+import { Mic, Square, Check, X, Pencil, Sparkles } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { useLang, useAutoSaveRaw, useWakePhrase } from "@/lib/settings-store";
 import { t } from "@/lib/i18n";
 import { isVoiceSupported, startVoice, type VoiceSession } from "@/lib/voice";
 import { parseUtterance, type Parsed } from "@/lib/parser";
-import { getDb, type ItemType } from "@/lib/db";
+import { getDb, exportAll, type ItemType } from "@/lib/db";
 import { createReminder } from "@/lib/reminders";
+import { dispatchCommand } from "@/lib/commands";
+import { signOut } from "@/lib/auth-store";
+import { makeCall } from "@/lib/share";
+import { analyzeVoice } from "@/lib/ai.functions";
+import { isPremium } from "@/lib/auth-store";
 
 export const Route = createFileRoute("/voice")({
   component: VoicePage,
@@ -24,45 +29,35 @@ function VoicePage() {
   const [error, setError] = useState("");
   const [parsed, setParsed] = useState<Parsed | null>(null);
   const [chosenType, setChosenType] = useState<ItemType>("note");
+  const [aiCategory, setAiCategory] = useState<string | null>(null);
+  const [aiBusy, setAiBusy] = useState(false);
   const sessionRef = useRef<VoiceSession | null>(null);
 
   useEffect(() => {
     setSupported(isVoiceSupported());
   }, []);
 
+  async function backupNow() {
+    const data = await exportAll();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `noble-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   function begin() {
     setError("");
     setText("");
     setParsed(null);
+    setAiCategory(null);
     setStatus("listening");
     const s = startVoice(
       lang,
       (interim) => setText(interim),
-      (final) => {
-        const captured = final || text;
-        setText(captured);
-        if (captured.trim()) {
-          if (autoRaw) {
-            // Save raw transcript as a Note, preserving any bilingual mix
-            const now = Date.now();
-            getDb().notes.add({
-              title: captured.length > 80 ? captured.slice(0, 77) + "…" : captured,
-              transcript: captured,
-              language: lang,
-              tags: ["raw"],
-              createdAt: now,
-              updatedAt: now,
-            }).then(() => nav({ to: "/notes" }));
-          } else {
-            const p = parseUtterance(captured, lang);
-            setParsed(p);
-            setChosenType(p.type);
-            setStatus("review");
-          }
-        } else {
-          setStatus("idle");
-        }
-      },
+      (final) => handleFinal(final || text),
       (err) => {
         setError(err);
         setStatus("idle");
@@ -75,12 +70,80 @@ function VoicePage() {
     sessionRef.current?.stop();
   }
 
-  function commitManual() {
-    if (!text.trim()) return;
-    const p = parseUtterance(text, lang);
+  async function handleFinal(captured: string) {
+    setText(captured);
+    if (!captured.trim()) {
+      setStatus("idle");
+      return;
+    }
+    // Try short-command dispatch first
+    const cmd = dispatchCommand(captured, {
+      navigate: nav,
+      openMic: () => setTimeout(begin, 300),
+      closeMic: () => sessionRef.current?.stop(),
+      signOut: () => {
+        signOut();
+        nav({ to: "/login" });
+      },
+      backup: () => void backupNow(),
+      call: (name) => {
+        getDb()
+          .contacts.filter((c) => c.fullName.toLowerCase().includes(name.toLowerCase()))
+          .first()
+          .then((c) => {
+            if (c?.phone) makeCall(c.phone);
+            else setError(lang === "id" ? "Kontak tidak ditemukan" : "Contact not found");
+          });
+      },
+    });
+    if (cmd.handled) {
+      setStatus("idle");
+      return;
+    }
+
+    if (autoRaw) {
+      const now = Date.now();
+      await getDb().notes.add({
+        title: captured.length > 80 ? captured.slice(0, 77) + "…" : captured,
+        transcript: captured,
+        language: lang,
+        tags: ["raw"],
+        createdAt: now,
+        updatedAt: now,
+      });
+      nav({ to: "/notes" });
+      return;
+    }
+
+    const p = parseUtterance(captured, lang);
     setParsed(p);
     setChosenType(p.type);
     setStatus("review");
+
+    // Premium AI enrichment: refine type + category via Lovable AI (Gemini)
+    if (isPremium()) {
+      setAiBusy(true);
+      try {
+        const res = await analyzeVoice({ data: { transcript: captured } });
+        if (res.ok) {
+          setChosenType(res.result.type);
+          setAiCategory(res.result.category);
+          setParsed({
+            ...p,
+            title: res.result.title || p.title,
+          });
+        }
+      } catch {
+        /* fall back silently to local parser */
+      } finally {
+        setAiBusy(false);
+      }
+    }
+  }
+
+  function commitManual() {
+    if (!text.trim()) return;
+    handleFinal(text);
   }
 
   async function save() {
@@ -88,6 +151,7 @@ function VoicePage() {
     const db = getDb();
     const now = Date.now();
     const type = chosenType;
+    const tags = aiCategory ? [aiCategory] : [];
     let id: number | undefined;
     let label = parsed.title;
     if (type === "note") {
@@ -95,7 +159,7 @@ function VoicePage() {
         title: parsed.title,
         transcript: parsed.body ?? text,
         language: lang,
-        tags: [],
+        tags,
         createdAt: now,
         updatedAt: now,
       });
@@ -133,7 +197,7 @@ function VoicePage() {
       id = await db.contacts.add({
         fullName: parsed.contact?.fullName ?? parsed.title,
         email: parsed.contact?.email,
-        tags: [],
+        tags,
         createdAt: now,
       });
       label = parsed.contact?.fullName ?? parsed.title;
@@ -144,17 +208,12 @@ function VoicePage() {
     }
 
     const dest =
-      type === "note"
-        ? "/notes"
-        : type === "task"
-          ? "/tasks"
-          : type === "meeting"
-            ? "/meetings"
-            : type === "appointment"
-              ? "/appointments"
-              : type === "contact"
-                ? "/contacts"
-                : "/notes";
+      type === "note" ? "/notes"
+      : type === "task" ? "/tasks"
+      : type === "meeting" ? "/meetings"
+      : type === "appointment" ? "/appointments"
+      : type === "contact" ? "/contacts"
+      : "/notes";
     nav({ to: dest });
   }
 
@@ -182,11 +241,9 @@ function VoicePage() {
           </button>
         </div>
         <p className="text-sm text-muted-foreground">
-          {status === "listening"
-            ? t(lang, "listening")
-            : status === "review"
-              ? t(lang, "confirmSave")
-              : t(lang, "tapToSpeak")}
+          {status === "listening" ? t(lang, "listening")
+            : status === "review" ? t(lang, "confirmSave")
+            : t(lang, "tapToSpeak")}
         </p>
         <p className="text-[10px] uppercase tracking-widest text-muted-foreground mt-1">
           {lang === "id" ? "Bahasa Indonesia" : "English"}
@@ -219,7 +276,19 @@ function VoicePage() {
 
       {status === "review" && parsed && (
         <div className="mt-5 rounded-3xl bg-accent/15 border border-accent/40 p-4">
-          <p className="text-xs text-muted-foreground mb-2">{t(lang, "parsedAs")}</p>
+          <div className="flex items-center gap-2 mb-2">
+            <p className="text-xs text-muted-foreground">{t(lang, "parsedAs")}</p>
+            {aiBusy && (
+              <span className="inline-flex items-center gap-1 text-[10px] text-primary">
+                <Sparkles size={10} className="animate-pulse" /> AI
+              </span>
+            )}
+            {aiCategory && (
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/20 text-primary font-semibold uppercase tracking-wider">
+                {aiCategory}
+              </span>
+            )}
+          </div>
           <p className="text-lg font-semibold mb-3">{parsed.title}</p>
           {parsed.when && (
             <p className="text-sm text-muted-foreground mb-3">
@@ -275,12 +344,11 @@ function VoicePage() {
           {t(lang, "tryCommands")}
         </p>
         <ul className="space-y-1.5 text-sm">
-          <li className="text-foreground/80">“{t(lang, "example1")}”</li>
-          <li className="text-foreground/80">“{t(lang, "example2")}”</li>
-          <li className="text-foreground/80">“{t(lang, "example3")}”</li>
-          <li className="text-foreground/60 text-xs mt-2">
-            🎙 “Hey Google, {wake}”
-          </li>
+          <li className="text-foreground/80">"{t(lang, "example1")}"</li>
+          <li className="text-foreground/80">"{t(lang, "example2")}"</li>
+          <li className="text-foreground/80">"open calendar" · "open tasks" · "call Sarah"</li>
+          <li className="text-foreground/80">"open mic" · "close mic" · "standby"</li>
+          <li className="text-foreground/60 text-xs mt-2">🎙 "Hey Google, {wake}"</li>
         </ul>
       </div>
     </AppShell>
