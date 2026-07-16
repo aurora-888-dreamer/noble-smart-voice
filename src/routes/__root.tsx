@@ -77,32 +77,34 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
-      { name: "theme-color", content: "#e85d3d" },
-      { title: "VoiceTag — Voice Organizer" },
+      { name: "theme-color", content: "#0A192F" },
+      { title: "Noble — Executive Voice Assistant" },
       {
         name: "description",
         content:
-          "Bilingual voice-first personal organizer for notes, tasks, meetings, appointments, and contacts. Installable on Android.",
+          "A local-first, encrypted, voice-first executive assistant. Notes, tasks, meetings, trips, contacts — offline-ready, bilingual, and installable.",
       },
       { name: "apple-mobile-web-app-capable", content: "yes" },
-      { name: "apple-mobile-web-app-title", content: "VoiceTag" },
-      { property: "og:title", content: "VoiceTag — Voice Organizer" },
+      { name: "apple-mobile-web-app-title", content: "Noble" },
+      { property: "og:title", content: "Noble — Executive Voice Assistant" },
       {
         property: "og:description",
         content:
-          "Bilingual voice-first personal organizer for notes, tasks, meetings, appointments, and contacts. Installable on Android.",
+          "Deep navy. Champagne gold. A local-first, encrypted, voice-first executive assistant.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "VoiceTag — Voice Organizer" },
-      { name: "twitter:description", content: "Bilingual voice-first personal organizer for notes, tasks, meetings, appointments, and contacts. Installable on Android." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/e7fc4631-fc6e-4c1b-a92c-7c176ea015fb/id-preview-5690f6e8--04885b5b-5bc3-4009-8124-6b02d3b91825.lovable.app-1784178386584.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/e7fc4631-fc6e-4c1b-a92c-7c176ea015fb/id-preview-5690f6e8--04885b5b-5bc3-4009-8124-6b02d3b91825.lovable.app-1784178386584.png" },
+      { name: "twitter:title", content: "Noble — Executive Voice Assistant" },
+      { name: "twitter:description", content: "Local-first, encrypted, voice-first executive assistant." },
     ],
     links: [
       {
         rel: "stylesheet",
         href: appCss,
+      },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap",
       },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
       { rel: "apple-touch-icon", href: "/icon-512.png" },
