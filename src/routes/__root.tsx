@@ -90,12 +90,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         property: "og:description",
         content:
-          "Deep navy. Champagne gold. A local-first, encrypted, voice-first executive assistant.",
+          "A local-first, encrypted, voice-first executive assistant. Notes, tasks, meetings, trips, contacts — offline-ready, bilingual, and installable.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "Noble — Executive Voice Assistant" },
-      { name: "twitter:description", content: "Local-first, encrypted, voice-first executive assistant." },
+      { name: "twitter:description", content: "A local-first, encrypted, voice-first executive assistant. Notes, tasks, meetings, trips, contacts — offline-ready, bilingual, and installable." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/a8c79853-0abe-4b9a-9791-94fb469e849f/id-preview-0c522fa6--3130e489-bfb7-4520-aa4c-9d1866ce32bf.lovable.app-1784222701196.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/a8c79853-0abe-4b9a-9791-94fb469e849f/id-preview-0c522fa6--3130e489-bfb7-4520-aa4c-9d1866ce32bf.lovable.app-1784222701196.png" },
     ],
     links: [
       {
