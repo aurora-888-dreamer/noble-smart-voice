@@ -245,24 +245,21 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
     if (modeRef.current !== "off") return;
     setMode("wake");
     modeRef.current = "wake";
+    // Prime the mic quietly so the wake session gets a noise-suppressed stream.
+    void primeMicrophone();
     const listen = () => {
       const s = startVoice(
         langRef.current,
         () => {},
         (final) => {
-          const norm = normalize(final);
-          const phrase = normalize(wakePhrase);
-          if (norm && phrase && norm.includes(phrase)) {
-            // Transition to active listening
+          if (wakeMatches(final, wakePhrase)) {
             setMode("off"); modeRef.current = "off";
             setTimeout(() => startActiveInternal(), 250);
           } else if (modeRef.current === "wake") {
-            // keep listening
-            setTimeout(listen, 300);
+            setTimeout(listen, 200);
           }
         },
         () => {
-          // On error: retry after a delay if still in wake mode
           if (modeRef.current === "wake") setTimeout(listen, 1500);
         },
       );
@@ -278,22 +275,24 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
     modeRef.current = "active";
     setTranscript("");
     showToast(langRef.current === "id" ? "Mic aktif" : "Mic on");
-    const loop = () => {
+
+    // Ensure the mic stream carries echo cancellation + noise suppression.
+    void primeMicrophone();
+
+    const startLoop = () => {
       const s = startVoice(
         langRef.current,
         (interim) => setTranscript(interim),
         (final) => {
-          setTranscript("");
           const text = (final || "").trim();
-          if (text) {
-            const norm = normalize(text);
-            if (/\b(close mic|stop mic|stop|standby|berhenti|matikan mic)\b/.test(norm)) {
-              stopActiveInternal();
-              return;
-            }
-            void saveToCurrentMenu(text);
+          setTranscript("");
+          if (!text) return;
+          const norm = normalize(text);
+          if (/\b(close mic|stop mic|mute mic|standby|berhenti|matikan mic|tutup mic|stop)\b/.test(norm)) {
+            stopActiveInternal();
+            return;
           }
-          if (modeRef.current === "active") setTimeout(loop, 250);
+          void saveToCurrentMenu(text);
         },
         (err) => {
           if (err === "not-allowed" || err === "service-not-allowed") {
@@ -301,13 +300,20 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
             stopActiveInternal();
             return;
           }
-          if (modeRef.current === "active") setTimeout(loop, 800);
+          // On no-speech / network / aborted: reconnect quickly if still active.
+          if (modeRef.current === "active") {
+            setTimeout(() => {
+              if (modeRef.current === "active") startLoop();
+            }, 400);
+          }
         },
+        { continuous: true },
       );
       sessionRef.current = s;
     };
-    loop();
+    startLoop();
   };
+
 
   const stopActiveInternal = () => {
     stopSession();
