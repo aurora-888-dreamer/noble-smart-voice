@@ -145,7 +145,7 @@ export function removePairedDevice(id: string) {
 /** Import a packet on the receiving side. Returns the destination route. */
 export async function importPacket(
   packet: unknown,
-): Promise<{ ok: boolean; type?: ItemType; count?: number; route?: string; error?: string }> {
+): Promise<{ ok: boolean; type?: PacketType; count?: number; route?: string; error?: string }> {
   if (!packet || typeof packet !== "object") return { ok: false, error: "Invalid packet" };
   const p = packet as Partial<NoblePacket>;
   if (p.__noble !== true || !p.type || !Array.isArray(p.items)) {
@@ -154,7 +154,6 @@ export async function importPacket(
   const { getDb } = await import("./db");
   const db = getDb();
   const type = p.type;
-  // Strip ids so they get regenerated on the receiver
   const items = p.items.map((it) => {
     if (it && typeof it === "object") {
       const copy: Record<string, unknown> = { ...(it as Record<string, unknown>) };
@@ -167,26 +166,34 @@ export async function importPacket(
   const withStamp = <T extends Record<string, unknown>>(rows: T[]) =>
     rows.map((r) => ({ createdAt: now, ...r }));
 
-  const routes: Record<ItemType, string> = {
+  const routes: Record<PacketType, string> = {
     note: "/notes",
     task: "/tasks",
     meeting: "/meetings",
     appointment: "/appointments",
     contact: "/contacts",
     message: "/notes",
+    trip: "/trips",
+    project: "/projects",
+    reminder: "/reminders",
   };
 
+  const rows = withStamp(items as Record<string, unknown>[]);
+
   try {
-    if (type === "note") await db.notes.bulkAdd(withStamp(items as Record<string, unknown>[]) as never);
-    else if (type === "task") await db.tasks.bulkAdd(withStamp(items as Record<string, unknown>[]) as never);
-    else if (type === "meeting") await db.meetings.bulkAdd(withStamp(items as Record<string, unknown>[]) as never);
-    else if (type === "appointment")
-      await db.appointments.bulkAdd(withStamp(items as Record<string, unknown>[]) as never);
-    else if (type === "contact") await db.contacts.bulkAdd(withStamp(items as Record<string, unknown>[]) as never);
-    else if (type === "message") await db.messages.bulkAdd(withStamp(items as Record<string, unknown>[]) as never);
+    if (type === "note") await db.notes.bulkAdd(rows as never);
+    else if (type === "task") await db.tasks.bulkAdd(rows as never);
+    else if (type === "meeting") await db.meetings.bulkAdd(rows as never);
+    else if (type === "appointment") await db.appointments.bulkAdd(rows as never);
+    else if (type === "contact") await db.contacts.bulkAdd(rows as never);
+    else if (type === "message") await db.messages.bulkAdd(rows as never);
+    else if (type === "trip") await db.trips.bulkAdd(rows as never);
+    else if (type === "project") await db.projects.bulkAdd(rows as never);
+    else if (type === "reminder") await db.reminders.bulkAdd(rows as never);
     else return { ok: false, error: `Unknown type: ${type}` };
     return { ok: true, type, count: items.length, route: routes[type] };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : String(err) };
   }
 }
+
