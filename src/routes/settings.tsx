@@ -13,6 +13,8 @@ import {
   ShieldCheck,
   BookOpen,
   HardDrive,
+  Bluetooth,
+  X as XIcon,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { useLang, useWakePhrase, useAutoSaveRaw } from "@/lib/settings-store";
