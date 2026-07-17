@@ -17,6 +17,7 @@ import {
 import { AppShell } from "@/components/AppShell";
 import { useLang, useWakePhrase, useAutoSaveRaw } from "@/lib/settings-store";
 import { t, type Lang } from "@/lib/i18n";
+import { useVoice } from "@/lib/voice-controller";
 import { exportAll, importAll } from "@/lib/db";
 import {
   getProfile,
