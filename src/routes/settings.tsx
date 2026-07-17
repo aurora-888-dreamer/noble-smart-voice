@@ -30,6 +30,15 @@ import {
   removeBiometric,
   signOut,
 } from "@/lib/auth-store";
+import {
+  addPairedDevice,
+  canShareBluetooth,
+  getPairedDevices,
+  isWebBluetoothSupported,
+  removePairedDevice,
+  scanBluetoothDevice,
+  type BTDeviceInfo,
+} from "@/lib/bluetooth-share";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({ meta: [{ title: "Settings — Noble" }] }),
