@@ -1,5 +1,6 @@
 import { useState } from "react";
 import {
+  Bluetooth,
   CheckSquare,
   Copy,
   MoveRight,
@@ -28,6 +29,7 @@ export function SelectionBar({
   onShareWA,
   onShareEmail,
   onPrint,
+  onBluetooth,
   moveTargets,
 }: {
   count: number;
@@ -41,6 +43,7 @@ export function SelectionBar({
   onShareWA?: () => void;
   onShareEmail?: () => void;
   onPrint?: () => void;
+  onBluetooth?: () => void;
   moveTargets?: MoveTarget[];
 }) {
   const [lang] = useLang();
@@ -125,6 +128,16 @@ export function SelectionBar({
         {onPrint && count > 0 && (
           <button onClick={onPrint} className="p-2 rounded-full hover:bg-secondary text-primary" aria-label="Print">
             <Printer size={16} />
+          </button>
+        )}
+        {onBluetooth && count > 0 && (
+          <button
+            onClick={onBluetooth}
+            className="p-2 rounded-full hover:bg-secondary text-primary"
+            aria-label="Bluetooth"
+            title="Send via Bluetooth / Nearby Share"
+          >
+            <Bluetooth size={16} />
           </button>
         )}
         {count > 0 && (

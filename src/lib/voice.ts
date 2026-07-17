@@ -8,11 +8,14 @@ interface SpeechRecognition extends EventTarget {
   lang: string;
   continuous: boolean;
   interimResults: boolean;
+  maxAlternatives: number;
   start(): void;
   stop(): void;
+  abort(): void;
   onresult: ((e: SpeechRecognitionEvent) => void) | null;
   onerror: ((e: SpeechRecognitionErrorEvent) => void) | null;
   onend: (() => void) | null;
+  onspeechend: (() => void) | null;
 }
 interface SpeechRecognitionEvent extends Event {
   resultIndex: number;
@@ -32,6 +35,7 @@ interface SpeechRecognitionResult {
 }
 interface SpeechRecognitionAlternative {
   transcript: string;
+  confidence: number;
 }
 
 export function isVoiceSupported(): boolean {
@@ -44,36 +48,99 @@ export interface VoiceSession {
   stop(): void;
 }
 
+export interface StartVoiceOptions {
+  /** Keep the recognizer running across utterances until stop() is called. */
+  continuous?: boolean;
+}
+
+/**
+ * Prime the microphone with echo cancellation, noise suppression and AGC
+ * enabled. SpeechRecognition doesn't accept these constraints directly, but
+ * granting the mic first with the right constraints lets Chrome pick up the
+ * processed stream for subsequent recognition sessions on the same origin.
+ */
+let _primed = false;
+export async function primeMicrophone(): Promise<boolean> {
+  if (_primed) return true;
+  if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) return false;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        channelCount: 1,
+        sampleRate: 48000,
+      } as MediaTrackConstraints,
+    });
+    // Release immediately; SpeechRecognition opens its own capture.
+    stream.getTracks().forEach((t) => t.stop());
+    _primed = true;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function startVoice(
   lang: Lang,
   onInterim: (text: string) => void,
   onFinal: (text: string) => void,
   onError: (err: string) => void,
+  options: StartVoiceOptions = {},
 ): VoiceSession | null {
   const w = window as unknown as { SpeechRecognition?: SR; webkitSpeechRecognition?: SR };
   const Ctor = w.SpeechRecognition || w.webkitSpeechRecognition;
   if (!Ctor) return null;
   const rec = new Ctor();
   rec.lang = lang === "id" ? "id-ID" : "en-US";
-  rec.continuous = false;
+  rec.continuous = options.continuous === true;
   rec.interimResults = true;
+  rec.maxAlternatives = 3;
   let finalText = "";
+  let stopped = false;
   rec.onresult = (e) => {
     let interim = "";
     for (let i = e.resultIndex; i < e.results.length; i++) {
       const r = e.results[i];
-      if (r.isFinal) finalText += r[0].transcript;
-      else interim += r[0].transcript;
+      // Pick the alternative with the highest confidence (fall back to first).
+      let best = r[0];
+      for (let j = 1; j < r.length; j++) {
+        if (r[j].confidence > best.confidence) best = r[j];
+      }
+      if (r.isFinal) {
+        finalText += best.transcript;
+        if (options.continuous) {
+          // Emit each final utterance individually in continuous mode.
+          const chunk = best.transcript.trim();
+          if (chunk) onFinal(chunk);
+          finalText = "";
+        }
+      } else {
+        interim += best.transcript;
+      }
     }
     if (interim) onInterim(finalText + interim);
   };
   rec.onerror = (e) => onError(e.error);
-  rec.onend = () => onFinal(finalText.trim());
+  rec.onend = () => {
+    if (stopped) return;
+    if (!options.continuous) onFinal(finalText.trim());
+  };
   try {
     rec.start();
   } catch (err) {
     onError(String(err));
     return null;
   }
-  return { stop: () => rec.stop() };
+  return {
+    stop: () => {
+      stopped = true;
+      try {
+        rec.stop();
+      } catch {
+        /* ignore */
+      }
+    },
+  };
 }

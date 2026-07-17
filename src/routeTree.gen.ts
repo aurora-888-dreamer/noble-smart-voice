@@ -14,6 +14,7 @@ import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as RemindersRouteImport } from './routes/reminders'
 import { Route as RegisterRouteImport } from './routes/register'
+import { Route as ReceiveRouteImport } from './routes/receive'
 import { Route as ProjectsRouteImport } from './routes/projects'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as NotesRouteImport } from './routes/notes'
@@ -50,6 +51,11 @@ const RemindersRoute = RemindersRouteImport.update({
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReceiveRoute = ReceiveRouteImport.update({
+  id: '/receive',
+  path: '/receive',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProjectsRoute = ProjectsRouteImport.update({
@@ -126,6 +132,7 @@ export interface FileRoutesByFullPath {
   '/notes': typeof NotesRoute
   '/onboarding': typeof OnboardingRoute
   '/projects': typeof ProjectsRoute
+  '/receive': typeof ReceiveRoute
   '/register': typeof RegisterRoute
   '/reminders': typeof RemindersRoute
   '/settings': typeof SettingsRoute
@@ -145,6 +152,7 @@ export interface FileRoutesByTo {
   '/notes': typeof NotesRoute
   '/onboarding': typeof OnboardingRoute
   '/projects': typeof ProjectsRoute
+  '/receive': typeof ReceiveRoute
   '/register': typeof RegisterRoute
   '/reminders': typeof RemindersRoute
   '/settings': typeof SettingsRoute
@@ -165,6 +173,7 @@ export interface FileRoutesById {
   '/notes': typeof NotesRoute
   '/onboarding': typeof OnboardingRoute
   '/projects': typeof ProjectsRoute
+  '/receive': typeof ReceiveRoute
   '/register': typeof RegisterRoute
   '/reminders': typeof RemindersRoute
   '/settings': typeof SettingsRoute
@@ -186,6 +195,7 @@ export interface FileRouteTypes {
     | '/notes'
     | '/onboarding'
     | '/projects'
+    | '/receive'
     | '/register'
     | '/reminders'
     | '/settings'
@@ -205,6 +215,7 @@ export interface FileRouteTypes {
     | '/notes'
     | '/onboarding'
     | '/projects'
+    | '/receive'
     | '/register'
     | '/reminders'
     | '/settings'
@@ -224,6 +235,7 @@ export interface FileRouteTypes {
     | '/notes'
     | '/onboarding'
     | '/projects'
+    | '/receive'
     | '/register'
     | '/reminders'
     | '/settings'
@@ -244,6 +256,7 @@ export interface RootRouteChildren {
   NotesRoute: typeof NotesRoute
   OnboardingRoute: typeof OnboardingRoute
   ProjectsRoute: typeof ProjectsRoute
+  ReceiveRoute: typeof ReceiveRoute
   RegisterRoute: typeof RegisterRoute
   RemindersRoute: typeof RemindersRoute
   SettingsRoute: typeof SettingsRoute
@@ -286,6 +299,13 @@ declare module '@tanstack/react-router' {
       path: '/register'
       fullPath: '/register'
       preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/receive': {
+      id: '/receive'
+      path: '/receive'
+      fullPath: '/receive'
+      preLoaderRoute: typeof ReceiveRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/projects': {
@@ -388,6 +408,7 @@ const rootRouteChildren: RootRouteChildren = {
   NotesRoute: NotesRoute,
   OnboardingRoute: OnboardingRoute,
   ProjectsRoute: ProjectsRoute,
+  ReceiveRoute: ReceiveRoute,
   RegisterRoute: RegisterRoute,
   RemindersRoute: RemindersRoute,
   SettingsRoute: SettingsRoute,
