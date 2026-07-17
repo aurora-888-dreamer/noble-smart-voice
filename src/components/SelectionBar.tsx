@@ -29,6 +29,7 @@ export function SelectionBar({
   onShareWA,
   onShareEmail,
   onPrint,
+  onBluetooth,
   moveTargets,
 }: {
   count: number;
@@ -42,6 +43,7 @@ export function SelectionBar({
   onShareWA?: () => void;
   onShareEmail?: () => void;
   onPrint?: () => void;
+  onBluetooth?: () => void;
   moveTargets?: MoveTarget[];
 }) {
   const [lang] = useLang();
