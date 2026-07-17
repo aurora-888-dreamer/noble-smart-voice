@@ -52,7 +52,7 @@ export function canShareBluetooth(): boolean {
  * back to downloading the packet file so the user can transfer it manually.
  */
 export async function sendViaBluetooth(
-  type: ItemType,
+  type: PacketType,
   items: unknown[],
   opts?: { title?: string },
 ): Promise<{ ok: boolean; fallback?: "download" | "unsupported"; error?: string }> {
