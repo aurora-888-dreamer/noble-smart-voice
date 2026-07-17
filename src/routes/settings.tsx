@@ -297,6 +297,32 @@ function SettingsPage() {
 function Card({ children }: { children: React.ReactNode }) {
   return <div className="rounded-2xl bg-card border border-border p-4 mb-3">{children}</div>;
 }
+
+function WakeToggle({ lang }: { lang: Lang }) {
+  const { wakeEnabled, setWakeEnabled } = useVoice();
+  return (
+    <div className="mt-3 flex items-center justify-between">
+      <p className="text-xs font-medium">
+        {lang === "id" ? "Dengarkan frasa bangun" : "Listen for wake phrase"}
+      </p>
+      <button
+        onClick={() => setWakeEnabled(!wakeEnabled)}
+        role="switch"
+        aria-checked={wakeEnabled}
+        className={`shrink-0 w-11 h-6 rounded-full relative transition-colors ${
+          wakeEnabled ? "bg-primary" : "bg-muted"
+        }`}
+      >
+        <span
+          className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all ${
+            wakeEnabled ? "left-[22px]" : "left-0.5"
+          }`}
+        />
+      </button>
+    </div>
+  );
+}
+
 function Label({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
