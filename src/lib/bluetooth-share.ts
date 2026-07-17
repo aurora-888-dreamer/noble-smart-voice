@@ -8,15 +8,17 @@
 
 import type { ItemType } from "./db";
 
+export type PacketType = ItemType | "trip" | "project" | "reminder";
+
 export interface NoblePacket {
   __noble: true;
   version: 1;
-  type: ItemType;
+  type: PacketType;
   createdAt: number;
   items: unknown[];
 }
 
-export function buildPacket(type: ItemType, items: unknown[]): NoblePacket {
+export function buildPacket(type: PacketType, items: unknown[]): NoblePacket {
   return { __noble: true, version: 1, type, createdAt: Date.now(), items };
 }
 
