@@ -232,6 +232,10 @@ function SettingsPage() {
         </div>
       </Card>
 
+      <BluetoothCard lang={lang} />
+
+
+
       <Card>
         <Label icon={<BookOpen size={14} />}>{t(lang, "guide")}</Label>
         <Link
