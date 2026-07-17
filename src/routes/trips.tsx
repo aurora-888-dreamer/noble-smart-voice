@@ -1,11 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Trash2, Plus, MapPin, Plane, X, Pencil } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { DateRangeFilter, inRange } from "@/components/DateRangeFilter";
+import { SelectionBar } from "@/components/SelectionBar";
+import { useMultiSelect } from "@/hooks/useMultiSelect";
 import { getDb, type Trip } from "@/lib/db";
 import { useLang } from "@/lib/settings-store";
 import { t } from "@/lib/i18n";
+import { shareManyEmail, shareManyWA, printMany } from "@/lib/bulk-share";
 
 export const Route = createFileRoute("/trips")({
   head: () => ({ meta: [{ title: "Trip Plan — Noble" }] }),
@@ -25,26 +29,91 @@ function toDateInput(ts?: number) {
 function TripsPage() {
   const [lang] = useLang();
   const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const sel = useMultiSelect<number>();
   const trips = useLiveQuery(async () => {
     if (typeof window === "undefined") return [];
     return getDb().trips.orderBy("createdAt").reverse().toArray();
   }, []);
 
+  const filtered = useMemo(() => {
+    return (trips ?? []).filter((tr) => {
+      if (!inRange(tr.createdAt, from, to)) return false;
+      if (!q) return true;
+      const s = q.toLowerCase();
+      return tr.title.toLowerCase().includes(s) || tr.destination.toLowerCase().includes(s);
+    });
+  }, [trips, q, from, to]);
+
+  const visibleIds = filtered.map((n) => n.id!).filter(Boolean);
+  const selectedRows = filtered.filter((n) => n.id && sel.isSelected(n.id));
+  const payload = selectedRows.map((r) => ({
+    title: r.title,
+    body: `${r.destination}\n${r.stops.map((s) => `- ${s.label}`).join("\n")}\n\nPacking:\n${r.packingList.map((p) => `- ${p.text}`).join("\n")}`,
+  }));
+
+  async function bulkDelete() {
+    await getDb().trips.bulkDelete([...sel.selected]);
+    sel.exit();
+  }
+  async function bulkDuplicate() {
+    const now = Date.now();
+    await getDb().trips.bulkAdd(
+      selectedRows.map((r) => ({
+        title: `${r.title} (copy)`,
+        destination: r.destination,
+        startAt: r.startAt,
+        endAt: r.endAt,
+        stops: [...r.stops],
+        packingList: r.packingList.map((p) => ({ ...p })),
+        notes: r.notes,
+        createdAt: now,
+      })),
+    );
+    sel.exit();
+  }
+
   return (
     <AppShell title={t(lang, "trips")}>
+      <input
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder={t(lang, "search")}
+        className="w-full rounded-full border border-border bg-card px-4 py-2 text-sm mb-2 outline-none focus:border-primary"
+      />
+      <DateRangeFilter from={from} to={to} onFrom={setFrom} onTo={setTo} />
+
       <button
         onClick={() => setOpen(true)}
-        className="w-full mb-4 rounded-2xl bg-primary text-primary-foreground py-3 font-semibold flex items-center justify-center gap-2"
+        className="w-full mb-3 rounded-2xl bg-primary text-primary-foreground py-3 font-semibold flex items-center justify-center gap-2"
       >
         <Plus size={18} /> {t(lang, "newTrip")}
       </button>
 
       {open && <NewTripForm lang={lang} onClose={() => setOpen(false)} />}
 
-      {trips && trips.length > 0 ? (
+      <div className="flex justify-between items-center mb-2">
+        <p className="text-xs text-muted-foreground">{filtered.length}</p>
+        {!sel.selectMode && filtered.length > 0 && (
+          <button onClick={() => sel.enter()} className="text-xs font-semibold text-primary">
+            {t(lang, "select")}
+          </button>
+        )}
+      </div>
+
+      {filtered.length > 0 ? (
         <ul className="space-y-3">
-          {trips.map((trip) => (
-            <TripCard key={trip.id} trip={trip} lang={lang} />
+          {filtered.map((trip) => (
+            <TripCard
+              key={trip.id}
+              trip={trip}
+              lang={lang}
+              selectMode={sel.selectMode}
+              selected={trip.id ? sel.isSelected(trip.id) : false}
+              onToggle={() => trip.id && sel.toggle(trip.id)}
+            />
           ))}
         </ul>
       ) : (
@@ -54,9 +123,24 @@ function TripsPage() {
           </p>
         )
       )}
+
+      {sel.selectMode && (
+        <SelectionBar
+          count={sel.count}
+          totalVisible={filtered.length}
+          onSelectAll={() => sel.selectAll(visibleIds)}
+          onCancel={sel.exit}
+          onDelete={bulkDelete}
+          onDuplicate={bulkDuplicate}
+          onShareWA={() => shareManyWA(payload)}
+          onShareEmail={() => shareManyEmail(payload)}
+          onPrint={() => printMany(payload)}
+        />
+      )}
     </AppShell>
   );
 }
+
 
 function NewTripForm({ lang, onClose }: { lang: "en" | "id"; onClose: () => void }) {
   const [title, setTitle] = useState("");
@@ -98,7 +182,19 @@ function NewTripForm({ lang, onClose }: { lang: "en" | "id"; onClose: () => void
   );
 }
 
-function TripCard({ trip, lang }: { trip: Trip; lang: "en" | "id" }) {
+function TripCard({
+  trip,
+  lang,
+  selectMode,
+  selected,
+  onToggle,
+}: {
+  trip: Trip;
+  lang: "en" | "id";
+  selectMode: boolean;
+  selected: boolean;
+  onToggle: () => void;
+}) {
   const [stop, setStop] = useState("");
   const [item, setItem] = useState("");
   const [editing, setEditing] = useState(false);
@@ -152,9 +248,23 @@ function TripCard({ trip, lang }: { trip: Trip; lang: "en" | "id" }) {
   }
 
   return (
-    <li className="rounded-2xl bg-card border border-border p-4">
+    <li
+      onClick={() => selectMode && onToggle()}
+      className={`rounded-2xl border p-4 transition-colors ${
+        selected ? "border-primary bg-primary/10" : "bg-card border-border"
+      }`}
+    >
       <div className="flex items-start justify-between gap-2">
+        {selectMode && (
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={onToggle}
+            className="mt-1 accent-primary"
+          />
+        )}
         <div className="flex-1">
+
           {editing ? (
             <div className="space-y-2">
               <Field label={t(lang, "title")} value={title} onChange={setTitle} />
