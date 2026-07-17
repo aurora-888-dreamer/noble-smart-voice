@@ -1,7 +1,7 @@
 {
-  "name": "VoiceTag — Voice Organizer",
-  "short_name": "VoiceTag",
-  "description": "A bilingual voice-first personal organizer for notes, tasks, meetings, appointments, reminders, and contacts.",
+  "name": "Noble — Voice Executive Assistant",
+  "short_name": "Noble",
+  "description": "Bilingual voice-first executive assistant: notes, tasks, meetings, contacts, and Bluetooth transfer between devices.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#faf6ef",
@@ -10,5 +10,23 @@
   "icons": [
     { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "/icon-512.png", "sizes": "192x192", "type": "image/png", "purpose": "any" }
+  ],
+  "share_target": {
+    "action": "/receive",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "files": [
+        { "name": "file", "accept": ["application/json", ".json", ".noble"] }
+      ]
+    }
+  },
+  "file_handlers": [
+    {
+      "action": "/receive",
+      "accept": { "application/json": [".noble.json", ".noble"] }
+    }
   ]
 }
