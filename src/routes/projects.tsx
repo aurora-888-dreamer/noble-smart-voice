@@ -173,7 +173,19 @@ function NewProjectForm({ lang, onClose }: { lang: "en" | "id"; onClose: () => v
   );
 }
 
-function ProjectCard({ project, lang }: { project: Project; lang: "en" | "id" }) {
+function ProjectCard({
+  project,
+  lang,
+  selectMode,
+  selected,
+  onToggle,
+}: {
+  project: Project;
+  lang: "en" | "id";
+  selectMode: boolean;
+  selected: boolean;
+  onToggle: () => void;
+}) {
   const [label, setLabel] = useState("");
   const [due, setDue] = useState("");
 
