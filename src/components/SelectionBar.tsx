@@ -130,6 +130,16 @@ export function SelectionBar({
             <Printer size={16} />
           </button>
         )}
+        {onBluetooth && count > 0 && (
+          <button
+            onClick={onBluetooth}
+            className="p-2 rounded-full hover:bg-secondary text-primary"
+            aria-label="Bluetooth"
+            title="Send via Bluetooth / Nearby Share"
+          >
+            <Bluetooth size={16} />
+          </button>
+        )}
         {count > 0 && (
           <button
             onClick={onDelete}
