@@ -51,6 +51,41 @@ function normalize(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
 }
 
+// Fuzzy wake match: allow small mis-hearings (e.g. "aurora star" vs "aurora start",
+// "arora start", "hello aurora start now"). Matches if the phrase's words all
+// appear within a 4-word window of the utterance, tolerating one edit per word.
+function editDist(a: string, b: string, max: number): number {
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  const dp = Array.from({ length: a.length + 1 }, (_, i) => i);
+  for (let j = 1; j <= b.length; j++) {
+    let prev = dp[0];
+    dp[0] = j;
+    for (let i = 1; i <= a.length; i++) {
+      const tmp = dp[i];
+      dp[i] = a[i - 1] === b[j - 1] ? prev : 1 + Math.min(prev, dp[i], dp[i - 1]);
+      prev = tmp;
+    }
+  }
+  return dp[a.length];
+}
+function wakeMatches(utterance: string, phrase: string): boolean {
+  const u = normalize(utterance).split(" ").filter(Boolean);
+  const p = normalize(phrase).split(" ").filter(Boolean);
+  if (p.length === 0) return false;
+  for (let i = 0; i <= u.length - p.length; i++) {
+    let ok = true;
+    for (let k = 0; k < p.length; k++) {
+      const tol = Math.max(1, Math.floor(p[k].length / 4));
+      if (editDist(u[i + k], p[k], tol) > tol) {
+        ok = false;
+        break;
+      }
+    }
+    if (ok) return true;
+  }
+  return false;
+}
+
 export function VoiceProvider({ children }: { children: ReactNode }) {
   const [lang] = useLang();
   const [wakePhrase] = useWakePhrase();
