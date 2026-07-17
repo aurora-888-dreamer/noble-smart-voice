@@ -10,6 +10,7 @@ import { useMultiSelect } from "@/hooks/useMultiSelect";
 import { getDb, type Appointment } from "@/lib/db";
 import { useLang } from "@/lib/settings-store";
 import { t } from "@/lib/i18n";
+import { sendViaBluetooth } from "@/lib/bluetooth-share";
 import { shareManyEmail, shareManyWA, printMany } from "@/lib/bulk-share";
 
 export const Route = createFileRoute("/appointments")({
@@ -213,6 +214,7 @@ function AppointmentsPage() {
           onShareWA={() => shareManyWA(payload)}
           onShareEmail={() => shareManyEmail(payload)}
           onPrint={() => printMany(payload)}
+          onBluetooth={() => void sendViaBluetooth("appointment", selectedRows)}
         />
       )}
 
