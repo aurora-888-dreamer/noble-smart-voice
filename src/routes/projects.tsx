@@ -223,9 +223,23 @@ function ProjectCard({
   );
 
   return (
-    <li className="rounded-2xl bg-card border border-border p-4">
+    <li
+      onClick={() => selectMode && onToggle()}
+      className={`rounded-2xl border p-4 transition-colors ${
+        selected ? "border-primary bg-primary/10" : "bg-card border-border"
+      }`}
+    >
       <div className="flex items-start justify-between gap-2">
+        {selectMode && (
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={onToggle}
+            className="mt-1 accent-primary"
+          />
+        )}
         <div>
+
           <p className="font-semibold">{project.name}</p>
           {project.summary && (
             <p className="text-xs text-muted-foreground mt-0.5">{project.summary}</p>
