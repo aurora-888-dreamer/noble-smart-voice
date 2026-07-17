@@ -8,7 +8,7 @@
 //   button again, or an error kills the session.
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
-import { isVoiceSupported, startVoice, type VoiceSession } from "./voice";
+import { isVoiceSupported, startVoice, primeMicrophone, type VoiceSession } from "./voice";
 import { useLang, useWakePhrase, getAutoSaveRaw } from "./settings-store";
 import { parseUtterance } from "./parser";
 import { getDb, exportAll, type ItemType } from "./db";
