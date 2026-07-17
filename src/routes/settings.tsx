@@ -314,6 +314,117 @@ function Card({ children }: { children: React.ReactNode }) {
   return <div className="rounded-2xl bg-card border border-border p-4 mb-3">{children}</div>;
 }
 
+function BluetoothCard({ lang }: { lang: Lang }) {
+  const [paired, setPaired] = useState<BTDeviceInfo[]>([]);
+  const [scanning, setScanning] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const shareOk = canShareBluetooth();
+  const btOk = isWebBluetoothSupported();
+
+  useEffect(() => {
+    setPaired(getPairedDevices());
+  }, []);
+
+  async function pair() {
+    setMsg(null);
+    setScanning(true);
+    try {
+      const d = await scanBluetoothDevice();
+      if (d) {
+        addPairedDevice(d);
+        setPaired(getPairedDevices());
+        setMsg(lang === "id" ? `Tersimpan: ${d.name}` : `Saved: ${d.name}`);
+      }
+    } finally {
+      setScanning(false);
+    }
+  }
+
+  function unpair(id: string) {
+    removePairedDevice(id);
+    setPaired(getPairedDevices());
+  }
+
+  return (
+    <Card>
+      <Label icon={<Bluetooth size={14} />}>Bluetooth</Label>
+      <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+        {lang === "id"
+          ? "Di menu mana pun, pilih item lalu ketuk ikon Bluetooth untuk mengirim via Bluetooth / Nearby Share. Penerima buka file .noble.json — isinya masuk otomatis ke menu yang sama."
+          : "In any menu, select items and tap the Bluetooth icon to send via Bluetooth / Nearby Share. Receiver opens the .noble.json file — contents auto-import into the matching menu."}
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+        <span
+          className={`px-2 py-1 rounded-full ${
+            shareOk ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
+          }`}
+        >
+          {lang === "id" ? "Berbagi file" : "File share"}: {shareOk ? "✓" : "—"}
+        </span>
+        <span
+          className={`px-2 py-1 rounded-full ${
+            btOk ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
+          }`}
+        >
+          Web Bluetooth: {btOk ? "✓" : "—"}
+        </span>
+      </div>
+
+      {btOk && (
+        <button
+          onClick={pair}
+          disabled={scanning}
+          className="mt-3 w-full rounded-xl bg-primary text-primary-foreground py-2.5 text-sm font-semibold disabled:opacity-50"
+        >
+          {scanning
+            ? lang === "id"
+              ? "Memindai…"
+              : "Scanning…"
+            : lang === "id"
+              ? "Pasangkan perangkat baru"
+              : "Pair new device"}
+        </button>
+      )}
+
+      {paired.length > 0 && (
+        <ul className="mt-3 space-y-1.5">
+          {paired.map((d) => (
+            <li
+              key={d.id}
+              className="flex items-center justify-between rounded-lg bg-secondary px-3 py-2 text-xs"
+            >
+              <span className="truncate flex-1">{d.name}</span>
+              <button
+                onClick={() => unpair(d.id)}
+                className="text-muted-foreground hover:text-destructive"
+                aria-label="Remove"
+              >
+                <XIcon size={14} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <Link
+        to="/receive"
+        className="mt-3 inline-block rounded-xl bg-secondary text-secondary-foreground px-4 py-2 text-sm font-semibold"
+      >
+        {lang === "id" ? "Terima transfer" : "Receive transfer"}
+      </Link>
+
+      {msg && <p className="text-[11px] text-primary mt-2">{msg}</p>}
+      <p className="text-[10px] text-muted-foreground mt-3 leading-relaxed">
+        {lang === "id"
+          ? "Catatan: browser tidak bisa mengirim byte Bluetooth langsung ke HP lain. Kami serahkan file ke Bluetooth/Nearby Share HP — cara transfer HP-ke-HP paling andal."
+          : "Note: browsers can't send raw Bluetooth bytes to another phone. We hand the file to your phone's Bluetooth/Nearby Share — the most reliable phone-to-phone path."}
+      </p>
+    </Card>
+  );
+}
+
+
+
 function WakeToggle({ lang }: { lang: Lang }) {
   const { wakeEnabled, setWakeEnabled } = useVoice();
   return (
