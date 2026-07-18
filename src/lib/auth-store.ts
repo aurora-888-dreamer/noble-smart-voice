@@ -7,7 +7,6 @@ const PROFILE_KEY = "noble.profile";
 const PIN_KEY = "noble.pinHash";
 const SESSION_KEY = "noble.session";
 const BIO_KEY = "noble.bioCredential";
-const PREMIUM_KEY = "noble.premium";
 
 export interface Profile {
   name: string;
@@ -55,7 +54,6 @@ export async function register(input: {
   localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
   localStorage.setItem(PIN_KEY, await hashPin(input.pin));
   localStorage.setItem(SESSION_KEY, "1");
-  if (isAdmin) localStorage.setItem(PREMIUM_KEY, "admin");
   window.dispatchEvent(new Event("noble:auth"));
 }
 
@@ -172,25 +170,137 @@ export function removeBiometric() {
   localStorage.removeItem(BIO_KEY);
 }
 
-// ————— Premium activation —————
-export function isPremium(): boolean {
-  if (typeof window === "undefined") return false;
-  return !!localStorage.getItem(PREMIUM_KEY) || !!getProfile()?.isAdmin;
+// ————— Premium activation & licensing —————
+//
+// Model:
+// - LICENSE_KEY holds how premium was earned: a free 30-day trial (started
+//   automatically at registration) or an activation code. `durationDays`
+//   is null for codes that never expire (owner/admin test codes).
+// - MANUAL_OFF_KEY is a separate on/off switch, independent of the license
+//   itself — lets you flip back to the Standard experience for testing
+//   without losing your trial/code (flipping it back on doesn't require
+//   re-entering anything).
+const LICENSE_KEY = "noble.license";
+const MANUAL_OFF_KEY = "noble.premiumManualOff";
+const LEGACY_PREMIUM_KEY = "noble.premium"; // pre-license-model flag, migrated below
+
+export interface LicenseRecord {
+  source: "trial" | "code";
+  code: string;
+  tier: "standard" | "premium";
+  activatedAt: number;
+  /** null = never expires (owner/admin codes). Trials and future paid plans set 30/90/365. */
+  durationDays: number | null;
+}
+
+function getLicenseRecord(): LicenseRecord | null {
+  if (typeof window === "undefined") return null;
+  migrateLegacyPremiumFlag();
+  const raw = localStorage.getItem(LICENSE_KEY);
+  return raw ? (JSON.parse(raw) as LicenseRecord) : null;
+}
+
+function saveLicenseRecord(rec: LicenseRecord) {
+  localStorage.setItem(LICENSE_KEY, JSON.stringify(rec));
+  window.dispatchEvent(new Event("noble:auth"));
+}
+
+// One-time migration from the old boolean "noble.premium" flag used before
+// trials/expiry existed. Whatever code was stored there is treated as a
+// no-expiry code license, matching its old always-on behavior.
+function migrateLegacyPremiumFlag() {
+  if (localStorage.getItem(LICENSE_KEY)) return;
+  const legacy = localStorage.getItem(LEGACY_PREMIUM_KEY);
+  if (!legacy) return;
+  localStorage.setItem(
+    LICENSE_KEY,
+    JSON.stringify({
+      source: "code",
+      code: legacy,
+      tier: "premium",
+      activatedAt: Date.now(),
+      durationDays: null,
+    } satisfies LicenseRecord),
+  );
+  localStorage.removeItem(LEGACY_PREMIUM_KEY);
+}
+
+/** Call once a registered user has no license yet — starts their 30-day trial. */
+export function ensureTrialStarted() {
+  if (typeof window === "undefined") return;
+  if (!isRegistered()) return;
+  if (getLicenseRecord()) return;
+  saveLicenseRecord({
+    source: "trial",
+    code: "TRIAL",
+    tier: "premium",
+    activatedAt: Date.now(),
+    durationDays: 30,
+  });
 }
 
 export function activatePremium(code: string): boolean {
   const c = code.trim().toUpperCase();
-  if (
-    c === "AURORA-ADMIN" ||
-    c === "AURORA-PREMIUM" ||
-    c.startsWith("AURORA-PREMIUM-") ||
-    c === "NOBLE440077"
-  ) {
-    localStorage.setItem(PREMIUM_KEY, c);
-    window.dispatchEvent(new Event("noble:auth"));
-    return true;
+  const isOwnerCode = c === "AURORA-ADMIN" || c === "NOBLE440077";
+  const isLegacyCode = c === "AURORA-PREMIUM" || c.startsWith("AURORA-PREMIUM-");
+  if (!isOwnerCode && !isLegacyCode) return false;
+  saveLicenseRecord({
+    source: "code",
+    code: c,
+    tier: "premium",
+    // Owner/admin codes and today's promo codes never expire. Once real
+    // paid plans exist (30/90/365-day, standard/premium), issue those
+    // through a separate flow that sets a real durationDays here instead.
+    durationDays: null,
+  });
+  setPremiumTestOverride(false);
+  return true;
+}
+
+/** Turn premium off without losing the trial/code, so it can be flipped back on later. */
+export function setPremiumTestOverride(off: boolean) {
+  if (typeof window === "undefined") return;
+  if (off) localStorage.setItem(MANUAL_OFF_KEY, "1");
+  else localStorage.removeItem(MANUAL_OFF_KEY);
+  window.dispatchEvent(new Event("noble:auth"));
+}
+
+export function isPremiumManuallyOff(): boolean {
+  if (typeof window === "undefined") return false;
+  return localStorage.getItem(MANUAL_OFF_KEY) === "1";
+}
+
+export interface LicenseInfo {
+  hasLicense: boolean;
+  tier: "standard" | "premium" | null;
+  source: "trial" | "code" | "admin" | null;
+  code: string | null;
+  /** Days remaining, or null if unlimited / no license. */
+  daysLeft: number | null;
+  expired: boolean;
+  manuallyOff: boolean;
+}
+
+export function getLicenseInfo(): LicenseInfo {
+  const manuallyOff = isPremiumManuallyOff();
+  if (getProfile()?.isAdmin) {
+    return { hasLicense: true, tier: "premium", source: "admin", code: "admin", daysLeft: null, expired: false, manuallyOff };
   }
-  return false;
+  const rec = getLicenseRecord();
+  if (!rec) {
+    return { hasLicense: false, tier: null, source: null, code: null, daysLeft: null, expired: false, manuallyOff };
+  }
+  const expiresAt = rec.durationDays == null ? null : rec.activatedAt + rec.durationDays * 86_400_000;
+  const expired = expiresAt != null && Date.now() >= expiresAt;
+  const daysLeft = expiresAt == null ? null : Math.max(0, Math.ceil((expiresAt - Date.now()) / 86_400_000));
+  return { hasLicense: true, tier: rec.tier, source: rec.source, code: rec.code, daysLeft, expired, manuallyOff };
+}
+
+export function isPremium(): boolean {
+  if (typeof window === "undefined") return false;
+  const info = getLicenseInfo();
+  if (info.manuallyOff) return false;
+  return info.hasLicense && !info.expired;
 }
 
 export function usePremium() {
@@ -202,4 +312,17 @@ export function usePremium() {
     return () => window.removeEventListener("noble:auth", sync);
   }, []);
   return p;
+}
+
+export function useLicenseInfo() {
+  const [info, setInfo] = useState<LicenseInfo>({
+    hasLicense: false, tier: null, source: null, code: null, daysLeft: null, expired: false, manuallyOff: false,
+  });
+  useEffect(() => {
+    const sync = () => setInfo(getLicenseInfo());
+    sync();
+    window.addEventListener("noble:auth", sync);
+    return () => window.removeEventListener("noble:auth", sync);
+  }, []);
+  return info;
 }
