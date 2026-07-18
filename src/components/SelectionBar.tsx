@@ -79,23 +79,23 @@ export function SelectionBar({
           <CheckSquare size={14} />
         </button>
         {count === 1 && onEdit && (
-          <button onClick={onEdit} className="p-2 rounded-full hover:bg-secondary text-primary" aria-label={t(lang, "edit")}>
-            <Pencil size={16} />
+          <button onClick={onEdit} className="p-1.5 rounded-full hover:bg-secondary text-primary" aria-label={t(lang, "edit")}>
+            <Pencil size={14} />
           </button>
         )}
         {onDuplicate && count > 0 && (
-          <button onClick={onDuplicate} className="p-2 rounded-full hover:bg-secondary text-primary" aria-label={t(lang, "duplicate")}>
-            <Copy size={16} />
+          <button onClick={onDuplicate} className="p-1.5 rounded-full hover:bg-secondary text-primary" aria-label={t(lang, "duplicate")}>
+            <Copy size={14} />
           </button>
         )}
         {onMove && moveTargets && moveTargets.length > 0 && count > 0 && (
           <div className="relative">
             <button
               onClick={() => setShowMove((s) => !s)}
-              className="p-2 rounded-full hover:bg-secondary text-primary"
+              className="p-1.5 rounded-full hover:bg-secondary text-primary"
               aria-label={t(lang, "move")}
             >
-              <MoveRight size={16} />
+              <MoveRight size={14} />
             </button>
             {showMove && (
               <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 rounded-2xl bg-popover border border-border shadow-2xl p-1 min-w-[10rem]">
@@ -116,37 +116,38 @@ export function SelectionBar({
           </div>
         )}
         {onShareWA && count > 0 && (
-          <button onClick={onShareWA} className="p-2 rounded-full hover:bg-secondary text-primary" aria-label="WhatsApp">
-            <Share2 size={16} />
+          <button onClick={onShareWA} className="p-1.5 rounded-full hover:bg-secondary text-primary" aria-label="WhatsApp">
+            <Share2 size={14} />
           </button>
         )}
         {onShareEmail && count > 0 && (
-          <button onClick={onShareEmail} className="p-2 rounded-full hover:bg-secondary text-primary" aria-label="Email">
-            <Mail size={16} />
+          <button onClick={onShareEmail} className="p-1.5 rounded-full hover:bg-secondary text-primary" aria-label="Email">
+            <Mail size={14} />
           </button>
         )}
         {onPrint && count > 0 && (
-          <button onClick={onPrint} className="p-2 rounded-full hover:bg-secondary text-primary" aria-label="Print">
-            <Printer size={16} />
+          <button onClick={onPrint} className="p-1.5 rounded-full hover:bg-secondary text-primary" aria-label="Print">
+            <Printer size={14} />
           </button>
         )}
         {onBluetooth && count > 0 && (
           <button
             onClick={onBluetooth}
-            className="p-2 rounded-full hover:bg-secondary text-primary"
+            className="p-1.5 rounded-full hover:bg-secondary text-primary"
             aria-label="Bluetooth"
             title="Send via Bluetooth / Nearby Share"
           >
-            <Bluetooth size={16} />
+            <Bluetooth size={14} />
           </button>
         )}
         {count > 0 && (
           <button
             onClick={onDelete}
-            className="p-2 rounded-full hover:bg-destructive/20 text-destructive ml-auto"
+            className="ml-auto px-2 py-1.5 rounded-full bg-destructive/15 hover:bg-destructive/25 text-destructive flex items-center gap-1"
             aria-label={t(lang, "delete")}
           >
-            <Trash2 size={16} />
+            <Trash2 size={14} />
+            <span className="text-[11px] font-semibold">{t(lang, "delete")}</span>
           </button>
         )}
       </div>
