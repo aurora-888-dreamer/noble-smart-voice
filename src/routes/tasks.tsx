@@ -187,13 +187,16 @@ function TasksPage() {
       />
       <DateRangeFilter from={from} to={to} onFrom={setFrom} onTo={setTo} />
 
-      <div className="flex justify-between items-center mb-2">
+      <div className="flex justify-between items-center mb-2 gap-2">
         <p className="text-xs text-muted-foreground">{filtered.length}</p>
-        {!sel.selectMode && filtered.length > 0 && (
-          <button onClick={() => sel.enter()} className="text-xs font-semibold text-primary">
-            {t(lang, "select")}
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {!sel.selectMode && filtered.length > 0 && (
+            <button onClick={() => sel.enter()} className="text-xs font-semibold text-primary">
+              {t(lang, "select")}
+            </button>
+          )}
+          {!sel.selectMode && <AddFab onClick={() => setAdding(true)} />}
+        </div>
       </div>
 
       {filtered.length === 0 ? (
@@ -206,7 +209,8 @@ function TasksPage() {
               <li
                 key={task.id}
                 onClick={() => sel.selectMode && task.id && sel.toggle(task.id)}
-                className={`rounded-2xl border p-3 flex items-start gap-3 transition-colors ${
+                onContextMenu={(e) => { e.preventDefault(); if (!sel.selectMode && task.id) sel.enter(task.id); }}
+                className={`rounded-2xl border p-3 flex items-start gap-3 transition-colors select-none ${
                   selected ? "border-primary bg-primary/10" : "bg-card border-border"
                 }`}
               >
