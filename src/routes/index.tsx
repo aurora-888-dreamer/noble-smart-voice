@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Mic, Plane, GanttChart } from "lucide-react";
+import { Plane, GanttChart } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { getDb } from "@/lib/db";
 import { useLang } from "@/lib/settings-store";
@@ -75,17 +75,7 @@ function Home() {
 
   return (
     <AppShell title={t(lang, "home")}>
-      <section className="mb-6 rounded-3xl bg-gradient-to-br from-primary to-primary/80 text-primary-foreground p-6 shadow-lg shadow-primary/20">
-        <p className="text-sm/5 opacity-90">{t(lang, "tagline")}</p>
-        <h2 className="mt-1 text-2xl font-semibold">{t(lang, "tapToSpeak")}</h2>
-        <p className="mt-3 text-sm/5 opacity-90 flex items-center gap-2">
-          <Mic size={16} />
-          {lang === "id"
-            ? "Ketuk tombol mic di kanan-atas kapan saja — apa yang Anda ucapkan tersimpan di menu yang sedang terbuka."
-            : "Tap the mic top-right anytime — what you say saves into the menu you're on."}
-        </p>
-      </section>
-
+      <h2 className="mb-5 text-xl font-semibold">{t(lang, "dailyActivities")}</h2>
 
       <Section title={t(lang, "todaysTasks")} href="/tasks" lang={lang}>
         {tasksToday && tasksToday.length > 0 ? (

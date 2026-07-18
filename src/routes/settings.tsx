@@ -17,7 +17,7 @@ import {
   X as XIcon,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
-import { useLang, useWakePhrase, useAutoSaveRaw } from "@/lib/settings-store";
+import { useLang, useWakePhrase, useAutoSaveRaw, useRecordTimeoutMin } from "@/lib/settings-store";
 import { t, type Lang } from "@/lib/i18n";
 import { useVoice } from "@/lib/voice-controller";
 import { exportAll, importAll } from "@/lib/db";
@@ -49,6 +49,7 @@ function SettingsPage() {
   const [lang, setLang] = useLang();
   const [wake, setWake] = useWakePhrase();
   const [autoRaw, setAutoRaw] = useAutoSaveRaw();
+  const [recordTimeout, setRecordTimeout] = useRecordTimeoutMin();
   const [bio, setBio] = useState(false);
   const [premium, setPremium] = useState(false);
   const nav = useNavigate();
@@ -267,6 +268,22 @@ function SettingsPage() {
         </p>
       </Card>
 
+
+      <Card>
+        <Label icon={<Mic size={14} />}>{t(lang, "recTimeoutSetting")}</Label>
+        <p className="text-xs text-muted-foreground mt-2">{t(lang, "recTimeoutHint")}</p>
+        <div className="mt-3 flex items-center gap-2">
+          <input
+            type="number"
+            min={1}
+            max={60}
+            value={recordTimeout}
+            onChange={(e) => setRecordTimeout(Math.max(1, Number(e.target.value) || 1))}
+            className="w-20 rounded-xl bg-secondary text-secondary-foreground px-3 py-2 text-sm"
+          />
+          <span className="text-sm text-muted-foreground">{t(lang, "recMinutes")}</span>
+        </div>
+      </Card>
 
       <Card>
         <div className="flex items-start justify-between gap-3">
