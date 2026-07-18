@@ -134,10 +134,16 @@ export function AppShell({
             </button>
           </div>
           {micActive && (
-            <div className="mx-auto max-w-md lg:max-w-3xl px-4 lg:px-8 pb-2">
+            <div className="mx-auto max-w-md lg:max-w-3xl px-4 lg:px-8 pb-3 space-y-2">
               <p className="text-[10px] text-destructive-foreground/90 bg-destructive/10 border border-destructive/30 rounded-full px-3 py-1.5 text-center">
-                Listening for a command… try “go record” / “buka tugas”, etc.
+                Listening for a command… try "go record" / "buka tugas", etc.
               </p>
+              <button
+                onClick={() => navigate({ to: "/record" })}
+                className="w-full rounded-xl bg-primary text-primary-foreground py-2 text-xs font-semibold"
+              >
+                Buka Record manual / Open Record manually
+              </button>
             </div>
           )}
           {micWake && !micActive && (
