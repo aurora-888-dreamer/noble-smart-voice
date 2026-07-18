@@ -13,6 +13,7 @@ import { Route as TripsRouteImport } from './routes/trips'
 import { Route as RecordRouteImport } from './routes/record'
 import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as SyncRouteImport } from './routes/sync'
 import { Route as RemindersRouteImport } from './routes/reminders'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ReceiveRouteImport } from './routes/receive'
@@ -47,6 +48,11 @@ const TasksRoute = TasksRouteImport.update({
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SyncRoute = SyncRouteImport.update({
+  id: '/sync',
+  path: '/sync',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RemindersRoute = RemindersRouteImport.update({
@@ -143,6 +149,7 @@ export interface FileRoutesByFullPath {
   '/register': typeof RegisterRoute
   '/reminders': typeof RemindersRoute
   '/settings': typeof SettingsRoute
+  '/sync': typeof SyncRoute
   '/tasks': typeof TasksRoute
   '/trips': typeof TripsRoute
 }
@@ -164,6 +171,7 @@ export interface FileRoutesByTo {
   '/register': typeof RegisterRoute
   '/reminders': typeof RemindersRoute
   '/settings': typeof SettingsRoute
+  '/sync': typeof SyncRoute
   '/tasks': typeof TasksRoute
   '/trips': typeof TripsRoute
 }
@@ -186,6 +194,7 @@ export interface FileRoutesById {
   '/register': typeof RegisterRoute
   '/reminders': typeof RemindersRoute
   '/settings': typeof SettingsRoute
+  '/sync': typeof SyncRoute
   '/tasks': typeof TasksRoute
   '/trips': typeof TripsRoute
 }
@@ -209,6 +218,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/reminders'
     | '/settings'
+    | '/sync'
     | '/tasks'
     | '/trips'
   fileRoutesByTo: FileRoutesByTo
@@ -230,6 +240,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/reminders'
     | '/settings'
+    | '/sync'
     | '/tasks'
     | '/trips'
   id:
@@ -251,6 +262,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/reminders'
     | '/settings'
+    | '/sync'
     | '/tasks'
     | '/trips'
   fileRoutesById: FileRoutesById
@@ -297,6 +309,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sync': {
+      id: '/sync'
+      path: '/sync'
+      fullPath: '/sync'
+      preLoaderRoute: typeof SyncRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reminders': {
@@ -432,6 +451,7 @@ const rootRouteChildren: RootRouteChildren = {
   RegisterRoute: RegisterRoute,
   RemindersRoute: RemindersRoute,
   SettingsRoute: SettingsRoute,
+  SyncRoute: SyncRoute,
   TasksRoute: TasksRoute,
   TripsRoute: TripsRoute,
 }
