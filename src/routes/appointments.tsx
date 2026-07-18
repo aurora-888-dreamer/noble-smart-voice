@@ -174,7 +174,8 @@ function AppointmentsPage() {
               <li
                 key={a.id}
                 onClick={() => sel.selectMode && a.id && sel.toggle(a.id)}
-                className={`rounded-2xl border p-4 transition-colors ${
+                onContextMenu={(e) => { e.preventDefault(); if (!sel.selectMode && a.id) sel.enter(a.id); }}
+                className={`rounded-2xl border p-4 transition-colors select-none ${
                   selected ? "border-primary bg-primary/10" : "bg-card border-border"
                 }`}
               >
