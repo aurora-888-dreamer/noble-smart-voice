@@ -133,7 +133,8 @@ function RemindersPage() {
               <li
                 key={r.id}
                 onClick={() => sel.selectMode && r.id && sel.toggle(r.id)}
-                className={`rounded-2xl border p-3 flex items-center gap-3 transition-colors ${
+                onContextMenu={(e) => { e.preventDefault(); if (!sel.selectMode && r.id) sel.enter(r.id); }}
+                className={`rounded-2xl border p-3 flex items-center gap-3 transition-colors select-none ${
                   selected
                     ? "border-primary bg-primary/10"
                     : r.status === "pending"
