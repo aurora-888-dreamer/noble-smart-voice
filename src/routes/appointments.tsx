@@ -246,6 +246,20 @@ function AppointmentsPage() {
           onSave={saveEdit}
         />
       )}
+
+      {adding && (
+        <EditModal
+          title={t(lang, "addManually")}
+          fields={[
+            { key: "title", label: t(lang, "title"), value: "" },
+            { key: "appointmentAt", label: t(lang, "when"), type: "datetime-local", value: "" },
+            { key: "location", label: t(lang, "where"), value: "" },
+            { key: "notes", label: t(lang, "notesField"), type: "textarea", value: "" },
+          ]}
+          onClose={() => setAdding(false)}
+          onSave={saveNew}
+        />
+      )}
     </AppShell>
   );
 }
