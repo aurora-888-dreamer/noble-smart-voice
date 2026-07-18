@@ -99,6 +99,11 @@ export function startVoice(
   rec.maxAlternatives = 3;
   let finalText = "";
   let stopped = false;
+  // Dedup guard: some engines emit the same isFinal result multiple times
+  // (or overlap across restarts), which caused 2-3x duplicate saves.
+  let lastEmitted = "";
+  let lastEmittedAt = 0;
+  const seenIndex = new Set<number>();
   rec.onresult = (e) => {
     let interim = "";
     for (let i = e.resultIndex; i < e.results.length; i++) {
@@ -109,10 +114,21 @@ export function startVoice(
         if (r[j].confidence > best.confidence) best = r[j];
       }
       if (r.isFinal) {
+        if (seenIndex.has(i)) continue;
+        seenIndex.add(i);
         finalText += best.transcript;
         if (options.continuous) {
           // Emit each final utterance individually in continuous mode.
           const chunk = best.transcript.trim();
+          const now = Date.now();
+          if (chunk && (chunk !== lastEmitted || now - lastEmittedAt > 4000)) {
+            lastEmitted = chunk;
+            lastEmittedAt = now;
+            onFinal(chunk);
+          }
+          finalText = "";
+          continue;
+        }
           if (chunk) onFinal(chunk);
           finalText = "";
         }
