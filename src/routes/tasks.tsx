@@ -33,6 +33,7 @@ function TasksPage() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [editing, setEditing] = useState<Task | null>(null);
+  const [adding, setAdding] = useState(false);
   const sel = useMultiSelect<number>();
 
   const tasks = useLiveQuery(async () => {
