@@ -12,7 +12,7 @@ export interface CaptureInput {
   body?: string;
   when?: number;
   tags?: string[];
-  contact?: { fullName: string; email?: string };
+  contact?: { fullName: string; email?: string; phone?: string };
 }
 
 export async function saveCapturedEntry(input: CaptureInput, lang: Lang): Promise<number | undefined> {
@@ -67,6 +67,7 @@ export async function saveCapturedEntry(input: CaptureInput, lang: Lang): Promis
       id = await db.contacts.add({
         fullName: name,
         email: input.contact?.email,
+        phone: input.contact?.phone,
         tags,
         createdAt: now,
       });
