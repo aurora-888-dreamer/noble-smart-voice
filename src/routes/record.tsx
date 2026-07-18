@@ -23,7 +23,7 @@ function normalize(s: string) {
   return s.trim().replace(/[.!?,]+$/, "");
 }
 
-const TYPES: ItemType[] = ["note", "task", "meeting", "appointment", "contact", "message"];
+const TYPES: ItemType[] = ["note", "task", "meeting", "appointment", "contact", "message", "diary"];
 
 function extractEmail(text: string): string | undefined {
   const m = text.match(/[\w.+-]+@[\w-]+\.[\w.-]+/);

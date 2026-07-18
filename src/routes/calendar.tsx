@@ -1,9 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { getDb } from "@/lib/db";
+import type { ItemType } from "@/lib/db";
+import { saveCapturedEntry } from "@/lib/capture";
 import { useLang } from "@/lib/settings-store";
 import { t } from "@/lib/i18n";
 
@@ -21,6 +23,7 @@ interface DayEvent {
 function CalendarPage() {
   const [lang] = useLang();
   const [cursor, setCursor] = useState(() => new Date());
+  const [newEventDate, setNewEventDate] = useState<Date | null>(null);
 
   const events = useLiveQuery<DayEvent[]>(async () => {
     if (typeof window === "undefined") return [];
@@ -74,6 +77,13 @@ function CalendarPage() {
 
   return (
     <AppShell title={t(lang, "calendar")}>
+      <button
+        onClick={() => setNewEventDate(new Date())}
+        className="w-full mb-4 rounded-2xl bg-primary text-primary-foreground py-3 font-semibold flex items-center justify-center gap-2"
+      >
+        <Plus size={18} /> {t(lang, "newEvent")}
+      </button>
+
       <div className="rounded-2xl bg-card border border-border p-4 mb-4">
         <div className="flex items-center justify-between mb-3">
           <button
@@ -103,8 +113,9 @@ function CalendarPage() {
             const d = i + 1;
             const evs = byDay.get(d) ?? [];
             return (
-              <div
+              <button
                 key={d}
+                onClick={() => setNewEventDate(new Date(year, month, d, 9, 0))}
                 className={`aspect-square rounded-lg flex flex-col items-center justify-start pt-1 text-xs ${
                   isToday(d)
                     ? "bg-primary text-primary-foreground font-semibold"
@@ -121,11 +132,15 @@ function CalendarPage() {
                     }`}
                   />
                 )}
-              </div>
+              </button>
             );
           })}
         </div>
       </div>
+
+      {newEventDate && (
+        <NewEventForm lang={lang} defaultDate={newEventDate} onClose={() => setNewEventDate(null)} />
+      )}
 
       <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-2">
         {lang === "id" ? "Akan datang" : "Upcoming"}
@@ -151,5 +166,90 @@ function CalendarPage() {
         </ul>
       )}
     </AppShell>
+  );
+}
+
+const EVENT_TYPES: Extract<ItemType, "task" | "meeting" | "appointment">[] = ["task", "meeting", "appointment"];
+
+function toLocalInputValue(d: Date) {
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+}
+
+function NewEventForm({
+  lang,
+  defaultDate,
+  onClose,
+}: {
+  lang: "en" | "id";
+  defaultDate: Date;
+  onClose: () => void;
+}) {
+  const [type, setType] = useState<Extract<ItemType, "task" | "meeting" | "appointment">>("task");
+  const [title, setTitle] = useState("");
+  const [when, setWhen] = useState(toLocalInputValue(defaultDate));
+
+  async function save() {
+    if (!title.trim()) return;
+    await saveCapturedEntry(
+      { type, title: title.trim(), when: when ? new Date(when).getTime() : undefined },
+      lang,
+    );
+    onClose();
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 backdrop-blur p-4">
+      <div className="w-full max-w-md rounded-2xl bg-card border border-primary/30 p-4 shadow-2xl">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-sm font-semibold text-primary">{t(lang, "newEvent")}</p>
+          <button onClick={onClose} className="p-1 rounded-full hover:bg-secondary text-muted-foreground">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="flex gap-2 mb-3">
+          {EVENT_TYPES.map((tp) => (
+            <button
+              key={tp}
+              onClick={() => setType(tp)}
+              className={`flex-1 rounded-xl px-3 py-2 text-xs font-semibold border transition-colors ${
+                type === tp ? "bg-primary text-primary-foreground border-primary" : "bg-secondary text-secondary-foreground border-border"
+              }`}
+            >
+              {t(lang, tp)}
+            </button>
+          ))}
+        </div>
+
+        <label className="block text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+          {t(lang, "title")}
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            autoFocus
+            className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground font-normal normal-case tracking-normal"
+          />
+        </label>
+
+        <label className="block text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+          {t(lang, "eventDate")}
+          <input
+            type="datetime-local"
+            value={when}
+            onChange={(e) => setWhen(e.target.value)}
+            className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground font-normal normal-case tracking-normal"
+          />
+        </label>
+
+        <div className="flex gap-2 mt-4">
+          <button onClick={onClose} className="flex-1 py-2 rounded-full bg-secondary text-secondary-foreground text-sm font-semibold">
+            {t(lang, "cancel")}
+          </button>
+          <button onClick={save} className="flex-1 py-2 rounded-full bg-primary text-primary-foreground text-sm font-semibold">
+            {t(lang, "save")}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

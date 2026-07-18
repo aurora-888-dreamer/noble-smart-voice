@@ -1,7 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Trash2, Plus, Flag, X } from "lucide-react";
+import { Trash2, Plus, Flag, X, FolderOpen } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { DateRangeFilter, inRange } from "@/components/DateRangeFilter";
 import { SelectionBar } from "@/components/SelectionBar";
@@ -261,6 +261,17 @@ function ProjectCard({
           <Trash2 size={16} />
         </button>
       </div>
+
+      {project.id && !selectMode && (
+        <Link
+          to="/projects/$id"
+          params={{ id: String(project.id) }}
+          onClick={(e) => e.stopPropagation()}
+          className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary px-3 py-1.5 text-xs font-semibold"
+        >
+          <FolderOpen size={13} /> {t(lang, "openProject")}
+        </Link>
+      )}
 
       <div className="mt-3">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">

@@ -15,8 +15,8 @@ export const Route = createFileRoute("/sync")({
 type Step = "choose" | "host-code" | "host-waiting" | "join-input" | "join-code" | "syncing" | "done";
 
 const STAT_LABELS: Record<"en" | "id", Record<keyof MergeStats, string>> = {
-  en: { notes: "Notes", messages: "Messages", tasks: "Tasks", meetings: "Meetings", appointments: "Appointments", contacts: "Contacts", trips: "Trips", projects: "Projects" },
-  id: { notes: "Catatan", messages: "Pesan", tasks: "Tugas", meetings: "Rapat", appointments: "Janji", contacts: "Kontak", trips: "Perjalanan", projects: "Proyek" },
+  en: { notes: "Notes", messages: "Messages", tasks: "Tasks", meetings: "Meetings", appointments: "Appointments", contacts: "Contacts", trips: "Trips", projects: "Projects", diaries: "Diary" },
+  id: { notes: "Catatan", messages: "Pesan", tasks: "Tugas", meetings: "Rapat", appointments: "Janji", contacts: "Kontak", trips: "Perjalanan", projects: "Proyek", diaries: "Diary" },
 };
 
 async function shareOrCopy(text: string, title: string) {

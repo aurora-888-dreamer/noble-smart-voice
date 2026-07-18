@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Plane, GanttChart } from "lucide-react";
+import { Plane, GanttChart, NotebookPen } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { getDb } from "@/lib/db";
 import { useLang } from "@/lib/settings-store";
@@ -147,7 +147,14 @@ function Home() {
         )}
       </Section>
 
-      <section className="mb-6 grid grid-cols-2 gap-3">
+      <section className="mb-6 grid grid-cols-3 gap-3">
+        <Link
+          to="/diary"
+          className="rounded-2xl bg-card border border-border p-4 flex flex-col gap-2 active:scale-[0.98] transition-transform"
+        >
+          <NotebookPen size={22} className="text-primary" />
+          <p className="text-sm font-semibold">{t(lang, "diary")}</p>
+        </Link>
         <Link
           to="/trips"
           className="rounded-2xl bg-card border border-border p-4 flex flex-col gap-2 active:scale-[0.98] transition-transform"
