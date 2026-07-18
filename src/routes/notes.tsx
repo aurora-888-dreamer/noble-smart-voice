@@ -141,13 +141,16 @@ function NotesPage() {
       />
       <DateRangeFilter from={from} to={to} onFrom={setFrom} onTo={setTo} />
 
-      <div className="flex justify-between items-center mb-2">
+      <div className="flex justify-between items-center mb-2 gap-2">
         <p className="text-xs text-muted-foreground">{filtered.length} {t(lang, "notes").toLowerCase()}</p>
-        {!sel.selectMode && filtered.length > 0 && (
-          <button onClick={() => sel.enter()} className="text-xs font-semibold text-primary">
-            {t(lang, "select")}
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {!sel.selectMode && filtered.length > 0 && (
+            <button onClick={() => sel.enter()} className="text-xs font-semibold text-primary">
+              {t(lang, "select")}
+            </button>
+          )}
+          {!sel.selectMode && <AddFab onClick={() => setAdding(true)} />}
+        </div>
       </div>
 
       {filtered.length === 0 ? (
@@ -156,6 +159,12 @@ function NotesPage() {
         <ul className="space-y-3">
           {filtered.map((n) => {
             const selected = n.id ? sel.isSelected(n.id) : false;
+            return (
+              <NoteRow key={n.id} n={n} selected={selected} sel={sel} />
+            );
+          })}
+        </ul>
+      )}
             return (
               <li
                 key={n.id}
