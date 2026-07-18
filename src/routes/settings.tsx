@@ -233,6 +233,21 @@ function SettingsPage() {
         </div>
       </Card>
 
+      <Card>
+        <Label icon={<Bluetooth size={14} />}>{lang === "id" ? "Sinkronisasi Perangkat" : "Sync Devices"}</Label>
+        <p className="text-xs text-muted-foreground mt-2">
+          {lang === "id"
+            ? "Hubungkan langsung ke perangkat lain milikmu (WiFi yang sama) untuk menyamakan data — tanpa lewat server mana pun."
+            : "Connect directly to your other device (same WiFi) to bring data in sync — never through any server."}
+        </p>
+        <Link
+          to="/sync"
+          className="mt-3 inline-block rounded-xl bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold"
+        >
+          {lang === "id" ? "Buka Sinkronisasi" : "Open Sync"}
+        </Link>
+      </Card>
+
       <BluetoothCard lang={lang} />
 
 
