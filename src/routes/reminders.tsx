@@ -31,6 +31,7 @@ function RemindersPage() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [editing, setEditing] = useState<Reminder | null>(null);
+  const [adding, setAdding] = useState(false);
   const sel = useMultiSelect<number>();
 
   const reminders = useLiveQuery(async () => {
