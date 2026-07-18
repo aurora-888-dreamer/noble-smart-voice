@@ -16,13 +16,18 @@ import {
   Wifi,
   NotebookPen,
   MessageSquare,
+  Calculator,
+  Languages,
 } from "lucide-react";
 import { useLang } from "@/lib/settings-store";
+import { usePlugin } from "@/lib/plugins-store";
 import { t } from "@/lib/i18n";
 
 export function Sidebar() {
   const [lang] = useLang();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const hasCalculator = usePlugin("calculator");
+  const hasTranslator = usePlugin("translator");
 
   const items = [
     { to: "/", label: t(lang, "home"), Icon: Home },
@@ -77,6 +82,28 @@ export function Sidebar() {
       </ul>
 
       <div className="pt-2 mt-2 border-t border-border space-y-0.5">
+        {hasTranslator && (
+          <Link
+            to="/translate"
+            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+              pathname === "/translate" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+            }`}
+          >
+            <Languages size={16} strokeWidth={pathname === "/translate" ? 2.4 : 1.8} />
+            {lang === "id" ? "Penerjemah" : "Translator"}
+          </Link>
+        )}
+        {hasCalculator && (
+          <Link
+            to="/calculator"
+            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+              pathname === "/calculator" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+            }`}
+          >
+            <Calculator size={16} strokeWidth={pathname === "/calculator" ? 2.4 : 1.8} />
+            {lang === "id" ? "Kalkulator" : "Calculator"}
+          </Link>
+        )}
         <Link
           to="/sync"
           className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
