@@ -41,6 +41,7 @@ function RecordPage() {
   const [elapsedMs, setElapsedMs] = useState(0);
   const [remainingMs, setRemainingMs] = useState(timeoutMin * 60_000);
   const [supported, setSupported] = useState(true);
+  const [micError, setMicError] = useState<string | null>(null);
 
   const [suggestedType, setSuggestedType] = useState<ItemType>("note");
   const [type, setType] = useState<ItemType>("note");
@@ -60,6 +61,7 @@ function RecordPage() {
   const lastSpeechAtRef = useRef<number>(Date.now());
   const startedAtRef = useRef<number>(Date.now());
   const stoppingRef = useRef(false);
+  const micFailCountRef = useRef(0);
   const phaseRef = useRef<Phase>("listening");
   const timeoutMsRef = useRef(timeoutMin * 60_000);
 
@@ -170,6 +172,7 @@ function RecordPage() {
         lang,
         (text) => setInterim(text),
         (final) => {
+          micFailCountRef.current = 0;
           const chunk = normalize(final);
           if (!chunk) {
             if (phaseRef.current === "listening") startLoop();
@@ -185,8 +188,21 @@ function RecordPage() {
           if (phaseRef.current === "listening") startLoop();
         },
         (err) => {
-          if (err === "not-allowed" || err === "service-not-allowed") {
-            navigate({ to: "/" });
+          if (err === "not-allowed" || err === "service-not-allowed" || err === "audio-capture") {
+            setMicError(
+              lang === "id"
+                ? "Mikrofon tidak bisa diakses. Cek izin mikrofon untuk browser ini di pengaturan HP kamu."
+                : "Microphone couldn't be accessed. Check this browser's mic permission in your phone settings.",
+            );
+            return;
+          }
+          micFailCountRef.current += 1;
+          if (micFailCountRef.current >= 6) {
+            setMicError(
+              lang === "id"
+                ? "Mikrofon tidak merespons setelah beberapa kali dicoba. Coba tutup dan buka lagi halaman ini."
+                : "Microphone kept failing to respond after several attempts. Try closing and reopening this page.",
+            );
             return;
           }
           if (phaseRef.current === "listening" && !cancelled) setTimeout(startLoop, 400);
@@ -276,6 +292,19 @@ function RecordPage() {
           <p className="mb-4 text-sm text-muted-foreground">
             {lang === "id" ? "Pengenalan suara tidak didukung di browser ini." : "Voice recognition isn't supported in this browser."}
           </p>
+          <button onClick={() => navigate({ to: "/" })} className="rounded-xl bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold">
+            {lang === "id" ? "Kembali" : "Back"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (micError) {
+    return (
+      <div className="min-h-dvh grid place-items-center bg-background text-foreground p-6 text-center">
+        <div>
+          <p className="mb-4 text-sm text-muted-foreground">{micError}</p>
           <button onClick={() => navigate({ to: "/" })} className="rounded-xl bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold">
             {lang === "id" ? "Kembali" : "Back"}
           </button>
