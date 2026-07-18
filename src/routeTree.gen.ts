@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TripsRouteImport } from './routes/trips'
+import { Route as TranslateRouteImport } from './routes/translate'
 import { Route as RecordRouteImport } from './routes/record'
 import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as SettingsRouteImport } from './routes/settings'
@@ -22,10 +23,13 @@ import { Route as ProjectsIdRouteImport } from './routes/projects.$id'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as NotesRouteImport } from './routes/notes'
 import { Route as MeetingsRouteImport } from './routes/meetings'
+import { Route as MessagesRouteImport } from './routes/messages'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as GuideRouteImport } from './routes/guide'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as ContactsRouteImport } from './routes/contacts'
 import { Route as DiaryRouteImport } from './routes/diary'
+import { Route as CalculatorRouteImport } from './routes/calculator'
 import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as AppointmentsRouteImport } from './routes/appointments'
 import { Route as ActivateRouteImport } from './routes/activate'
@@ -35,6 +39,11 @@ import { Route as IndexRouteImport } from './routes/index'
 const TripsRoute = TripsRouteImport.update({
   id: '/trips',
   path: '/trips',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TranslateRoute = TranslateRouteImport.update({
+  id: '/translate',
+  path: '/translate',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RecordRoute = RecordRouteImport.update({
@@ -97,6 +106,11 @@ const MeetingsRoute = MeetingsRouteImport.update({
   path: '/meetings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MessagesRoute = MessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -107,6 +121,11 @@ const GuideRoute = GuideRouteImport.update({
   path: '/guide',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ContactsRoute = ContactsRouteImport.update({
   id: '/contacts',
   path: '/contacts',
@@ -115,6 +134,11 @@ const ContactsRoute = ContactsRouteImport.update({
 const DiaryRoute = DiaryRouteImport.update({
   id: '/diary',
   path: '/diary',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CalculatorRoute = CalculatorRouteImport.update({
+  id: '/calculator',
+  path: '/calculator',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CalendarRoute = CalendarRouteImport.update({
@@ -148,12 +172,15 @@ export interface FileRoutesByFullPath {
   '/about': typeof AboutRoute
   '/activate': typeof ActivateRoute
   '/appointments': typeof AppointmentsRoute
+  '/calculator': typeof CalculatorRoute
   '/calendar': typeof CalendarRoute
+  '/admin': typeof AdminRoute
   '/contacts': typeof ContactsRoute
   '/diary': typeof DiaryRoute
   '/guide': typeof GuideRoute
   '/login': typeof LoginRoute
   '/meetings': typeof MeetingsRoute
+  '/messages': typeof MessagesRoute
   '/notes': typeof NotesRoute
   '/onboarding': typeof OnboardingRoute
   '/projects': typeof ProjectsRoute
@@ -166,18 +193,22 @@ export interface FileRoutesByFullPath {
   '/sync': typeof SyncRoute
   '/tasks': typeof TasksRoute
   '/trips': typeof TripsRoute
+  '/translate': typeof TranslateRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/activate': typeof ActivateRoute
   '/appointments': typeof AppointmentsRoute
+  '/calculator': typeof CalculatorRoute
   '/calendar': typeof CalendarRoute
+  '/admin': typeof AdminRoute
   '/contacts': typeof ContactsRoute
   '/diary': typeof DiaryRoute
   '/guide': typeof GuideRoute
   '/login': typeof LoginRoute
   '/meetings': typeof MeetingsRoute
+  '/messages': typeof MessagesRoute
   '/notes': typeof NotesRoute
   '/onboarding': typeof OnboardingRoute
   '/projects': typeof ProjectsRoute
@@ -190,6 +221,7 @@ export interface FileRoutesByTo {
   '/sync': typeof SyncRoute
   '/tasks': typeof TasksRoute
   '/trips': typeof TripsRoute
+  '/translate': typeof TranslateRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -197,12 +229,15 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/activate': typeof ActivateRoute
   '/appointments': typeof AppointmentsRoute
+  '/calculator': typeof CalculatorRoute
   '/calendar': typeof CalendarRoute
+  '/admin': typeof AdminRoute
   '/contacts': typeof ContactsRoute
   '/diary': typeof DiaryRoute
   '/guide': typeof GuideRoute
   '/login': typeof LoginRoute
   '/meetings': typeof MeetingsRoute
+  '/messages': typeof MessagesRoute
   '/notes': typeof NotesRoute
   '/onboarding': typeof OnboardingRoute
   '/projects': typeof ProjectsRoute
@@ -215,6 +250,7 @@ export interface FileRoutesById {
   '/sync': typeof SyncRoute
   '/tasks': typeof TasksRoute
   '/trips': typeof TripsRoute
+  '/translate': typeof TranslateRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -223,12 +259,15 @@ export interface FileRouteTypes {
     | '/about'
     | '/activate'
     | '/appointments'
+    | '/calculator'
     | '/calendar'
+    | '/admin'
     | '/contacts'
     | '/diary'
     | '/guide'
     | '/login'
     | '/meetings'
+    | '/messages'
     | '/notes'
     | '/onboarding'
     | '/projects'
@@ -241,18 +280,22 @@ export interface FileRouteTypes {
     | '/sync'
     | '/tasks'
     | '/trips'
+    | '/translate'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/about'
     | '/activate'
     | '/appointments'
+    | '/calculator'
     | '/calendar'
+    | '/admin'
     | '/contacts'
     | '/diary'
     | '/guide'
     | '/login'
     | '/meetings'
+    | '/messages'
     | '/notes'
     | '/onboarding'
     | '/projects'
@@ -265,18 +308,22 @@ export interface FileRouteTypes {
     | '/sync'
     | '/tasks'
     | '/trips'
+    | '/translate'
   id:
     | '__root__'
     | '/'
     | '/about'
     | '/activate'
     | '/appointments'
+    | '/calculator'
     | '/calendar'
+    | '/admin'
     | '/contacts'
     | '/diary'
     | '/guide'
     | '/login'
     | '/meetings'
+    | '/messages'
     | '/notes'
     | '/onboarding'
     | '/projects'
@@ -289,6 +336,7 @@ export interface FileRouteTypes {
     | '/sync'
     | '/tasks'
     | '/trips'
+    | '/translate'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -319,6 +367,13 @@ declare module '@tanstack/react-router' {
       path: '/trips'
       fullPath: '/trips'
       preLoaderRoute: typeof TripsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/translate': {
+      id: '/translate'
+      path: '/translate'
+      fullPath: '/translate'
+      preLoaderRoute: typeof TranslateRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/tasks': {
@@ -405,6 +460,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MeetingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/messages': {
+      id: '/messages'
+      path: '/messages'
+      fullPath: '/messages'
+      preLoaderRoute: typeof MessagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -419,6 +481,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GuideRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/contacts': {
       id: '/contacts'
       path: '/contacts'
@@ -431,6 +500,13 @@ declare module '@tanstack/react-router' {
       path: '/diary'
       fullPath: '/diary'
       preLoaderRoute: typeof DiaryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/calculator': {
+      id: '/calculator'
+      path: '/calculator'
+      fullPath: '/calculator'
+      preLoaderRoute: typeof CalculatorRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/calendar': {
@@ -476,12 +552,15 @@ const rootRouteChildren: RootRouteChildren = {
   AboutRoute: AboutRoute,
   ActivateRoute: ActivateRoute,
   AppointmentsRoute: AppointmentsRoute,
+  CalculatorRoute: CalculatorRoute,
   CalendarRoute: CalendarRoute,
+  AdminRoute: AdminRoute,
   ContactsRoute: ContactsRoute,
   DiaryRoute: DiaryRoute,
   GuideRoute: GuideRoute,
   LoginRoute: LoginRoute,
   MeetingsRoute: MeetingsRoute,
+  MessagesRoute: MessagesRoute,
   NotesRoute: NotesRoute,
   OnboardingRoute: OnboardingRoute,
   ProjectsRoute: ProjectsRoute,
@@ -494,6 +573,7 @@ const rootRouteChildren: RootRouteChildren = {
   SyncRoute: SyncRoute,
   TasksRoute: TasksRoute,
   TripsRoute: TripsRoute,
+  TranslateRoute: TranslateRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
