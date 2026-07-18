@@ -12,6 +12,7 @@ const SWIPE_ORDER = [
   "/calendar",
   "/tasks",
   "/notes",
+  "/diary",
   "/meetings",
   "/appointments",
   "/reminders",
@@ -133,10 +134,16 @@ export function AppShell({
             </button>
           </div>
           {micActive && (
-            <div className="mx-auto max-w-md lg:max-w-3xl px-4 lg:px-8 pb-2">
+            <div className="mx-auto max-w-md lg:max-w-3xl px-4 lg:px-8 pb-2 flex items-center justify-center gap-2 flex-wrap">
               <p className="text-[10px] text-destructive-foreground/90 bg-destructive/10 border border-destructive/30 rounded-full px-3 py-1.5 text-center">
                 Listening for a command… try “go record” / “buka tugas”, etc.
               </p>
+              <button
+                onClick={() => navigate({ to: "/record" })}
+                className="shrink-0 text-[10px] font-semibold text-primary underline whitespace-nowrap"
+              >
+                Buka Record manual / Open Record manually
+              </button>
             </div>
           )}
           {micWake && !micActive && (
