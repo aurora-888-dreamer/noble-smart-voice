@@ -116,20 +116,15 @@ export function startVoice(
       if (r.isFinal) {
         if (seenIndex.has(i)) continue;
         seenIndex.add(i);
+        const chunk = best.transcript.trim();
         finalText += best.transcript;
         if (options.continuous) {
-          // Emit each final utterance individually in continuous mode.
-          const chunk = best.transcript.trim();
           const now = Date.now();
           if (chunk && (chunk !== lastEmitted || now - lastEmittedAt > 4000)) {
             lastEmitted = chunk;
             lastEmittedAt = now;
             onFinal(chunk);
           }
-          finalText = "";
-          continue;
-        }
-          if (chunk) onFinal(chunk);
           finalText = "";
         }
       } else {
