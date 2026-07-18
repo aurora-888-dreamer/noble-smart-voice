@@ -118,6 +118,18 @@ function NotesPage() {
     setEditing(null);
     sel.exit();
   }
+  async function saveNew(vals: Record<string, string>) {
+    const now = Date.now();
+    await getDb().notes.add({
+      title: vals.title || "Untitled",
+      transcript: vals.transcript || "",
+      language: lang,
+      tags: [],
+      createdAt: now,
+      updatedAt: now,
+    });
+    setAdding(false);
+  }
 
   return (
     <AppShell title={t(lang, "notes")}>
