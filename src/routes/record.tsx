@@ -24,6 +24,11 @@ function normalize(s: string) {
   return s.trim().replace(/[.!?,]+$/, "");
 }
 
+function isMobileDevice(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
+
 const TYPES: ItemType[] = ["note", "task", "meeting", "appointment", "contact", "message", "diary"];
 
 function extractEmail(text: string): string | undefined {
@@ -102,7 +107,9 @@ function RecordPage() {
     // Best-effort, non-blocking: replace the draft transcript with a more
     // accurate bilingual pass once it's ready, but only if the person
     // hasn't already started editing it themselves.
-    if (!isPremium()) {
+    if (isMobileDevice()) {
+      console.log("[Noble] AI audio-transcript pass skipped on mobile (parallel mic capture disabled for now).");
+    } else if (!isPremium()) {
       console.log("[Noble] AI transcript skipped: Premium not active.");
     } else if (typeof navigator !== "undefined" && !navigator.onLine) {
       console.log("[Noble] AI transcript skipped: device is offline.");
@@ -146,7 +153,15 @@ function RecordPage() {
 
   // Raw audio capture (parallel to the live browser captions) — used for a
   // more accurate bilingual transcription pass once recording stops.
+  //
+  // Mobile-only skip: on real phone hardware, holding a getUserMedia/
+  // MediaRecorder stream open at the same time SpeechRecognition wants the
+  // mic can starve the recognizer of audio at the OS/driver level (unlike
+  // desktops, which multiplex mic access more freely). Until that's solved
+  // properly, this stays desktop-only so mobile's core live transcript
+  // isn't put at risk for the sake of the AI-refinement bonus pass.
   useEffect(() => {
+    if (isMobileDevice()) return;
     let cancelled = false;
     startAudioCapture().then((h) => {
       if (cancelled) audioHandleRef.current = null;
