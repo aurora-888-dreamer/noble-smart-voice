@@ -8,7 +8,7 @@ import { parseUtterance } from "@/lib/parser";
 import { saveCapturedEntry } from "@/lib/capture";
 import { isPremium } from "@/lib/auth-store";
 import { analyzeVoice, transcribeAudio } from "@/lib/ai.functions";
-import { startAudioCapture, blobToBase64, type AudioCaptureHandle } from "@/lib/audio-capture";
+import { startAudioCapture, blobToBase64, convertToWav, type AudioCaptureHandle } from "@/lib/audio-capture";
 import type { ItemType } from "@/lib/db";
 
 export const Route = createFileRoute("/record")({
@@ -114,8 +114,17 @@ function RecordPage() {
             return;
           }
           console.log("[Noble] Sending audio to AI for transcription…", { mimeType: result.mimeType, sizeKB: Math.round(result.blob.size / 1024) });
-          const audioBase64 = await blobToBase64(result.blob);
-          const res = await transcribeAudio({ data: { audioBase64, mimeType: result.mimeType } });
+          let sendBlob = result.blob;
+          let sendMime = result.mimeType;
+          try {
+            sendBlob = await convertToWav(result.blob);
+            sendMime = "audio/wav";
+            console.log("[Noble] Converted audio to WAV for AI compatibility.", { sizeKB: Math.round(sendBlob.size / 1024) });
+          } catch (convErr) {
+            console.warn("[Noble] WAV conversion failed, sending original format instead:", convErr);
+          }
+          const audioBase64 = await blobToBase64(sendBlob);
+          const res = await transcribeAudio({ data: { audioBase64, mimeType: sendMime } });
           if (res.ok && res.text) {
             console.log("[Noble] AI transcript received:", res.text);
             setContent((cur) => (cur === fullText ? res.text : cur));
