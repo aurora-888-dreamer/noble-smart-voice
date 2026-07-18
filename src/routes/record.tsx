@@ -7,7 +7,8 @@ import { isVoiceSupported, startVoice, primeMicrophone, type VoiceSession } from
 import { parseUtterance } from "@/lib/parser";
 import { saveCapturedEntry } from "@/lib/capture";
 import { isPremium } from "@/lib/auth-store";
-import { analyzeVoice } from "@/lib/ai.functions";
+import { analyzeVoice, transcribeAudio } from "@/lib/ai.functions";
+import { startAudioCapture, blobToBase64, type AudioCaptureHandle } from "@/lib/audio-capture";
 import type { ItemType } from "@/lib/db";
 
 export const Route = createFileRoute("/record")({
@@ -47,8 +48,11 @@ function RecordPage() {
   const [when, setWhen] = useState<number | undefined>(undefined);
   const [content, setContent] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
+  const [transcriptAiBusy, setTranscriptAiBusy] = useState(false);
+  const [transcriptAiApplied, setTranscriptAiApplied] = useState(false);
 
   const fullTextRef = useRef("");
+  const audioHandleRef = useRef<AudioCaptureHandle | null>(null);
   const parsedDefaultsRef = useRef({ title: "", when: undefined as number | undefined });
   const chunksRef = useRef<string[]>([]);
   const sessionRef = useRef<VoiceSession | null>(null);
@@ -68,7 +72,19 @@ function RecordPage() {
     sessionRef.current = null;
 
     const fullText = chunksRef.current.join(" ").trim();
+
+    // Stop the parallel audio capture regardless of whether the browser
+    // caption came out empty — the raw audio may still be usable.
+    const audioHandle = audioHandleRef.current;
+    audioHandleRef.current = null;
+    const audioResultPromise = audioHandle ? audioHandle.stop() : Promise.resolve(null);
+
     if (!fullText) {
+      void audioResultPromise.then((r) => {
+        // Nothing was heard by the browser captions at all — don't bother
+        // spending an AI call; just bail out like before.
+        void r;
+      });
       navigate({ to: "/" });
       return;
     }
@@ -79,7 +95,41 @@ function RecordPage() {
     setType(p.type);
     setContent(fullText);
     setPhase("category");
+
+    // Best-effort, non-blocking: replace the draft transcript with a more
+    // accurate bilingual pass once it's ready, but only if the person
+    // hasn't already started editing it themselves.
+    if (isPremium() && typeof navigator !== "undefined" && navigator.onLine) {
+      setTranscriptAiBusy(true);
+      audioResultPromise
+        .then(async (result) => {
+          if (!result) return;
+          const audioBase64 = await blobToBase64(result.blob);
+          const res = await transcribeAudio({ data: { audioBase64, mimeType: result.mimeType } });
+          if (res.ok && res.text) {
+            setContent((cur) => (cur === fullText ? res.text : cur));
+            setTranscriptAiApplied(true);
+          }
+        })
+        .catch(() => {})
+        .finally(() => setTranscriptAiBusy(false));
+    }
   }, [lang, navigate]);
+
+  // Raw audio capture (parallel to the live browser captions) — used for a
+  // more accurate bilingual transcription pass once recording stops.
+  useEffect(() => {
+    let cancelled = false;
+    startAudioCapture().then((h) => {
+      if (cancelled) audioHandleRef.current = null;
+      else audioHandleRef.current = h;
+    });
+    return () => {
+      cancelled = true;
+      audioHandleRef.current?.cancel();
+      audioHandleRef.current = null;
+    };
+  }, []);
 
   // Voice capture loop (listening phase only)
   useEffect(() => {
@@ -273,7 +323,8 @@ function RecordPage() {
           <span className="w-9" />
         </div>
         <div className="flex-1 p-6 flex flex-col gap-4 max-w-md mx-auto w-full">
-          <p className="text-xs text-muted-foreground line-clamp-3">{fullTextRef.current}</p>
+          <p className="text-xs text-muted-foreground line-clamp-3">{content}</p>
+          {transcriptAiBusy && <p className="text-[11px] text-primary animate-pulse">{t(lang, "recAiRefining")}</p>}
           <div className="grid grid-cols-2 gap-3 mt-2">
             {TYPES.map((tp) => (
               <button
@@ -314,7 +365,10 @@ function RecordPage() {
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 max-w-md mx-auto w-full space-y-4">
-          {aiBusy && <p className="text-xs text-primary animate-pulse">{t(lang, "recAiRefining")}</p>}
+          {(aiBusy || transcriptAiBusy) && <p className="text-xs text-primary animate-pulse">{t(lang, "recAiRefining")}</p>}
+          {!aiBusy && !transcriptAiBusy && transcriptAiApplied && (
+            <p className="text-xs text-primary">{lang === "id" ? "✓ Transkrip disempurnakan AI" : "✓ Transcript refined by AI"}</p>
+          )}
 
           <div className="rounded-2xl bg-card border border-border p-4">
             <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">{t(lang, "recTitleLabel")}</p>
