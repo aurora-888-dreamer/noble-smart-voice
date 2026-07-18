@@ -177,6 +177,10 @@ const dict = {
     newEvent: "New event",
     back: "Back",
     eventDate: "Date & time",
+    messages: "Messages",
+    statusDraft: "Draft",
+    statusSaved: "Saved",
+    statusSentLater: "Send later",
   },
   id: {
     appName: "Noble",
@@ -356,6 +360,10 @@ const dict = {
     newEvent: "Acara baru",
     back: "Kembali",
     eventDate: "Tanggal & waktu",
+    messages: "Pesan",
+    statusDraft: "Draf",
+    statusSaved: "Tersimpan",
+    statusSentLater: "Kirim nanti",
   },
 } as const;
 
