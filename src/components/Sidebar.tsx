@@ -15,6 +15,7 @@ import {
   Mic,
   Wifi,
   NotebookPen,
+  MessageSquare,
 } from "lucide-react";
 import { useLang } from "@/lib/settings-store";
 import { t } from "@/lib/i18n";
@@ -29,6 +30,7 @@ export function Sidebar() {
     { to: "/tasks", label: t(lang, "tasks"), Icon: CheckSquare },
     { to: "/notes", label: t(lang, "notes"), Icon: StickyNote },
     { to: "/diary", label: t(lang, "diary"), Icon: NotebookPen },
+    { to: "/messages", label: t(lang, "messages"), Icon: MessageSquare },
     { to: "/meetings", label: t(lang, "meetings"), Icon: Video },
     { to: "/appointments", label: t(lang, "appointments"), Icon: CalendarClock },
     { to: "/contacts", label: t(lang, "contacts"), Icon: Users },

@@ -13,6 +13,7 @@ const SWIPE_ORDER = [
   "/tasks",
   "/notes",
   "/diary",
+  "/messages",
   "/meetings",
   "/appointments",
   "/reminders",
