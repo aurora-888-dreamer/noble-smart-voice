@@ -50,6 +50,7 @@ function RecordPage() {
   const [aiBusy, setAiBusy] = useState(false);
   const [transcriptAiBusy, setTranscriptAiBusy] = useState(false);
   const [transcriptAiApplied, setTranscriptAiApplied] = useState(false);
+  const [transcriptAiError, setTranscriptAiError] = useState<string | null>(null);
 
   const fullTextRef = useRef("");
   const audioHandleRef = useRef<AudioCaptureHandle | null>(null);
@@ -99,19 +100,35 @@ function RecordPage() {
     // Best-effort, non-blocking: replace the draft transcript with a more
     // accurate bilingual pass once it's ready, but only if the person
     // hasn't already started editing it themselves.
-    if (isPremium() && typeof navigator !== "undefined" && navigator.onLine) {
+    if (!isPremium()) {
+      console.log("[Noble] AI transcript skipped: Premium not active.");
+    } else if (typeof navigator !== "undefined" && !navigator.onLine) {
+      console.log("[Noble] AI transcript skipped: device is offline.");
+    } else {
       setTranscriptAiBusy(true);
       audioResultPromise
         .then(async (result) => {
-          if (!result) return;
+          if (!result) {
+            console.warn("[Noble] AI transcript skipped: no audio was captured (mic permission for recording may have been denied).");
+            setTranscriptAiError("Tidak ada audio yang terekam untuk AI.");
+            return;
+          }
+          console.log("[Noble] Sending audio to AI for transcription…", { mimeType: result.mimeType, sizeKB: Math.round(result.blob.size / 1024) });
           const audioBase64 = await blobToBase64(result.blob);
           const res = await transcribeAudio({ data: { audioBase64, mimeType: result.mimeType } });
           if (res.ok && res.text) {
+            console.log("[Noble] AI transcript received:", res.text);
             setContent((cur) => (cur === fullText ? res.text : cur));
             setTranscriptAiApplied(true);
+          } else {
+            console.error("[Noble] AI transcript failed:", !res.ok ? res.error : "empty response");
+            setTranscriptAiError(!res.ok ? res.error : "Respons AI kosong.");
           }
         })
-        .catch(() => {})
+        .catch((err) => {
+          console.error("[Noble] AI transcript threw an error:", err);
+          setTranscriptAiError(err instanceof Error ? err.message : String(err));
+        })
         .finally(() => setTranscriptAiBusy(false));
     }
   }, [lang, navigate]);
@@ -176,8 +193,11 @@ function RecordPage() {
       sessionRef.current?.stop();
       sessionRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    // Deliberately depends on `lang`: the language setting hydrates from
+    // localStorage a tick after mount (starts as "en" for SSR-safety), so
+    // without this the recognizer could get permanently stuck on the
+    // wrong locale for the whole session even when Settings says Indonesia.
+  }, [lang]);
 
   // Elapsed clock + silence countdown toward auto-stop (listening phase only)
   useEffect(() => {
@@ -325,6 +345,12 @@ function RecordPage() {
         <div className="flex-1 p-6 flex flex-col gap-4 max-w-md mx-auto w-full">
           <p className="text-xs text-muted-foreground line-clamp-3">{content}</p>
           {transcriptAiBusy && <p className="text-[11px] text-primary animate-pulse">{t(lang, "recAiRefining")}</p>}
+          {transcriptAiError && (
+            <p className="text-[11px] text-destructive">
+              {lang === "id" ? "AI gagal: " : "AI failed: "}
+              {transcriptAiError}
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-3 mt-2">
             {TYPES.map((tp) => (
               <button
@@ -366,6 +392,12 @@ function RecordPage() {
 
         <div className="flex-1 overflow-y-auto p-5 max-w-md mx-auto w-full space-y-4">
           {(aiBusy || transcriptAiBusy) && <p className="text-xs text-primary animate-pulse">{t(lang, "recAiRefining")}</p>}
+          {transcriptAiError && (
+            <p className="text-xs text-destructive">
+              {lang === "id" ? "AI gagal: " : "AI failed: "}
+              {transcriptAiError}
+            </p>
+          )}
           {!aiBusy && !transcriptAiBusy && transcriptAiApplied && (
             <p className="text-xs text-primary">{lang === "id" ? "✓ Transkrip disempurnakan AI" : "✓ Transcript refined by AI"}</p>
           )}
