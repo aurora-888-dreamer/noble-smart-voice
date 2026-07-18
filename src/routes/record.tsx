@@ -7,7 +7,7 @@ import { isVoiceSupported, startVoice, primeMicrophone, type VoiceSession } from
 import { parseUtterance } from "@/lib/parser";
 import { saveCapturedEntry } from "@/lib/capture";
 import { isPremium } from "@/lib/auth-store";
-import { analyzeVoice, transcribeAudio } from "@/lib/ai.functions";
+import { structureCapture, transcribeAudio } from "@/lib/ai.functions";
 import { startAudioCapture, blobToBase64, convertToWav, type AudioCaptureHandle } from "@/lib/audio-capture";
 import type { ItemType } from "@/lib/db";
 
@@ -53,6 +53,8 @@ function RecordPage() {
   const [title, setTitle] = useState("");
   const [when, setWhen] = useState<number | undefined>(undefined);
   const [content, setContent] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
   const [transcriptAiBusy, setTranscriptAiBusy] = useState(false);
   const [transcriptAiApplied, setTranscriptAiApplied] = useState(false);
@@ -263,20 +265,38 @@ function RecordPage() {
     navigate({ to: "/" });
   }
 
-  // Category chosen -> build the AI/local-formatted read-only preview.
+  // Category chosen -> ask the AI to properly split title / content / date
+  // / contact-fields for this specific category (text-based — works the
+  // same on mobile and desktop). Falls back to the local parser's guesses
+  // if AI is unavailable (offline / not premium).
   function pickCategory(picked: ItemType) {
     setType(picked);
     const defaults = parsedDefaultsRef.current;
     setTitle(defaults.title);
     setWhen(defaults.when);
+    setContactEmail("");
+    setContactPhone("");
     setPhase("preview");
 
     if (isPremium() && typeof navigator !== "undefined" && navigator.onLine) {
       setAiBusy(true);
-      analyzeVoice({ data: { transcript: fullTextRef.current } })
+      structureCapture({
+        data: { transcript: content || fullTextRef.current, type: picked, nowISO: new Date().toISOString() },
+      })
         .then((res) => {
           if (!res.ok) return;
-          setTitle((cur) => (cur === defaults.title ? res.result.title || cur : cur));
+          const r = res.result;
+          if (r.title) setTitle(r.title);
+          if (r.content) setContent(r.content);
+          if (r.whenISO) {
+            const ts = new Date(r.whenISO).getTime();
+            if (!Number.isNaN(ts)) setWhen(ts);
+          }
+          if (picked === "contact") {
+            if (r.contactName) setTitle(r.contactName);
+            if (r.contactEmail) setContactEmail(r.contactEmail);
+            if (r.contactPhone) setContactPhone(r.contactPhone);
+          }
         })
         .catch(() => {})
         .finally(() => setAiBusy(false));
@@ -290,7 +310,10 @@ function RecordPage() {
         title,
         body: content,
         when,
-        contact: type === "contact" ? { fullName: title, email: extractEmail(content) } : undefined,
+        contact:
+          type === "contact"
+            ? { fullName: title, email: contactEmail || extractEmail(content), phone: contactPhone || undefined }
+            : undefined,
       },
       lang,
     );
@@ -477,7 +500,11 @@ function RecordPage() {
             {type === "contact" && (
               <>
                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground mt-3 mb-1">Email</p>
-                <p className="text-sm">{extractEmail(content) ?? (lang === "id" ? "Tidak terdeteksi" : "Not detected")}</p>
+                <p className="text-sm">{contactEmail || extractEmail(content) || (lang === "id" ? "Tidak terdeteksi" : "Not detected")}</p>
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground mt-3 mb-1">
+                  {lang === "id" ? "Telepon" : "Phone"}
+                </p>
+                <p className="text-sm">{contactPhone || (lang === "id" ? "Tidak terdeteksi" : "Not detected")}</p>
               </>
             )}
 
@@ -549,6 +576,29 @@ function RecordPage() {
               className="w-full rounded-xl bg-secondary text-secondary-foreground px-3 py-2 text-sm"
             />
           </div>
+        )}
+
+        {type === "contact" && (
+          <>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Email</label>
+              <input
+                value={contactEmail}
+                onChange={(e) => setContactEmail(e.target.value)}
+                className="w-full rounded-xl bg-secondary text-secondary-foreground px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">
+                {lang === "id" ? "Telepon" : "Phone"}
+              </label>
+              <input
+                value={contactPhone}
+                onChange={(e) => setContactPhone(e.target.value)}
+                className="w-full rounded-xl bg-secondary text-secondary-foreground px-3 py-2 text-sm"
+              />
+            </div>
+          </>
         )}
 
         <div>
