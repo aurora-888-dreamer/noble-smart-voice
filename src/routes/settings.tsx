@@ -25,7 +25,8 @@ import {
   getProfile,
   hasBiometric,
   isBiometricSupported,
-  isPremium,
+  useLicenseInfo,
+  setPremiumTestOverride,
   registerBiometric,
   removeBiometric,
   signOut,
@@ -51,14 +52,14 @@ function SettingsPage() {
   const [autoRaw, setAutoRaw] = useAutoSaveRaw();
   const [recordTimeout, setRecordTimeout] = useRecordTimeoutMin();
   const [bio, setBio] = useState(false);
-  const [premium, setPremium] = useState(false);
+  const license = useLicenseInfo();
+  const premium = license.hasLicense && !license.expired && !license.manuallyOff;
   const nav = useNavigate();
   const fileRef = useRef<HTMLInputElement>(null);
   const profile = getProfile();
 
   useEffect(() => {
     setBio(hasBiometric());
-    setPremium(isPremium());
   }, []);
 
   async function doExport(target: "laptop" | "drive" | "storage") {
@@ -180,17 +181,80 @@ function SettingsPage() {
 
       <Card>
         <Label icon={<ShieldCheck size={14} />}>{t(lang, "premium")}</Label>
-        {premium ? (
+
+        {license.manuallyOff && (
+          <p className="text-xs text-muted-foreground mt-2">
+            {lang === "id"
+              ? "Premium sedang dinonaktifkan sementara (mode uji Standard)."
+              : "Premium is temporarily switched off (testing Standard)."}
+          </p>
+        )}
+
+        {!license.manuallyOff && premium && (
           <p className="text-xs text-primary mt-2">
             {lang === "id" ? "Premium aktif — AI Gemini terhubung." : "Premium active — Gemini AI enabled."}
+            {license.daysLeft != null && (
+              <span className="block text-muted-foreground mt-0.5">
+                {license.source === "trial"
+                  ? lang === "id"
+                    ? `Masa uji coba: ${license.daysLeft} hari lagi`
+                    : `Trial: ${license.daysLeft} days left`
+                  : lang === "id"
+                    ? `Berlaku ${license.daysLeft} hari lagi`
+                    : `Expires in ${license.daysLeft} days`}
+              </span>
+            )}
+            {license.daysLeft == null && (
+              <span className="block text-muted-foreground mt-0.5">
+                {lang === "id" ? "Tanpa batas waktu" : "No expiry"}
+              </span>
+            )}
           </p>
-        ) : (
+        )}
+
+        {!license.manuallyOff && !premium && license.hasLicense && license.expired && (
+          <p className="text-xs text-destructive mt-2">
+            {lang === "id" ? "Masa uji coba/lisensi sudah habis." : "Your trial/license has expired."}
+          </p>
+        )}
+
+        {!premium && !license.hasLicense && (
           <Link
             to="/activate"
             className="inline-block mt-2 rounded-xl bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold"
           >
             {t(lang, "activatePremium")}
           </Link>
+        )}
+
+        {license.hasLicense && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {license.manuallyOff ? (
+              <button
+                onClick={() => setPremiumTestOverride(false)}
+                className="rounded-xl bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold"
+              >
+                {lang === "id" ? "Aktifkan kembali Premium" : "Turn Premium back on"}
+              </button>
+            ) : (
+              premium && (
+                <button
+                  onClick={() => setPremiumTestOverride(true)}
+                  className="rounded-xl border border-border px-4 py-2 text-sm font-semibold"
+                >
+                  {lang === "id" ? "Nonaktifkan sementara (uji Standard)" : "Switch off temporarily (test Standard)"}
+                </button>
+              )
+            )}
+            {license.expired && license.source !== "admin" && (
+              <Link
+                to="/activate"
+                className="rounded-xl border border-border px-4 py-2 text-sm font-semibold"
+              >
+                {lang === "id" ? "Masukkan kode lain" : "Enter a different code"}
+              </Link>
+            )}
+          </div>
         )}
       </Card>
 
