@@ -6,6 +6,7 @@ import { AppShell } from "@/components/AppShell";
 import { DateRangeFilter, inRange } from "@/components/DateRangeFilter";
 import { SelectionBar, type MoveTarget } from "@/components/SelectionBar";
 import { EditModal } from "@/components/EditModal";
+import { AddFab } from "@/components/AddFab";
 import { useMultiSelect } from "@/hooks/useMultiSelect";
 import { getDb, type Task } from "@/lib/db";
 import { useLang } from "@/lib/settings-store";
@@ -32,6 +33,7 @@ function TasksPage() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [editing, setEditing] = useState<Task | null>(null);
+  const [adding, setAdding] = useState(false);
   const sel = useMultiSelect<number>();
 
   const tasks = useLiveQuery(async () => {
@@ -141,6 +143,17 @@ function TasksPage() {
     setEditing(null);
     sel.exit();
   }
+  async function saveNew(vals: Record<string, string>) {
+    await getDb().tasks.add({
+      title: vals.title || "Untitled",
+      description: vals.description || undefined,
+      dueAt: vals.dueAt ? new Date(vals.dueAt).getTime() : undefined,
+      priority: (vals.priority as Task["priority"]) || "med",
+      status: "open",
+      createdAt: Date.now(),
+    });
+    setAdding(false);
+  }
 
   const tabs = [
     { k: "today", label: t(lang, "today") },
@@ -174,13 +187,16 @@ function TasksPage() {
       />
       <DateRangeFilter from={from} to={to} onFrom={setFrom} onTo={setTo} />
 
-      <div className="flex justify-between items-center mb-2">
+      <div className="flex justify-between items-center mb-2 gap-2">
         <p className="text-xs text-muted-foreground">{filtered.length}</p>
-        {!sel.selectMode && filtered.length > 0 && (
-          <button onClick={() => sel.enter()} className="text-xs font-semibold text-primary">
-            {t(lang, "select")}
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {!sel.selectMode && filtered.length > 0 && (
+            <button onClick={() => sel.enter()} className="text-xs font-semibold text-primary">
+              {t(lang, "select")}
+            </button>
+          )}
+          {!sel.selectMode && <AddFab onClick={() => setAdding(true)} />}
+        </div>
       </div>
 
       {filtered.length === 0 ? (
@@ -193,7 +209,8 @@ function TasksPage() {
               <li
                 key={task.id}
                 onClick={() => sel.selectMode && task.id && sel.toggle(task.id)}
-                className={`rounded-2xl border p-3 flex items-start gap-3 transition-colors ${
+                onContextMenu={(e) => { e.preventDefault(); if (!sel.selectMode && task.id) sel.enter(task.id); }}
+                className={`rounded-2xl border p-3 flex items-start gap-3 transition-colors select-none ${
                   selected ? "border-primary bg-primary/10" : "bg-card border-border"
                 }`}
               >
@@ -272,6 +289,20 @@ function TasksPage() {
           ]}
           onClose={() => setEditing(null)}
           onSave={saveEdit}
+        />
+      )}
+
+      {adding && (
+        <EditModal
+          title={t(lang, "addManually")}
+          fields={[
+            { key: "title", label: t(lang, "title"), value: "" },
+            { key: "description", label: t(lang, "content"), type: "textarea", value: "" },
+            { key: "dueAt", label: t(lang, "dueDate"), type: "datetime-local", value: "" },
+            { key: "priority", label: t(lang, "priority"), value: "med" },
+          ]}
+          onClose={() => setAdding(false)}
+          onSave={saveNew}
         />
       )}
     </AppShell>

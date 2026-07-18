@@ -5,7 +5,9 @@ import { AppShell } from "@/components/AppShell";
 import { DateRangeFilter, inRange } from "@/components/DateRangeFilter";
 import { SelectionBar, type MoveTarget } from "@/components/SelectionBar";
 import { EditModal } from "@/components/EditModal";
+import { AddFab } from "@/components/AddFab";
 import { useMultiSelect } from "@/hooks/useMultiSelect";
+import { useLongPress } from "@/hooks/useLongPress";
 import { getDb, type Note } from "@/lib/db";
 import { useLang } from "@/lib/settings-store";
 import { t } from "@/lib/i18n";
@@ -23,6 +25,7 @@ function NotesPage() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [editing, setEditing] = useState<Note | null>(null);
+  const [adding, setAdding] = useState(false);
   const sel = useMultiSelect<number>();
 
   const notes = useLiveQuery(async () => {
@@ -115,6 +118,18 @@ function NotesPage() {
     setEditing(null);
     sel.exit();
   }
+  async function saveNew(vals: Record<string, string>) {
+    const now = Date.now();
+    await getDb().notes.add({
+      title: vals.title || "Untitled",
+      transcript: vals.transcript || "",
+      language: lang,
+      tags: [],
+      createdAt: now,
+      updatedAt: now,
+    });
+    setAdding(false);
+  }
 
   return (
     <AppShell title={t(lang, "notes")}>
@@ -126,50 +141,32 @@ function NotesPage() {
       />
       <DateRangeFilter from={from} to={to} onFrom={setFrom} onTo={setTo} />
 
-      <div className="flex justify-between items-center mb-2">
+      <div className="flex justify-between items-center mb-2 gap-2">
         <p className="text-xs text-muted-foreground">{filtered.length} {t(lang, "notes").toLowerCase()}</p>
-        {!sel.selectMode && filtered.length > 0 && (
-          <button onClick={() => sel.enter()} className="text-xs font-semibold text-primary">
-            {t(lang, "select")}
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {!sel.selectMode && filtered.length > 0 && (
+            <button onClick={() => sel.enter()} className="text-xs font-semibold text-primary">
+              {t(lang, "select")}
+            </button>
+          )}
+          {!sel.selectMode && <AddFab onClick={() => setAdding(true)} />}
+        </div>
       </div>
 
       {filtered.length === 0 ? (
         <p className="text-center text-sm text-muted-foreground py-8">{t(lang, "empty")}</p>
       ) : (
         <ul className="space-y-3">
-          {filtered.map((n) => {
-            const selected = n.id ? sel.isSelected(n.id) : false;
-            return (
-              <li
-                key={n.id}
-                onClick={() => sel.selectMode && n.id && sel.toggle(n.id)}
-                className={`rounded-2xl border p-4 transition-colors ${
-                  selected ? "border-primary bg-primary/10" : "bg-card border-border"
-                }`}
-              >
-                <div className="flex items-start gap-2">
-                  {sel.selectMode && (
-                    <input
-                      type="checkbox"
-                      checked={selected}
-                      onChange={() => n.id && sel.toggle(n.id)}
-                      className="mt-1 accent-primary"
-                    />
-                  )}
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold">{n.title}</p>
-                    <p className="text-sm text-muted-foreground mt-1">{n.transcript}</p>
-                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground mt-2">
-                      {new Date(n.createdAt).toLocaleString()} · {n.language.toUpperCase()}
-                      {n.tags?.length > 0 && ` · ${n.tags.join(", ")}`}
-                    </p>
-                  </div>
-                </div>
-              </li>
-            );
-          })}
+          {filtered.map((n) => (
+            <NoteRow
+              key={n.id}
+              n={n}
+              selectMode={sel.selectMode}
+              selected={n.id ? sel.isSelected(n.id) : false}
+              onToggle={() => n.id && sel.toggle(n.id)}
+              onLongPress={() => n.id && !sel.selectMode && sel.enter(n.id)}
+            />
+          ))}
         </ul>
       )}
 
@@ -205,6 +202,62 @@ function NotesPage() {
           onSave={saveEdit}
         />
       )}
+
+      {adding && (
+        <EditModal
+          title={t(lang, "addManually")}
+          fields={[
+            { key: "title", label: t(lang, "title"), value: "" },
+            { key: "transcript", label: t(lang, "content"), type: "textarea", value: "" },
+          ]}
+          onClose={() => setAdding(false)}
+          onSave={saveNew}
+        />
+      )}
     </AppShell>
+  );
+}
+
+function NoteRow({
+  n,
+  selectMode,
+  selected,
+  onToggle,
+  onLongPress,
+}: {
+  n: Note;
+  selectMode: boolean;
+  selected: boolean;
+  onToggle: () => void;
+  onLongPress: () => void;
+}) {
+  const lp = useLongPress(onLongPress);
+  return (
+    <li
+      {...lp}
+      onClick={() => selectMode && onToggle()}
+      className={`rounded-2xl border p-4 transition-colors select-none ${
+        selected ? "border-primary bg-primary/10" : "bg-card border-border"
+      }`}
+    >
+      <div className="flex items-start gap-2">
+        {selectMode && (
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={onToggle}
+            className="mt-1 accent-primary"
+          />
+        )}
+        <div className="flex-1">
+          <p className="text-sm font-semibold">{n.title}</p>
+          <p className="text-sm text-muted-foreground mt-1">{n.transcript}</p>
+          <p className="text-[10px] uppercase tracking-widest text-muted-foreground mt-2">
+            {new Date(n.createdAt).toLocaleString()} · {n.language.toUpperCase()}
+            {n.tags?.length > 0 && ` · ${n.tags.join(", ")}`}
+          </p>
+        </div>
+      </div>
+    </li>
   );
 }

@@ -6,6 +6,7 @@ import { AppShell } from "@/components/AppShell";
 import { DateRangeFilter, inRange } from "@/components/DateRangeFilter";
 import { SelectionBar, type MoveTarget } from "@/components/SelectionBar";
 import { EditModal } from "@/components/EditModal";
+import { AddFab } from "@/components/AddFab";
 import { useMultiSelect } from "@/hooks/useMultiSelect";
 import { getDb, type Appointment } from "@/lib/db";
 import { useLang } from "@/lib/settings-store";
@@ -31,6 +32,7 @@ function AppointmentsPage() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [editing, setEditing] = useState<Appointment | null>(null);
+  const [adding, setAdding] = useState(false);
   const sel = useMultiSelect<number>();
 
   const items = useLiveQuery(async () => {
@@ -130,6 +132,15 @@ function AppointmentsPage() {
     setEditing(null);
     sel.exit();
   }
+  async function saveNew(vals: Record<string, string>) {
+    await getDb().appointments.add({
+      title: vals.title || "Untitled",
+      appointmentAt: vals.appointmentAt ? new Date(vals.appointmentAt).getTime() : Date.now(),
+      location: vals.location || undefined,
+      notes: vals.notes || undefined,
+    });
+    setAdding(false);
+  }
 
   return (
     <AppShell title={t(lang, "appointments")}>
@@ -141,13 +152,16 @@ function AppointmentsPage() {
       />
       <DateRangeFilter from={from} to={to} onFrom={setFrom} onTo={setTo} />
 
-      <div className="flex justify-between items-center mb-2">
+      <div className="flex justify-between items-center mb-2 gap-2">
         <p className="text-xs text-muted-foreground">{filtered.length}</p>
-        {!sel.selectMode && filtered.length > 0 && (
-          <button onClick={() => sel.enter()} className="text-xs font-semibold text-primary">
-            {t(lang, "select")}
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {!sel.selectMode && filtered.length > 0 && (
+            <button onClick={() => sel.enter()} className="text-xs font-semibold text-primary">
+              {t(lang, "select")}
+            </button>
+          )}
+          {!sel.selectMode && <AddFab onClick={() => setAdding(true)} />}
+        </div>
       </div>
 
       {filtered.length === 0 ? (
@@ -160,7 +174,8 @@ function AppointmentsPage() {
               <li
                 key={a.id}
                 onClick={() => sel.selectMode && a.id && sel.toggle(a.id)}
-                className={`rounded-2xl border p-4 transition-colors ${
+                onContextMenu={(e) => { e.preventDefault(); if (!sel.selectMode && a.id) sel.enter(a.id); }}
+                className={`rounded-2xl border p-4 transition-colors select-none ${
                   selected ? "border-primary bg-primary/10" : "bg-card border-border"
                 }`}
               >
@@ -229,6 +244,20 @@ function AppointmentsPage() {
           ]}
           onClose={() => setEditing(null)}
           onSave={saveEdit}
+        />
+      )}
+
+      {adding && (
+        <EditModal
+          title={t(lang, "addManually")}
+          fields={[
+            { key: "title", label: t(lang, "title"), value: "" },
+            { key: "appointmentAt", label: t(lang, "when"), type: "datetime-local", value: "" },
+            { key: "location", label: t(lang, "where"), value: "" },
+            { key: "notes", label: t(lang, "notesField"), type: "textarea", value: "" },
+          ]}
+          onClose={() => setAdding(false)}
+          onSave={saveNew}
         />
       )}
     </AppShell>

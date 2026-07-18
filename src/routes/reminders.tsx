@@ -6,6 +6,7 @@ import { AppShell } from "@/components/AppShell";
 import { DateRangeFilter, inRange } from "@/components/DateRangeFilter";
 import { SelectionBar } from "@/components/SelectionBar";
 import { EditModal } from "@/components/EditModal";
+import { AddFab } from "@/components/AddFab";
 import { useMultiSelect } from "@/hooks/useMultiSelect";
 import { getDb, type Reminder } from "@/lib/db";
 import { useLang } from "@/lib/settings-store";
@@ -30,6 +31,7 @@ function RemindersPage() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [editing, setEditing] = useState<Reminder | null>(null);
+  const [adding, setAdding] = useState(false);
   const sel = useMultiSelect<number>();
 
   const reminders = useLiveQuery(async () => {
@@ -77,6 +79,27 @@ function RemindersPage() {
     setEditing(null);
     sel.exit();
   }
+  async function saveNew(vals: Record<string, string>) {
+    const db = getDb();
+    const label = vals.label || "Reminder";
+    const remindAt = vals.remindAt ? new Date(vals.remindAt).getTime() : Date.now() + 3600000;
+    const noteId = await db.notes.add({
+      title: label,
+      transcript: label,
+      language: lang,
+      tags: ["reminder"],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    await db.reminders.add({
+      targetType: "note",
+      targetId: noteId as number,
+      label,
+      remindAt,
+      status: "pending",
+    });
+    setAdding(false);
+  }
 
   return (
     <AppShell title={t(lang, "reminders")}>
@@ -88,13 +111,16 @@ function RemindersPage() {
       />
       <DateRangeFilter from={from} to={to} onFrom={setFrom} onTo={setTo} />
 
-      <div className="flex justify-between items-center mb-2">
+      <div className="flex justify-between items-center mb-2 gap-2">
         <p className="text-xs text-muted-foreground">{filtered.length}</p>
-        {!sel.selectMode && filtered.length > 0 && (
-          <button onClick={() => sel.enter()} className="text-xs font-semibold text-primary">
-            {t(lang, "select")}
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {!sel.selectMode && filtered.length > 0 && (
+            <button onClick={() => sel.enter()} className="text-xs font-semibold text-primary">
+              {t(lang, "select")}
+            </button>
+          )}
+          {!sel.selectMode && <AddFab onClick={() => setAdding(true)} />}
+        </div>
       </div>
 
       {filtered.length === 0 ? (
@@ -107,7 +133,8 @@ function RemindersPage() {
               <li
                 key={r.id}
                 onClick={() => sel.selectMode && r.id && sel.toggle(r.id)}
-                className={`rounded-2xl border p-3 flex items-center gap-3 transition-colors ${
+                onContextMenu={(e) => { e.preventDefault(); if (!sel.selectMode && r.id) sel.enter(r.id); }}
+                className={`rounded-2xl border p-3 flex items-center gap-3 transition-colors select-none ${
                   selected
                     ? "border-primary bg-primary/10"
                     : r.status === "pending"
@@ -165,6 +192,18 @@ function RemindersPage() {
           ]}
           onClose={() => setEditing(null)}
           onSave={saveEdit}
+        />
+      )}
+
+      {adding && (
+        <EditModal
+          title={t(lang, "addManually")}
+          fields={[
+            { key: "label", label: t(lang, "title"), value: "" },
+            { key: "remindAt", label: t(lang, "when"), type: "datetime-local", value: "" },
+          ]}
+          onClose={() => setAdding(false)}
+          onSave={saveNew}
         />
       )}
     </AppShell>
