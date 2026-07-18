@@ -5,6 +5,7 @@ const LANG_KEY = "voicetag.lang";
 const ONBOARDED_KEY = "voicetag.onboarded";
 const WAKE_KEY = "voicetag.wake";
 const AUTOSAVE_KEY = "voicetag.autosaveRaw";
+const RECORD_TIMEOUT_KEY = "voicetag.recordTimeoutMin";
 
 export function getStoredLang(): Lang {
   if (typeof window === "undefined") return "en";
@@ -82,4 +83,29 @@ export function useAutoSaveRaw(): [boolean, (v: boolean) => void] {
     return () => window.removeEventListener("voicetag:autosave", h);
   }, []);
   return [a, (v: boolean) => { setAutoSaveRaw(v); setA(v); }];
+}
+
+// Recording auto-stop timeout, in minutes, of continuous silence before the
+// full-screen recorder closes itself automatically. User can still stop
+// earlier with an explicit command ("close mic" / "selesai") or the Done
+// button — this timer is only a safety net, and resets on every utterance.
+export const DEFAULT_RECORD_TIMEOUT_MIN = 5;
+export function getRecordTimeoutMin(): number {
+  if (typeof window === "undefined") return DEFAULT_RECORD_TIMEOUT_MIN;
+  const v = Number(localStorage.getItem(RECORD_TIMEOUT_KEY));
+  return v > 0 ? v : DEFAULT_RECORD_TIMEOUT_MIN;
+}
+export function setRecordTimeoutMin(v: number) {
+  localStorage.setItem(RECORD_TIMEOUT_KEY, String(Math.max(1, v)));
+  window.dispatchEvent(new Event("voicetag:recordTimeout"));
+}
+export function useRecordTimeoutMin(): [number, (v: number) => void] {
+  const [v, setV] = useState<number>(DEFAULT_RECORD_TIMEOUT_MIN);
+  useEffect(() => {
+    setV(getRecordTimeoutMin());
+    const h = () => setV(getRecordTimeoutMin());
+    window.addEventListener("voicetag:recordTimeout", h);
+    return () => window.removeEventListener("voicetag:recordTimeout", h);
+  }, []);
+  return [v, (val: number) => { setRecordTimeoutMin(val); setV(val); }];
 }

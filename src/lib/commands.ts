@@ -4,7 +4,7 @@ import type { NavigateFn } from "@tanstack/react-router";
 
 export interface CommandResult {
   handled: boolean;
-  intent?: "openMic" | "closeMic" | "standby" | "signOut" | "backup" | "call";
+  intent?: "openMic" | "closeMic" | "standby" | "signOut" | "backup" | "call" | "goRecord";
   payload?: string;
 }
 
@@ -15,6 +15,7 @@ interface Ctx {
   signOut: () => void;
   backup: () => void;
   call: (phone: string) => void;
+  goRecord: () => void;
 }
 
 // "open|show|go to|buka|tampilkan|pergi ke" + <menu>
@@ -60,6 +61,10 @@ export function dispatchCommand(raw: string, ctx: Ctx): CommandResult {
   if (/^(backup(\s+now)?|export(\s+data)?|cadangkan|ekspor)$/.test(lower)) {
     ctx.backup();
     return { handled: true, intent: "backup" };
+  }
+  if (/^(go\s*record|start\s*record(ing)?|open\s*record(ing)?|rekam|mulai\s*rekam|buka\s*rekam|ke\s*rekam)$/.test(lower)) {
+    ctx.goRecord();
+    return { handled: true, intent: "goRecord" };
   }
   const callMatch = lower.match(/^(?:call|telepon|hubungi|panggil)\s+(.+)/);
   if (callMatch) {
