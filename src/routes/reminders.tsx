@@ -6,6 +6,7 @@ import { AppShell } from "@/components/AppShell";
 import { DateRangeFilter, inRange } from "@/components/DateRangeFilter";
 import { SelectionBar } from "@/components/SelectionBar";
 import { EditModal } from "@/components/EditModal";
+import { AddFab } from "@/components/AddFab";
 import { useMultiSelect } from "@/hooks/useMultiSelect";
 import { getDb, type Reminder } from "@/lib/db";
 import { useLang } from "@/lib/settings-store";
