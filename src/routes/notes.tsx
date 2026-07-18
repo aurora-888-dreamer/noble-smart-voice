@@ -157,12 +157,16 @@ function NotesPage() {
         <p className="text-center text-sm text-muted-foreground py-8">{t(lang, "empty")}</p>
       ) : (
         <ul className="space-y-3">
-          {filtered.map((n) => {
-            const selected = n.id ? sel.isSelected(n.id) : false;
-            return (
-              <NoteRow key={n.id} n={n} selected={selected} sel={sel} />
-            );
-          })}
+          {filtered.map((n) => (
+            <NoteRow
+              key={n.id}
+              n={n}
+              selectMode={sel.selectMode}
+              selected={n.id ? sel.isSelected(n.id) : false}
+              onToggle={() => n.id && sel.toggle(n.id)}
+              onLongPress={() => n.id && !sel.selectMode && sel.enter(n.id)}
+            />
+          ))}
         </ul>
       )}
 
