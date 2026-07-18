@@ -25,6 +25,7 @@ function NotesPage() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [editing, setEditing] = useState<Note | null>(null);
+  const [adding, setAdding] = useState(false);
   const sel = useMultiSelect<number>();
 
   const notes = useLiveQuery(async () => {
