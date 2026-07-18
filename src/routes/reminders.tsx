@@ -111,13 +111,16 @@ function RemindersPage() {
       />
       <DateRangeFilter from={from} to={to} onFrom={setFrom} onTo={setTo} />
 
-      <div className="flex justify-between items-center mb-2">
+      <div className="flex justify-between items-center mb-2 gap-2">
         <p className="text-xs text-muted-foreground">{filtered.length}</p>
-        {!sel.selectMode && filtered.length > 0 && (
-          <button onClick={() => sel.enter()} className="text-xs font-semibold text-primary">
-            {t(lang, "select")}
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {!sel.selectMode && filtered.length > 0 && (
+            <button onClick={() => sel.enter()} className="text-xs font-semibold text-primary">
+              {t(lang, "select")}
+            </button>
+          )}
+          {!sel.selectMode && <AddFab onClick={() => setAdding(true)} />}
+        </div>
       </div>
 
       {filtered.length === 0 ? (
