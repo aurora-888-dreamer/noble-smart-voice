@@ -291,6 +291,20 @@ function TasksPage() {
           onSave={saveEdit}
         />
       )}
+
+      {adding && (
+        <EditModal
+          title={t(lang, "addManually")}
+          fields={[
+            { key: "title", label: t(lang, "title"), value: "" },
+            { key: "description", label: t(lang, "content"), type: "textarea", value: "" },
+            { key: "dueAt", label: t(lang, "dueDate"), type: "datetime-local", value: "" },
+            { key: "priority", label: t(lang, "priority"), value: "med" },
+          ]}
+          onClose={() => setAdding(false)}
+          onSave={saveNew}
+        />
+      )}
     </AppShell>
   );
 }
