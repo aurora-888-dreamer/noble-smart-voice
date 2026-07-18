@@ -80,9 +80,22 @@ function RemindersPage() {
     sel.exit();
   }
   async function saveNew(vals: Record<string, string>) {
-    await getDb().reminders.add({
-      label: vals.label || "Reminder",
-      remindAt: vals.remindAt ? new Date(vals.remindAt).getTime() : Date.now() + 3600000,
+    const db = getDb();
+    const label = vals.label || "Reminder";
+    const remindAt = vals.remindAt ? new Date(vals.remindAt).getTime() : Date.now() + 3600000;
+    const noteId = await db.notes.add({
+      title: label,
+      transcript: label,
+      language: lang,
+      tags: ["reminder"],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    await db.reminders.add({
+      targetType: "note",
+      targetId: noteId as number,
+      label,
+      remindAt,
       status: "pending",
     });
     setAdding(false);
