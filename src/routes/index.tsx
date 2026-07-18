@@ -1,13 +1,14 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Plane, GanttChart, NotebookPen, Mic } from "lucide-react";
+import { Plane, GanttChart, NotebookPen, Mic, MessageSquare, Calculator, Languages } from "lucide-react";
+import { usePlugin } from "@/lib/plugins-store";
 import { AppShell } from "@/components/AppShell";
 import { getDb } from "@/lib/db";
 import { useLang } from "@/lib/settings-store";
 import { t } from "@/lib/i18n";
 import { isOnboarded } from "@/lib/settings-store";
-import { isRegistered, isSignedIn } from "@/lib/auth-store";
+import { isRegistered, isSignedIn, ensureTrialStarted } from "@/lib/auth-store";
 import { rehydrateReminders } from "@/lib/reminders";
 
 export const Route = createFileRoute("/")({
@@ -18,6 +19,8 @@ function Home() {
   const [lang] = useLang();
   const navigate = useNavigate();
   const [ready, setReady] = useState(false);
+  const hasCalculator = usePlugin("calculator");
+  const hasTranslator = usePlugin("translator");
 
   useEffect(() => {
     if (!isOnboarded()) {
@@ -33,6 +36,7 @@ function Home() {
       return;
     }
     setReady(true);
+    ensureTrialStarted();
     rehydrateReminders();
   }, [navigate]);
 
@@ -154,13 +158,20 @@ function Home() {
         )}
       </Section>
 
-      <section className="mb-6 grid grid-cols-3 gap-3">
+      <section className="mb-6 grid grid-cols-2 gap-3">
         <Link
           to="/diary"
           className="rounded-2xl bg-card border border-border p-4 flex flex-col gap-2 active:scale-[0.98] transition-transform"
         >
           <NotebookPen size={22} className="text-primary" />
           <p className="text-sm font-semibold">{t(lang, "diary")}</p>
+        </Link>
+        <Link
+          to="/messages"
+          className="rounded-2xl bg-card border border-border p-4 flex flex-col gap-2 active:scale-[0.98] transition-transform"
+        >
+          <MessageSquare size={22} className="text-primary" />
+          <p className="text-sm font-semibold">{t(lang, "messages")}</p>
         </Link>
         <Link
           to="/trips"
@@ -176,6 +187,24 @@ function Home() {
           <GanttChart size={22} className="text-primary" />
           <p className="text-sm font-semibold">{t(lang, "projects")}</p>
         </Link>
+        {hasCalculator && (
+          <Link
+            to="/calculator"
+            className="rounded-2xl bg-card border border-border p-4 flex flex-col gap-2 active:scale-[0.98] transition-transform"
+          >
+            <Calculator size={22} className="text-primary" />
+            <p className="text-sm font-semibold">{lang === "id" ? "Kalkulator" : "Calculator"}</p>
+          </Link>
+        )}
+        {hasTranslator && (
+          <Link
+            to="/translate"
+            className="rounded-2xl bg-card border border-border p-4 flex flex-col gap-2 active:scale-[0.98] transition-transform"
+          >
+            <Languages size={22} className="text-primary" />
+            <p className="text-sm font-semibold">{lang === "id" ? "Penerjemah" : "Translator"}</p>
+          </Link>
+        )}
       </section>
     </AppShell>
   );
