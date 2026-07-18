@@ -84,7 +84,6 @@ function RemindersPage() {
       label: vals.label || "Reminder",
       remindAt: vals.remindAt ? new Date(vals.remindAt).getTime() : Date.now() + 3600000,
       status: "pending",
-      createdAt: Date.now(),
     });
     setAdding(false);
   }
