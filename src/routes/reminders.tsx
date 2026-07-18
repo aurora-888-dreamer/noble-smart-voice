@@ -194,6 +194,18 @@ function RemindersPage() {
           onSave={saveEdit}
         />
       )}
+
+      {adding && (
+        <EditModal
+          title={t(lang, "addManually")}
+          fields={[
+            { key: "label", label: t(lang, "title"), value: "" },
+            { key: "remindAt", label: t(lang, "when"), type: "datetime-local", value: "" },
+          ]}
+          onClose={() => setAdding(false)}
+          onSave={saveNew}
+        />
+      )}
     </AppShell>
   );
 }
