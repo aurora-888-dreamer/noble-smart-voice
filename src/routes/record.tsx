@@ -207,29 +207,46 @@ function RecordPage() {
 
   // ---- Phase: listening ----
   if (phase === "listening") {
+    const hasText = chunksRef.current.length > 0 || interim.length > 0;
     return (
       <div className="min-h-dvh flex flex-col bg-background text-foreground">
         <div className="flex justify-between items-center p-4">
           <button onClick={cancelAll} aria-label="Cancel" className="grid place-items-center w-10 h-10 rounded-full border border-border active:scale-95">
             <X size={18} />
           </button>
-          <span className="text-xs font-mono text-muted-foreground">{fmt(elapsedMs)}</span>
+          <span className="flex items-center gap-2 text-xs font-mono text-muted-foreground">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inset-0 rounded-full bg-destructive mic-pulse" />
+              <span className="relative rounded-full w-2 h-2 bg-destructive" />
+            </span>
+            {fmt(elapsedMs)}
+          </span>
         </div>
 
-        <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
-          <div className="relative mb-8">
-            <span className="absolute inset-0 rounded-full bg-destructive mic-pulse" />
-            <div className="relative grid place-items-center w-24 h-24 rounded-full bg-destructive text-destructive-foreground shadow-lg shadow-destructive/30">
-              <Mic size={34} />
-            </div>
+        <div className="flex-1 flex flex-col px-4 min-h-0">
+          <div className="flex-1 min-h-0 overflow-y-auto rounded-2xl border border-border bg-card p-4">
+            {hasText ? (
+              <p className="text-base leading-relaxed whitespace-pre-wrap">
+                {chunksRef.current.join("\n")}
+                {interim && (
+                  <span className="text-muted-foreground italic">
+                    {chunksRef.current.length > 0 ? "\n" : ""}
+                    {interim}
+                  </span>
+                )}
+              </p>
+            ) : (
+              <p className="text-base text-muted-foreground text-center mt-6">
+                {lang === "id" ? "Mulai bicara…" : "Start speaking…"}
+              </p>
+            )}
           </div>
-          <p className="text-sm font-semibold text-destructive">{t(lang, "recListening")}</p>
-          <p className="mt-4 min-h-[3.5rem] max-w-sm text-base leading-relaxed text-foreground/90">
-            {interim || (chunksRef.current.length > 0 ? chunksRef.current.join(" ") : "…")}
-          </p>
-          <p className="mt-6 text-xs text-muted-foreground max-w-xs">
-            {t(lang, "recSayToStop")} {fmt(remainingMs)}
-          </p>
+          <div className="flex items-center justify-center gap-2 pt-3 pb-1">
+            <Mic size={14} className="text-destructive" />
+            <p className="text-xs text-muted-foreground text-center">
+              {t(lang, "recSayToStop")} {fmt(remainingMs)}
+            </p>
+          </div>
         </div>
 
         <div className="p-6">

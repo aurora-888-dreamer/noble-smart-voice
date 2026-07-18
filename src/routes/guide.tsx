@@ -38,29 +38,34 @@ function GuidePage() {
         />
         <Step
           n={2}
-          title={lang === "id" ? "Perintah singkat (Bahasa Inggris)" : "Short commands (English)"}
+          title={lang === "id" ? "Perintah singkat (Bahasa Inggris/Indonesia)" : "Short commands (English/Indonesian)"}
           body={
             lang === "id"
-              ? "Isi boleh bahasa apa saja, tapi perintah pakai Inggris agar cepat:"
-              : "Content can be any language; commands stay in English for speed:"
+              ? "Ucapkan perintah setelah mic aktif menunggu (bisa Inggris atau Indonesia):"
+              : "Say a command once the mic is listening (English or Indonesian both work):"
           }
         >
           <ul className="text-sm mt-2 space-y-1 text-muted-foreground list-disc pl-5">
-            <li><b>open mic</b> — {lang === "id" ? "buka mikrofon" : "open the mic"}</li>
-            <li><b>close mic</b> / <b>standby</b> — {lang === "id" ? "hentikan mikrofon" : "stop listening"}</li>
-            <li><b>open calendar / tasks / notes / contacts / trips</b></li>
-            <li><b>call [name]</b> — {lang === "id" ? "telepon kontak" : "call a contact"}</li>
-            <li><b>backup now</b> — {lang === "id" ? "ekspor data" : "export data"}</li>
-            <li><b>sign out</b></li>
+            <li><b>go record</b> / <b>rekam</b> / <b>buka rekam</b> — {lang === "id" ? "buka halaman perekaman untuk mencatat sesuatu" : "opens the recording page to capture something"}</li>
+            <li><b>close mic</b> / <b>standby</b> / <b>tutup mic</b> — {lang === "id" ? "hentikan mikrofon" : "stop listening"}</li>
+            <li><b>open calendar / tasks / notes / diary / contacts / trips</b> {lang === "id" ? "(atau versi Indonesianya: buka kalender / tugas / catatan / diary / kontak / perjalanan)" : ""}</li>
+            <li><b>call [name]</b> / <b>telepon [nama]</b> — {lang === "id" ? "telepon kontak" : "call a contact"}</li>
+            <li><b>backup</b> / <b>cadangkan</b> — {lang === "id" ? "ekspor data" : "export data"}</li>
+            <li><b>sign out</b> / <b>keluar</b></li>
           </ul>
+          <p className="text-xs text-muted-foreground mt-2">
+            {lang === "id"
+              ? "Kalau perintah suara tidak terdeteksi (pengenalan suara kadang meleset), ketuk tautan \"Buka Record manual\" yang muncul di bawah indikator mendengarkan."
+              : "If a voice command isn't recognized (speech recognition can occasionally mishear), tap the \"Open Record manually\" link that appears under the listening indicator."}
+          </p>
         </Step>
         <Step
           n={3}
-          title={lang === "id" ? "Simpan apa pun" : "Save anything"}
+          title={lang === "id" ? "Merekam & menyimpan" : "Recording & saving"}
           body={
             lang === "id"
-              ? 'Contoh: "Save note: rapat besok jam 9 dengan Sarah". Noble mendeteksi jenis (catatan, tugas, rapat, dll.) dan waktu secara otomatis.'
-              : 'Example: "Save note: meeting tomorrow 9am with Sarah". Noble detects the type (note, task, meeting, etc.) and the time automatically.'
+              ? "Di halaman Record, semua yang Anda ucapkan tercatat langsung sebagai teks di kotak, sampai Anda ketuk Selesai (atau diam melewati batas waktu di Pengaturan). Lalu pilih kategorinya (Catatan, Tugas, Rapat, Janji, Kontak, Pesan, atau Diary) — Noble akan otomatis mendeteksi judul dan tanggal/waktu, dan Anda masih bisa mengedit sebelum menyimpan."
+              : "On the Record page, everything you say is printed live into the text box until you tap Done (or stay silent past the timeout set in Settings). Then pick a category (Note, Task, Meeting, Appointment, Contact, Message, or Diary) — Noble auto-detects the title and date/time, and you can still edit before saving."
           }
         />
         <Step
