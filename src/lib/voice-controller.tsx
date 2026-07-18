@@ -177,8 +177,10 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
             stopActiveInternal();
             return;
           }
-          activeFailCountRef.current += 1;
-          if (activeFailCountRef.current >= 5) {
+          if (err !== "no-speech") {
+            activeFailCountRef.current += 1;
+          }
+          if (activeFailCountRef.current >= 10) {
             showToast(
               langRef.current === "id"
                 ? "Mikrofon tidak merespons — coba tombol Record manual"
@@ -244,8 +246,8 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
             );
             return;
           }
-          wakeFailCountRef.current += 1;
-          if (wakeFailCountRef.current >= 5) {
+          wakeFailCountRef.current += (err === "no-speech" ? 0 : 1);
+          if (wakeFailCountRef.current >= 10) {
             setMode("off");
             modeRef.current = "off";
             stopSession();
