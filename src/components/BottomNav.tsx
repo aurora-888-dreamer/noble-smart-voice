@@ -22,7 +22,7 @@ export function BottomNav() {
     { to: "/settings", label: t(lang, "settings"), Icon: SettingsIcon },
   ] as const;
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-40 border-t border-border bg-card/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
+    <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border bg-card/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
       <ul className="mx-auto max-w-md grid grid-cols-6">
         {items.map(({ to, label, Icon }) => {
           const active = to === "/" ? pathname === "/" : pathname.startsWith(to);
