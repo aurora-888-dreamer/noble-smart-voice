@@ -175,7 +175,8 @@ function MeetingsPage() {
               <li
                 key={m.id}
                 onClick={() => sel.selectMode && m.id && sel.toggle(m.id)}
-                className={`rounded-2xl border p-4 transition-colors ${
+                onContextMenu={(e) => { e.preventDefault(); if (!sel.selectMode && m.id) sel.enter(m.id); }}
+                className={`rounded-2xl border p-4 transition-colors select-none ${
                   selected ? "border-primary bg-primary/10" : "bg-card border-border"
                 }`}
               >
