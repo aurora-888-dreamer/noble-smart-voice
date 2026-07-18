@@ -31,6 +31,7 @@ function MeetingsPage() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [editing, setEditing] = useState<Meeting | null>(null);
+  const [adding, setAdding] = useState(false);
   const sel = useMultiSelect<number>();
 
   const meetings = useLiveQuery(async () => {
