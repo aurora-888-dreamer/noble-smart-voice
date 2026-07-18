@@ -79,6 +79,15 @@ function RemindersPage() {
     setEditing(null);
     sel.exit();
   }
+  async function saveNew(vals: Record<string, string>) {
+    await getDb().reminders.add({
+      label: vals.label || "Reminder",
+      remindAt: vals.remindAt ? new Date(vals.remindAt).getTime() : Date.now() + 3600000,
+      status: "pending",
+      createdAt: Date.now(),
+    });
+    setAdding(false);
+  }
 
   return (
     <AppShell title={t(lang, "reminders")}>
