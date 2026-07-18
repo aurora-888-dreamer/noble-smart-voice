@@ -1,4 +1,4 @@
-import { getDb, type Note, type Message, type Task, type Meeting, type Appointment, type Contact, type Trip, type Project } from "../db";
+import { getDb, type Note, type Message, type Task, type Meeting, type Appointment, type Contact, type Trip, type Project, type DiaryEntry } from "../db";
 
 export interface SyncExport {
   exportedAt: string;
@@ -10,6 +10,7 @@ export interface SyncExport {
   contacts: Contact[];
   trips: Trip[];
   projects: Project[];
+  diaries: DiaryEntry[];
 }
 
 export interface MergeStats {
@@ -21,6 +22,7 @@ export interface MergeStats {
   contacts: number;
   trips: number;
   projects: number;
+  diaries: number;
 }
 
 // Content fingerprint (ignores id, which differs per device by design).
@@ -33,6 +35,7 @@ const fp = {
   contacts: (c: Contact) => `${c.fullName.toLowerCase()}::${(c.email ?? "").toLowerCase()}`,
   trips: (t: Trip) => `${t.title}::${t.destination}::${t.createdAt}`,
   projects: (p: Project) => `${p.name}::${p.createdAt}`,
+  diaries: (d: DiaryEntry) => `${d.title}::${d.entry}::${d.createdAt}`,
 };
 
 export async function buildLocalExport(): Promise<SyncExport> {
@@ -47,6 +50,7 @@ export async function buildLocalExport(): Promise<SyncExport> {
     contacts: await db.contacts.toArray(),
     trips: await db.trips.toArray(),
     projects: await db.projects.toArray(),
+    diaries: await db.diaries.toArray(),
   };
 }
 
@@ -57,7 +61,7 @@ export async function mergeRemoteExport(remote: SyncExport): Promise<MergeStats>
   const db = getDb();
   const stats: MergeStats = {
     notes: 0, messages: 0, tasks: 0, meetings: 0,
-    appointments: 0, contacts: 0, trips: 0, projects: 0,
+    appointments: 0, contacts: 0, trips: 0, projects: 0, diaries: 0,
   };
 
   const existingNotes = new Set((await db.notes.toArray()).map(fp.notes));
@@ -122,6 +126,14 @@ export async function mergeRemoteExport(remote: SyncExport): Promise<MergeStats>
     const { id: _id, ...rest } = p;
     await db.projects.add(rest);
     stats.projects++;
+  }
+
+  const existingDiaries = new Set((await db.diaries.toArray()).map(fp.diaries));
+  for (const d of remote.diaries ?? []) {
+    if (existingDiaries.has(fp.diaries(d))) continue;
+    const { id: _id, ...rest } = d;
+    await db.diaries.add(rest);
+    stats.diaries++;
   }
 
   return stats;
