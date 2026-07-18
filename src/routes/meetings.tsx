@@ -131,6 +131,17 @@ function MeetingsPage() {
     setEditing(null);
     sel.exit();
   }
+  async function saveNew(vals: Record<string, string>) {
+    await getDb().meetings.add({
+      title: vals.title || "Untitled",
+      summary: vals.summary || "",
+      attendees: (vals.attendees || "").split(",").map((s) => s.trim()).filter(Boolean),
+      actionItems: (vals.actionItems || "").split("\n").map((s) => s.trim()).filter(Boolean),
+      meetingAt: vals.meetingAt ? new Date(vals.meetingAt).getTime() : undefined,
+      createdAt: Date.now(),
+    });
+    setAdding(false);
+  }
 
   return (
     <AppShell title={t(lang, "meetings")}>
