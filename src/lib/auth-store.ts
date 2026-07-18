@@ -180,7 +180,12 @@ export function isPremium(): boolean {
 
 export function activatePremium(code: string): boolean {
   const c = code.trim().toUpperCase();
-  if (c === "AURORA-ADMIN" || c === "AURORA-PREMIUM" || c.startsWith("AURORA-PREMIUM-")) {
+  if (
+    c === "AURORA-ADMIN" ||
+    c === "AURORA-PREMIUM" ||
+    c.startsWith("AURORA-PREMIUM-") ||
+    c === "NOBLE440077"
+  ) {
     localStorage.setItem(PREMIUM_KEY, c);
     window.dispatchEvent(new Event("noble:auth"));
     return true;
