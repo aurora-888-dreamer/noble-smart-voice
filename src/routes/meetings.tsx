@@ -256,6 +256,21 @@ function MeetingsPage() {
           onSave={saveEdit}
         />
       )}
+
+      {adding && (
+        <EditModal
+          title={t(lang, "addManually")}
+          fields={[
+            { key: "title", label: t(lang, "title"), value: "" },
+            { key: "summary", label: t(lang, "summary"), type: "textarea", value: "" },
+            { key: "attendees", label: t(lang, "attendees"), value: "" },
+            { key: "actionItems", label: t(lang, "actionItems"), type: "textarea", value: "" },
+            { key: "meetingAt", label: t(lang, "when"), type: "datetime-local", value: "" },
+          ]}
+          onClose={() => setAdding(false)}
+          onSave={saveNew}
+        />
+      )}
     </AppShell>
   );
 }
