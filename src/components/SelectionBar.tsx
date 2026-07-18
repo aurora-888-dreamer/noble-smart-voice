@@ -59,24 +59,24 @@ export function SelectionBar({
   };
 
   return (
-    <div className="fixed bottom-16 left-1/2 -translate-x-1/2 z-40 w-[min(28rem,calc(100%-1rem))]">
-      <div className="rounded-2xl bg-popover border border-primary/40 shadow-2xl px-3 py-2 flex items-center gap-1 backdrop-blur-lg">
+    <div className="fixed bottom-16 left-1/2 -translate-x-1/2 z-40 w-[min(30rem,calc(100%-1rem))]">
+      <div className="rounded-2xl bg-popover border border-primary/40 shadow-2xl px-2 py-2 flex flex-wrap items-center gap-0.5 backdrop-blur-lg">
         <button
           onClick={onCancel}
-          className="p-2 rounded-full hover:bg-secondary text-muted-foreground"
+          className="p-1.5 rounded-full hover:bg-secondary text-muted-foreground"
           aria-label={t(lang, "cancel")}
         >
-          <X size={16} />
+          <X size={14} />
         </button>
-        <span className="text-xs font-semibold text-primary mr-1 min-w-[2.5rem]">
+        <span className="text-[11px] font-semibold text-primary mx-1 min-w-[2.2rem]">
           {count}/{totalVisible}
         </span>
         <button
           onClick={onSelectAll}
-          className="p-2 rounded-full hover:bg-secondary text-muted-foreground"
+          className="p-1.5 rounded-full hover:bg-secondary text-muted-foreground"
           aria-label={t(lang, "selectAll")}
         >
-          <CheckSquare size={16} />
+          <CheckSquare size={14} />
         </button>
         {count === 1 && onEdit && (
           <button onClick={onEdit} className="p-2 rounded-full hover:bg-secondary text-primary" aria-label={t(lang, "edit")}>
