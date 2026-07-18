@@ -75,6 +75,8 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
 
   const sessionRef = useRef<VoiceSession | null>(null);
   const modeRef = useRef<Mode>("off");
+  const wakeFailCountRef = useRef(0);
+  const activeFailCountRef = useRef(0);
   useEffect(() => { modeRef.current = mode; }, [mode]);
 
   useEffect(() => {
@@ -122,6 +124,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   const startActiveInternal = useCallback(() => {
     if (!isVoiceSupported()) return;
     stopSession();
+    activeFailCountRef.current = 0;
     setMode("active");
     modeRef.current = "active";
     showToast(langRef.current === "id" ? "Mendengarkan perintah…" : "Listening for a command…");
@@ -152,6 +155,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
         () => {},
         (final) => {
           const text = (final || "").trim();
+          activeFailCountRef.current = 0;
           if (!text) {
             if (modeRef.current === "active") startLoop();
             return;
@@ -168,8 +172,18 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
           if (modeRef.current === "active") startLoop();
         },
         (err) => {
-          if (err === "not-allowed" || err === "service-not-allowed") {
+          if (err === "not-allowed" || err === "service-not-allowed" || err === "audio-capture") {
             showToast(langRef.current === "id" ? "Izin mikrofon ditolak" : "Microphone denied");
+            stopActiveInternal();
+            return;
+          }
+          activeFailCountRef.current += 1;
+          if (activeFailCountRef.current >= 5) {
+            showToast(
+              langRef.current === "id"
+                ? "Mikrofon tidak merespons — coba tombol Record manual"
+                : "Microphone unresponsive — try the manual Record button",
+            );
             stopActiveInternal();
             return;
           }
@@ -197,12 +211,14 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
     if (pathname === "/record") return;
     setMode("wake");
     modeRef.current = "wake";
+    wakeFailCountRef.current = 0;
     void primeMicrophone();
     const listen = () => {
       const s = startVoice(
         langRef.current,
         () => {},
         (final) => {
+          wakeFailCountRef.current = 0;
           if (wakeMatches(final, wakePhrase)) {
             setMode("off");
             modeRef.current = "off";
@@ -212,15 +228,43 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
             setTimeout(listen, 200);
           }
         },
-        () => {
-          if (modeRef.current === "wake") setTimeout(listen, 1500);
+        (err) => {
+          if (modeRef.current !== "wake") return;
+          if (err === "not-allowed" || err === "service-not-allowed" || err === "audio-capture") {
+            // Permission/hardware problem — retrying won't fix it. Stop and
+            // say so, instead of flashing the mic on/off forever.
+            setMode("off");
+            modeRef.current = "off";
+            stopSession();
+            setWakeEnabled(false);
+            showToast(
+              langRef.current === "id"
+                ? "Mikrofon tidak bisa diakses — wake listener dimatikan. Cek izin mikrofon HP kamu."
+                : "Microphone inaccessible — wake listener turned off. Check your phone's mic permission.",
+            );
+            return;
+          }
+          wakeFailCountRef.current += 1;
+          if (wakeFailCountRef.current >= 5) {
+            setMode("off");
+            modeRef.current = "off";
+            stopSession();
+            setWakeEnabled(false);
+            showToast(
+              langRef.current === "id"
+                ? "Wake listener dimatikan — mikrofon tidak merespons berulang kali."
+                : "Wake listener turned off — microphone kept failing to respond.",
+            );
+            return;
+          }
+          setTimeout(listen, 1500);
         },
       );
       sessionRef.current = s;
     };
     listen();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wakePhrase, startActiveInternal, pathname]);
+  }, [wakePhrase, startActiveInternal, pathname, setWakeEnabled]);
 
   useEffect(() => {
     if (wakeEnabled && pathname !== "/record" && modeRef.current === "off") startWake();
