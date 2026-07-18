@@ -132,6 +132,15 @@ function AppointmentsPage() {
     setEditing(null);
     sel.exit();
   }
+  async function saveNew(vals: Record<string, string>) {
+    await getDb().appointments.add({
+      title: vals.title || "Untitled",
+      appointmentAt: vals.appointmentAt ? new Date(vals.appointmentAt).getTime() : Date.now(),
+      location: vals.location || undefined,
+      notes: vals.notes || undefined,
+    });
+    setAdding(false);
+  }
 
   return (
     <AppShell title={t(lang, "appointments")}>
