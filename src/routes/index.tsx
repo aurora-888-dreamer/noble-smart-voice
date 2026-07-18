@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Plane, GanttChart, NotebookPen } from "lucide-react";
+import { Plane, GanttChart, NotebookPen, Mic } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { getDb } from "@/lib/db";
 import { useLang } from "@/lib/settings-store";
@@ -75,7 +75,14 @@ function Home() {
 
   return (
     <AppShell title={t(lang, "home")}>
-      <h2 className="mb-5 text-xl font-semibold">{t(lang, "dailyActivities")}</h2>
+      <h2 className="mb-3 text-xl font-semibold">{t(lang, "dailyActivities")}</h2>
+
+      <button
+        onClick={() => navigate({ to: "/record" })}
+        className="w-full mb-5 rounded-2xl bg-primary text-primary-foreground py-3.5 font-semibold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform shadow-md shadow-primary/20"
+      >
+        <Mic size={18} /> {lang === "id" ? "Rekam Sekarang" : "Record Now"}
+      </button>
 
       <Section title={t(lang, "todaysTasks")} href="/tasks" lang={lang}>
         {tasksToday && tasksToday.length > 0 ? (
