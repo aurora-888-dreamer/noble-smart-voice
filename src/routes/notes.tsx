@@ -202,6 +202,62 @@ function NotesPage() {
           onSave={saveEdit}
         />
       )}
+
+      {adding && (
+        <EditModal
+          title={t(lang, "addManually")}
+          fields={[
+            { key: "title", label: t(lang, "title"), value: "" },
+            { key: "transcript", label: t(lang, "content"), type: "textarea", value: "" },
+          ]}
+          onClose={() => setAdding(false)}
+          onSave={saveNew}
+        />
+      )}
     </AppShell>
+  );
+}
+
+function NoteRow({
+  n,
+  selectMode,
+  selected,
+  onToggle,
+  onLongPress,
+}: {
+  n: Note;
+  selectMode: boolean;
+  selected: boolean;
+  onToggle: () => void;
+  onLongPress: () => void;
+}) {
+  const lp = useLongPress(onLongPress);
+  return (
+    <li
+      {...lp}
+      onClick={() => selectMode && onToggle()}
+      className={`rounded-2xl border p-4 transition-colors select-none ${
+        selected ? "border-primary bg-primary/10" : "bg-card border-border"
+      }`}
+    >
+      <div className="flex items-start gap-2">
+        {selectMode && (
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={onToggle}
+            className="mt-1 accent-primary"
+          />
+        )}
+        <div className="flex-1">
+          <p className="text-sm font-semibold">{n.title}</p>
+          <p className="text-sm text-muted-foreground mt-1">{n.transcript}</p>
+          <p className="text-[10px] uppercase tracking-widest text-muted-foreground mt-2">
+            {new Date(n.createdAt).toLocaleString()} · {n.language.toUpperCase()}
+            {n.tags?.length > 0 && ` · ${n.tags.join(", ")}`}
+          </p>
+        </div>
+      </div>
+    </li>
   );
 }
