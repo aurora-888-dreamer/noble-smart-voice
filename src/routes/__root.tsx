@@ -86,6 +86,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "A local-first, encrypted, voice-first executive assistant. Notes, tasks, meetings, trips, contacts — offline-ready, bilingual, and installable.",
       },
       { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-title", content: "Noble" },
       { property: "og:title", content: "Noble — Executive Voice Assistant" },
       {
