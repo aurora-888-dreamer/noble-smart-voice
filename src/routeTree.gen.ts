@@ -18,12 +18,14 @@ import { Route as RemindersRouteImport } from './routes/reminders'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ReceiveRouteImport } from './routes/receive'
 import { Route as ProjectsRouteImport } from './routes/projects'
+import { Route as ProjectsIdRouteImport } from './routes/projects.$id'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as NotesRouteImport } from './routes/notes'
 import { Route as MeetingsRouteImport } from './routes/meetings'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as GuideRouteImport } from './routes/guide'
 import { Route as ContactsRouteImport } from './routes/contacts'
+import { Route as DiaryRouteImport } from './routes/diary'
 import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as AppointmentsRouteImport } from './routes/appointments'
 import { Route as ActivateRouteImport } from './routes/activate'
@@ -75,6 +77,11 @@ const ProjectsRoute = ProjectsRouteImport.update({
   path: '/projects',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProjectsIdRoute = ProjectsIdRouteImport.update({
+  id: '/projects/$id',
+  path: '/projects/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
@@ -103,6 +110,11 @@ const GuideRoute = GuideRouteImport.update({
 const ContactsRoute = ContactsRouteImport.update({
   id: '/contacts',
   path: '/contacts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DiaryRoute = DiaryRouteImport.update({
+  id: '/diary',
+  path: '/diary',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CalendarRoute = CalendarRouteImport.update({
@@ -138,12 +150,14 @@ export interface FileRoutesByFullPath {
   '/appointments': typeof AppointmentsRoute
   '/calendar': typeof CalendarRoute
   '/contacts': typeof ContactsRoute
+  '/diary': typeof DiaryRoute
   '/guide': typeof GuideRoute
   '/login': typeof LoginRoute
   '/meetings': typeof MeetingsRoute
   '/notes': typeof NotesRoute
   '/onboarding': typeof OnboardingRoute
   '/projects': typeof ProjectsRoute
+  '/projects/$id': typeof ProjectsIdRoute
   '/receive': typeof ReceiveRoute
   '/record': typeof RecordRoute
   '/register': typeof RegisterRoute
@@ -160,12 +174,14 @@ export interface FileRoutesByTo {
   '/appointments': typeof AppointmentsRoute
   '/calendar': typeof CalendarRoute
   '/contacts': typeof ContactsRoute
+  '/diary': typeof DiaryRoute
   '/guide': typeof GuideRoute
   '/login': typeof LoginRoute
   '/meetings': typeof MeetingsRoute
   '/notes': typeof NotesRoute
   '/onboarding': typeof OnboardingRoute
   '/projects': typeof ProjectsRoute
+  '/projects/$id': typeof ProjectsIdRoute
   '/receive': typeof ReceiveRoute
   '/record': typeof RecordRoute
   '/register': typeof RegisterRoute
@@ -183,12 +199,14 @@ export interface FileRoutesById {
   '/appointments': typeof AppointmentsRoute
   '/calendar': typeof CalendarRoute
   '/contacts': typeof ContactsRoute
+  '/diary': typeof DiaryRoute
   '/guide': typeof GuideRoute
   '/login': typeof LoginRoute
   '/meetings': typeof MeetingsRoute
   '/notes': typeof NotesRoute
   '/onboarding': typeof OnboardingRoute
   '/projects': typeof ProjectsRoute
+  '/projects/$id': typeof ProjectsIdRoute
   '/receive': typeof ReceiveRoute
   '/record': typeof RecordRoute
   '/register': typeof RegisterRoute
@@ -207,12 +225,14 @@ export interface FileRouteTypes {
     | '/appointments'
     | '/calendar'
     | '/contacts'
+    | '/diary'
     | '/guide'
     | '/login'
     | '/meetings'
     | '/notes'
     | '/onboarding'
     | '/projects'
+    | '/projects/$id'
     | '/receive'
     | '/record'
     | '/register'
@@ -229,12 +249,14 @@ export interface FileRouteTypes {
     | '/appointments'
     | '/calendar'
     | '/contacts'
+    | '/diary'
     | '/guide'
     | '/login'
     | '/meetings'
     | '/notes'
     | '/onboarding'
     | '/projects'
+    | '/projects/$id'
     | '/receive'
     | '/record'
     | '/register'
@@ -251,12 +273,14 @@ export interface FileRouteTypes {
     | '/appointments'
     | '/calendar'
     | '/contacts'
+    | '/diary'
     | '/guide'
     | '/login'
     | '/meetings'
     | '/notes'
     | '/onboarding'
     | '/projects'
+    | '/projects/$id'
     | '/receive'
     | '/record'
     | '/register'
@@ -353,6 +377,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/projects/$id': {
+      id: '/projects/$id'
+      path: '/projects/$id'
+      fullPath: '/projects/$id'
+      preLoaderRoute: typeof ProjectsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/onboarding': {
       id: '/onboarding'
       path: '/onboarding'
@@ -393,6 +424,13 @@ declare module '@tanstack/react-router' {
       path: '/contacts'
       fullPath: '/contacts'
       preLoaderRoute: typeof ContactsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/diary': {
+      id: '/diary'
+      path: '/diary'
+      fullPath: '/diary'
+      preLoaderRoute: typeof DiaryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/calendar': {
@@ -440,12 +478,14 @@ const rootRouteChildren: RootRouteChildren = {
   AppointmentsRoute: AppointmentsRoute,
   CalendarRoute: CalendarRoute,
   ContactsRoute: ContactsRoute,
+  DiaryRoute: DiaryRoute,
   GuideRoute: GuideRoute,
   LoginRoute: LoginRoute,
   MeetingsRoute: MeetingsRoute,
   NotesRoute: NotesRoute,
   OnboardingRoute: OnboardingRoute,
   ProjectsRoute: ProjectsRoute,
+  ProjectsIdRoute: ProjectsIdRoute,
   ReceiveRoute: ReceiveRoute,
   RecordRoute: RecordRoute,
   RegisterRoute: RegisterRoute,
