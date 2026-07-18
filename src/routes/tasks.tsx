@@ -143,6 +143,17 @@ function TasksPage() {
     setEditing(null);
     sel.exit();
   }
+  async function saveNew(vals: Record<string, string>) {
+    await getDb().tasks.add({
+      title: vals.title || "Untitled",
+      description: vals.description || undefined,
+      dueAt: vals.dueAt ? new Date(vals.dueAt).getTime() : undefined,
+      priority: (vals.priority as Task["priority"]) || "med",
+      status: "open",
+      createdAt: Date.now(),
+    });
+    setAdding(false);
+  }
 
   const tabs = [
     { k: "today", label: t(lang, "today") },
