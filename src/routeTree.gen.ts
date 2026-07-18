@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TripsRouteImport } from './routes/trips'
+import { Route as RecordRouteImport } from './routes/record'
 import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as RemindersRouteImport } from './routes/reminders'
@@ -31,6 +32,11 @@ import { Route as IndexRouteImport } from './routes/index'
 const TripsRoute = TripsRouteImport.update({
   id: '/trips',
   path: '/trips',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecordRoute = RecordRouteImport.update({
+  id: '/record',
+  path: '/record',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TasksRoute = TasksRouteImport.update({
@@ -133,6 +139,7 @@ export interface FileRoutesByFullPath {
   '/onboarding': typeof OnboardingRoute
   '/projects': typeof ProjectsRoute
   '/receive': typeof ReceiveRoute
+  '/record': typeof RecordRoute
   '/register': typeof RegisterRoute
   '/reminders': typeof RemindersRoute
   '/settings': typeof SettingsRoute
@@ -153,6 +160,7 @@ export interface FileRoutesByTo {
   '/onboarding': typeof OnboardingRoute
   '/projects': typeof ProjectsRoute
   '/receive': typeof ReceiveRoute
+  '/record': typeof RecordRoute
   '/register': typeof RegisterRoute
   '/reminders': typeof RemindersRoute
   '/settings': typeof SettingsRoute
@@ -174,6 +182,7 @@ export interface FileRoutesById {
   '/onboarding': typeof OnboardingRoute
   '/projects': typeof ProjectsRoute
   '/receive': typeof ReceiveRoute
+  '/record': typeof RecordRoute
   '/register': typeof RegisterRoute
   '/reminders': typeof RemindersRoute
   '/settings': typeof SettingsRoute
@@ -196,6 +205,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/projects'
     | '/receive'
+    | '/record'
     | '/register'
     | '/reminders'
     | '/settings'
@@ -216,6 +226,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/projects'
     | '/receive'
+    | '/record'
     | '/register'
     | '/reminders'
     | '/settings'
@@ -236,6 +247,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/projects'
     | '/receive'
+    | '/record'
     | '/register'
     | '/reminders'
     | '/settings'
@@ -306,6 +318,13 @@ declare module '@tanstack/react-router' {
       path: '/receive'
       fullPath: '/receive'
       preLoaderRoute: typeof ReceiveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/record': {
+      id: '/record'
+      path: '/record'
+      fullPath: '/record'
+      preLoaderRoute: typeof RecordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/projects': {
@@ -409,6 +428,7 @@ const rootRouteChildren: RootRouteChildren = {
   OnboardingRoute: OnboardingRoute,
   ProjectsRoute: ProjectsRoute,
   ReceiveRoute: ReceiveRoute,
+  RecordRoute: RecordRoute,
   RegisterRoute: RegisterRoute,
   RemindersRoute: RemindersRoute,
   SettingsRoute: SettingsRoute,
