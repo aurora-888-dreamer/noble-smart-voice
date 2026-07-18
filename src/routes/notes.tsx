@@ -165,37 +165,6 @@ function NotesPage() {
           })}
         </ul>
       )}
-            return (
-              <li
-                key={n.id}
-                onClick={() => sel.selectMode && n.id && sel.toggle(n.id)}
-                className={`rounded-2xl border p-4 transition-colors ${
-                  selected ? "border-primary bg-primary/10" : "bg-card border-border"
-                }`}
-              >
-                <div className="flex items-start gap-2">
-                  {sel.selectMode && (
-                    <input
-                      type="checkbox"
-                      checked={selected}
-                      onChange={() => n.id && sel.toggle(n.id)}
-                      className="mt-1 accent-primary"
-                    />
-                  )}
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold">{n.title}</p>
-                    <p className="text-sm text-muted-foreground mt-1">{n.transcript}</p>
-                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground mt-2">
-                      {new Date(n.createdAt).toLocaleString()} · {n.language.toUpperCase()}
-                      {n.tags?.length > 0 && ` · ${n.tags.join(", ")}`}
-                    </p>
-                  </div>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
 
       {sel.selectMode && (
         <SelectionBar
