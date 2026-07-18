@@ -1,5 +1,5 @@
 import { useNavigate, useRouterState } from "@tanstack/react-router";
-import { Mic, MicOff, Download } from "lucide-react";
+import { Mic, Download } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { BottomNav } from "./BottomNav";
 import { useVoice } from "@/lib/voice-controller";
@@ -37,7 +37,7 @@ export function AppShell({
   const startX = useRef<number | null>(null);
   const startY = useRef<number | null>(null);
   const [dir, setDir] = useState<"in" | "left" | "right">("in");
-  const { mode, transcript, toast, toggleActive, supported } = useVoice();
+  const { mode, toast, supported, startActive } = useVoice();
   const [installEvt, setInstallEvt] = useState<BIP | null>(null);
 
   useEffect(() => {
@@ -86,8 +86,16 @@ export function AppShell({
     setInstallEvt(null);
   }
 
-  const micActive = mode === "active";
   const micWake = mode === "wake";
+  const micActive = mode === "active";
+
+  function handleMicTap() {
+    if (pathname === "/") {
+      startActive();
+    } else {
+      navigate({ to: "/record" });
+    }
+  }
 
   return (
     <div className="min-h-dvh bg-background text-foreground" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
@@ -106,9 +114,9 @@ export function AppShell({
             </button>
           )}
           <button
-            onClick={toggleActive}
+            onClick={handleMicTap}
             disabled={!supported}
-            aria-label={micActive ? "Stop mic" : "Start mic"}
+            aria-label="Mic"
             className={`relative grid place-items-center w-10 h-10 rounded-full active:scale-95 transition-transform disabled:opacity-40 ${
               micActive
                 ? "bg-destructive text-destructive-foreground shadow-lg shadow-destructive/30"
@@ -118,15 +126,14 @@ export function AppShell({
             }`}
           >
             {micActive && <span className="absolute inset-0 rounded-full bg-destructive mic-pulse" />}
-            {micActive ? <MicOff size={18} className="relative" /> : <Mic size={18} className="relative" />}
+            <Mic size={18} className="relative" />
           </button>
         </div>
         {micActive && (
           <div className="mx-auto max-w-md px-4 pb-2">
-            <div className="rounded-full bg-destructive/10 border border-destructive/30 px-3 py-1.5 text-xs text-destructive-foreground/90 truncate">
-              <span className="font-semibold text-destructive mr-2">● REC</span>
-              {transcript || "Listening… say “close mic” to stop"}
-            </div>
+            <p className="text-[10px] text-destructive-foreground/90 bg-destructive/10 border border-destructive/30 rounded-full px-3 py-1.5 text-center">
+              Listening for a command… try “go record” / “buka tugas”, etc.
+            </p>
           </div>
         )}
         {micWake && !micActive && (
