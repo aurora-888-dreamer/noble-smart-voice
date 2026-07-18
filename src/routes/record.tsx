@@ -196,8 +196,14 @@ function RecordPage() {
             );
             return;
           }
-          micFailCountRef.current += 1;
-          if (micFailCountRef.current >= 6) {
+          // "no-speech" just means a brief silent gap — completely normal,
+          // especially on mobile where recognizer restarts more often.
+          // Never count it as a failure, or a couple of pauses mid-sentence
+          // would wrongly end the whole recording.
+          if (err !== "no-speech") {
+            micFailCountRef.current += 1;
+          }
+          if (micFailCountRef.current >= 10) {
             setMicError(
               lang === "id"
                 ? "Mikrofon tidak merespons setelah beberapa kali dicoba. Coba tutup dan buka lagi halaman ini."
