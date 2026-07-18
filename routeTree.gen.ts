@@ -22,6 +22,7 @@ import { Route as ProjectsIdRouteImport } from './routes/projects.$id'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as NotesRouteImport } from './routes/notes'
 import { Route as MeetingsRouteImport } from './routes/meetings'
+import { Route as MessagesRouteImport } from './routes/messages'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as GuideRouteImport } from './routes/guide'
 import { Route as AdminRouteImport } from './routes/admin'
@@ -98,6 +99,11 @@ const MeetingsRoute = MeetingsRouteImport.update({
   path: '/meetings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MessagesRoute = MessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -161,6 +167,7 @@ export interface FileRoutesByFullPath {
   '/guide': typeof GuideRoute
   '/login': typeof LoginRoute
   '/meetings': typeof MeetingsRoute
+  '/messages': typeof MessagesRoute
   '/notes': typeof NotesRoute
   '/onboarding': typeof OnboardingRoute
   '/projects': typeof ProjectsRoute
@@ -186,6 +193,7 @@ export interface FileRoutesByTo {
   '/guide': typeof GuideRoute
   '/login': typeof LoginRoute
   '/meetings': typeof MeetingsRoute
+  '/messages': typeof MessagesRoute
   '/notes': typeof NotesRoute
   '/onboarding': typeof OnboardingRoute
   '/projects': typeof ProjectsRoute
@@ -212,6 +220,7 @@ export interface FileRoutesById {
   '/guide': typeof GuideRoute
   '/login': typeof LoginRoute
   '/meetings': typeof MeetingsRoute
+  '/messages': typeof MessagesRoute
   '/notes': typeof NotesRoute
   '/onboarding': typeof OnboardingRoute
   '/projects': typeof ProjectsRoute
@@ -239,6 +248,7 @@ export interface FileRouteTypes {
     | '/guide'
     | '/login'
     | '/meetings'
+    | '/messages'
     | '/notes'
     | '/onboarding'
     | '/projects'
@@ -264,6 +274,7 @@ export interface FileRouteTypes {
     | '/guide'
     | '/login'
     | '/meetings'
+    | '/messages'
     | '/notes'
     | '/onboarding'
     | '/projects'
@@ -289,6 +300,7 @@ export interface FileRouteTypes {
     | '/guide'
     | '/login'
     | '/meetings'
+    | '/messages'
     | '/notes'
     | '/onboarding'
     | '/projects'
@@ -417,6 +429,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MeetingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/messages': {
+      id: '/messages'
+      path: '/messages'
+      fullPath: '/messages'
+      preLoaderRoute: typeof MessagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -502,6 +521,7 @@ const rootRouteChildren: RootRouteChildren = {
   GuideRoute: GuideRoute,
   LoginRoute: LoginRoute,
   MeetingsRoute: MeetingsRoute,
+  MessagesRoute: MessagesRoute,
   NotesRoute: NotesRoute,
   OnboardingRoute: OnboardingRoute,
   ProjectsRoute: ProjectsRoute,
