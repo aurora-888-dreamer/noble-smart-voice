@@ -25,6 +25,7 @@ const ROUTES: Array<{ re: RegExp; to: string }> = [
   { re: new RegExp(`^${OPEN}\\s+(?:the\\s+)?(calendar|kalender)`, "i"), to: "/calendar" },
   { re: new RegExp(`^${OPEN}\\s+(?:the\\s+)?(tasks?|tugas)`, "i"), to: "/tasks" },
   { re: new RegExp(`^${OPEN}\\s+(?:the\\s+)?(notes?|catatan)`, "i"), to: "/notes" },
+  { re: new RegExp(`^${OPEN}\\s+(?:the\\s+)?(diary|diaries|jurnal)`, "i"), to: "/diary" },
   { re: new RegExp(`^${OPEN}\\s+(?:the\\s+)?(meetings?|rapat|pertemuan)`, "i"), to: "/meetings" },
   { re: new RegExp(`^${OPEN}\\s+(?:the\\s+)?(appointments?|janji|janji\\s*temu)`, "i"), to: "/appointments" },
   { re: new RegExp(`^${OPEN}\\s+(?:the\\s+)?(contacts?|kontak)`, "i"), to: "/contacts" },

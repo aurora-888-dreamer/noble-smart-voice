@@ -80,6 +80,14 @@ export async function saveCapturedEntry(input: CaptureInput, lang: Lang): Promis
         createdAt: now,
       });
       break;
+    case "diary":
+      id = await db.diaries.add({
+        title,
+        entry: input.body ?? title,
+        createdAt: now,
+        updatedAt: now,
+      });
+      break;
   }
 
   if (input.when && id && (input.type === "task" || input.type === "appointment" || input.type === "meeting")) {

@@ -1,6 +1,6 @@
 import Dexie, { type Table } from "dexie";
 
-export type ItemType = "note" | "message" | "task" | "meeting" | "appointment" | "contact";
+export type ItemType = "note" | "message" | "task" | "meeting" | "appointment" | "contact" | "diary";
 
 export interface Note {
   id?: number;
@@ -88,6 +88,21 @@ export interface TimelineMilestone {
   status: "todo" | "in-progress" | "done";
 }
 
+export interface DiaryEntry {
+  id?: number;
+  title: string;
+  entry: string;
+  mood?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface ProjectActivity {
+  id: string;
+  text: string;
+  createdAt: number;
+}
+
 export interface Project {
   id?: number;
   name: string;
@@ -95,6 +110,7 @@ export interface Project {
   startAt?: number;
   endAt?: number;
   milestones: TimelineMilestone[];
+  activities?: ProjectActivity[];
   createdAt: number;
 }
 
@@ -117,6 +133,7 @@ class NobleDB extends Dexie {
   reminders!: Table<Reminder, number>;
   trips!: Table<Trip, number>;
   projects!: Table<Project, number>;
+  diaries!: Table<DiaryEntry, number>;
 
   constructor() {
     super("voicetag");
@@ -139,6 +156,18 @@ class NobleDB extends Dexie {
       reminders: "++id, remindAt, status, targetType",
       trips: "++id, startAt, createdAt",
       projects: "++id, startAt, createdAt",
+    });
+    this.version(3).stores({
+      notes: "++id, createdAt, language",
+      messages: "++id, createdAt, relatedContactId",
+      tasks: "++id, status, dueAt, createdAt",
+      meetings: "++id, meetingAt, createdAt",
+      appointments: "++id, appointmentAt",
+      contacts: "++id, fullName, email",
+      reminders: "++id, remindAt, status, targetType",
+      trips: "++id, startAt, createdAt",
+      projects: "++id, startAt, createdAt",
+      diaries: "++id, createdAt",
     });
   }
 }
@@ -166,6 +195,7 @@ export async function exportAll() {
     reminders: await db.reminders.toArray(),
     trips: await db.trips.toArray(),
     projects: await db.projects.toArray(),
+    diaries: await db.diaries.toArray(),
   };
 }
 
@@ -173,7 +203,7 @@ export async function importAll(payload: Record<string, unknown[]>) {
   const db = getDb();
   await db.transaction(
     "rw",
-    [db.notes, db.messages, db.tasks, db.meetings, db.appointments, db.contacts, db.reminders, db.trips, db.projects],
+    [db.notes, db.messages, db.tasks, db.meetings, db.appointments, db.contacts, db.reminders, db.trips, db.projects, db.diaries],
     async () => {
       if (Array.isArray(payload.notes)) await db.notes.bulkPut(payload.notes as Note[]);
       if (Array.isArray(payload.messages)) await db.messages.bulkPut(payload.messages as Message[]);
@@ -186,6 +216,7 @@ export async function importAll(payload: Record<string, unknown[]>) {
         await db.reminders.bulkPut(payload.reminders as Reminder[]);
       if (Array.isArray(payload.trips)) await db.trips.bulkPut(payload.trips as Trip[]);
       if (Array.isArray(payload.projects)) await db.projects.bulkPut(payload.projects as Project[]);
+      if (Array.isArray(payload.diaries)) await db.diaries.bulkPut(payload.diaries as DiaryEntry[]);
     },
   );
 }

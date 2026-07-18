@@ -170,6 +170,13 @@ const dict = {
       "How long the recorder waits with no speech before it stops itself. Any detected speech resets this timer.",
     recMinutes: "minutes",
     recNothingCaptured: "Nothing was captured.",
+    diary: "Diary",
+    openProject: "Open project",
+    activityLog: "Activity & Plans",
+    addActivity: "Add entry",
+    newEvent: "New event",
+    back: "Back",
+    eventDate: "Date & time",
   },
   id: {
     appName: "Noble",
@@ -342,6 +349,13 @@ const dict = {
       "Berapa lama perekam menunggu tanpa suara sebelum berhenti sendiri. Suara apa pun yang terdeteksi akan mengatur ulang timer ini.",
     recMinutes: "menit",
     recNothingCaptured: "Tidak ada yang tertangkap.",
+    diary: "Diary",
+    openProject: "Buka Proyek",
+    activityLog: "Aktivitas & Rencana",
+    addActivity: "Tambah catatan",
+    newEvent: "Acara baru",
+    back: "Kembali",
+    eventDate: "Tanggal & waktu",
   },
 } as const;
 
