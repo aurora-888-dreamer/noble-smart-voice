@@ -31,11 +31,17 @@ import { Route as RecordRouteImport } from './routes/record'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as RemindersRouteImport } from './routes/reminders'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as StoreRouteImport } from './routes/store'
 import { Route as SyncRouteImport } from './routes/sync'
 import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as TranslateRouteImport } from './routes/translate'
 import { Route as TripsRouteImport } from './routes/trips'
 import { Route as ProjectsIdRouteImport } from './routes/projects.$id'
+import { Route as StoreIndexRouteImport } from './routes/store.index'
+import { Route as StoreAdminRouteImport } from './routes/store.admin'
+import { Route as StoreOrderRouteImport } from './routes/store.order'
+import { Route as StorePrivacyRouteImport } from './routes/store.privacy'
+import { Route as StoreTermsRouteImport } from './routes/store.terms'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -147,6 +153,11 @@ const SettingsRoute = SettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StoreRoute = StoreRouteImport.update({
+  id: '/store',
+  path: '/store',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SyncRoute = SyncRouteImport.update({
   id: '/sync',
   path: '/sync',
@@ -172,6 +183,31 @@ const ProjectsIdRoute = ProjectsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => ProjectsRoute,
 } as any)
+const StoreIndexRoute = StoreIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => StoreRoute,
+} as any)
+const StoreAdminRoute = StoreAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => StoreRoute,
+} as any)
+const StoreOrderRoute = StoreOrderRouteImport.update({
+  id: '/order',
+  path: '/order',
+  getParentRoute: () => StoreRoute,
+} as any)
+const StorePrivacyRoute = StorePrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => StoreRoute,
+} as any)
+const StoreTermsRoute = StoreTermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => StoreRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -196,11 +232,17 @@ export interface FileRoutesByFullPath {
   '/register': typeof RegisterRoute
   '/reminders': typeof RemindersRoute
   '/settings': typeof SettingsRoute
+  '/store': typeof StoreRouteWithChildren
   '/sync': typeof SyncRoute
   '/tasks': typeof TasksRoute
   '/translate': typeof TranslateRoute
   '/trips': typeof TripsRoute
   '/projects/$id': typeof ProjectsIdRoute
+  '/store/admin': typeof StoreAdminRoute
+  '/store/order': typeof StoreOrderRoute
+  '/store/privacy': typeof StorePrivacyRoute
+  '/store/terms': typeof StoreTermsRoute
+  '/store/': typeof StoreIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -230,6 +272,11 @@ export interface FileRoutesByTo {
   '/translate': typeof TranslateRoute
   '/trips': typeof TripsRoute
   '/projects/$id': typeof ProjectsIdRoute
+  '/store/admin': typeof StoreAdminRoute
+  '/store/order': typeof StoreOrderRoute
+  '/store/privacy': typeof StorePrivacyRoute
+  '/store/terms': typeof StoreTermsRoute
+  '/store': typeof StoreIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -255,11 +302,17 @@ export interface FileRoutesById {
   '/register': typeof RegisterRoute
   '/reminders': typeof RemindersRoute
   '/settings': typeof SettingsRoute
+  '/store': typeof StoreRouteWithChildren
   '/sync': typeof SyncRoute
   '/tasks': typeof TasksRoute
   '/translate': typeof TranslateRoute
   '/trips': typeof TripsRoute
   '/projects/$id': typeof ProjectsIdRoute
+  '/store/admin': typeof StoreAdminRoute
+  '/store/order': typeof StoreOrderRoute
+  '/store/privacy': typeof StorePrivacyRoute
+  '/store/terms': typeof StoreTermsRoute
+  '/store/': typeof StoreIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -286,11 +339,17 @@ export interface FileRouteTypes {
     | '/register'
     | '/reminders'
     | '/settings'
+    | '/store'
     | '/sync'
     | '/tasks'
     | '/translate'
     | '/trips'
     | '/projects/$id'
+    | '/store/admin'
+    | '/store/order'
+    | '/store/privacy'
+    | '/store/terms'
+    | '/store/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -320,6 +379,11 @@ export interface FileRouteTypes {
     | '/translate'
     | '/trips'
     | '/projects/$id'
+    | '/store/admin'
+    | '/store/order'
+    | '/store/privacy'
+    | '/store/terms'
+    | '/store'
   id:
     | '__root__'
     | '/'
@@ -344,11 +408,17 @@ export interface FileRouteTypes {
     | '/register'
     | '/reminders'
     | '/settings'
+    | '/store'
     | '/sync'
     | '/tasks'
     | '/translate'
     | '/trips'
     | '/projects/$id'
+    | '/store/admin'
+    | '/store/order'
+    | '/store/privacy'
+    | '/store/terms'
+    | '/store/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -374,6 +444,7 @@ export interface RootRouteChildren {
   RegisterRoute: typeof RegisterRoute
   RemindersRoute: typeof RemindersRoute
   SettingsRoute: typeof SettingsRoute
+  StoreRoute: typeof StoreRouteWithChildren
   SyncRoute: typeof SyncRoute
   TasksRoute: typeof TasksRoute
   TranslateRoute: typeof TranslateRoute
@@ -536,6 +607,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/store': {
+      id: '/store'
+      path: '/store'
+      fullPath: '/store'
+      preLoaderRoute: typeof StoreRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sync': {
       id: '/sync'
       path: '/sync'
@@ -571,6 +649,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsIdRouteImport
       parentRoute: typeof ProjectsRoute
     }
+    '/store/': {
+      id: '/store/'
+      path: '/'
+      fullPath: '/store/'
+      preLoaderRoute: typeof StoreIndexRouteImport
+      parentRoute: typeof StoreRoute
+    }
+    '/store/admin': {
+      id: '/store/admin'
+      path: '/admin'
+      fullPath: '/store/admin'
+      preLoaderRoute: typeof StoreAdminRouteImport
+      parentRoute: typeof StoreRoute
+    }
+    '/store/order': {
+      id: '/store/order'
+      path: '/order'
+      fullPath: '/store/order'
+      preLoaderRoute: typeof StoreOrderRouteImport
+      parentRoute: typeof StoreRoute
+    }
+    '/store/privacy': {
+      id: '/store/privacy'
+      path: '/privacy'
+      fullPath: '/store/privacy'
+      preLoaderRoute: typeof StorePrivacyRouteImport
+      parentRoute: typeof StoreRoute
+    }
+    '/store/terms': {
+      id: '/store/terms'
+      path: '/terms'
+      fullPath: '/store/terms'
+      preLoaderRoute: typeof StoreTermsRouteImport
+      parentRoute: typeof StoreRoute
+    }
   }
 }
 
@@ -585,6 +698,24 @@ const ProjectsRouteChildren: ProjectsRouteChildren = {
 const ProjectsRouteWithChildren = ProjectsRoute._addFileChildren(
   ProjectsRouteChildren,
 )
+
+interface StoreRouteChildren {
+  StoreAdminRoute: typeof StoreAdminRoute
+  StoreOrderRoute: typeof StoreOrderRoute
+  StorePrivacyRoute: typeof StorePrivacyRoute
+  StoreTermsRoute: typeof StoreTermsRoute
+  StoreIndexRoute: typeof StoreIndexRoute
+}
+
+const StoreRouteChildren: StoreRouteChildren = {
+  StoreAdminRoute: StoreAdminRoute,
+  StoreOrderRoute: StoreOrderRoute,
+  StorePrivacyRoute: StorePrivacyRoute,
+  StoreTermsRoute: StoreTermsRoute,
+  StoreIndexRoute: StoreIndexRoute,
+}
+
+const StoreRouteWithChildren = StoreRoute._addFileChildren(StoreRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -609,6 +740,7 @@ const rootRouteChildren: RootRouteChildren = {
   RegisterRoute: RegisterRoute,
   RemindersRoute: RemindersRoute,
   SettingsRoute: SettingsRoute,
+  StoreRoute: StoreRouteWithChildren,
   SyncRoute: SyncRoute,
   TasksRoute: TasksRoute,
   TranslateRoute: TranslateRoute,
