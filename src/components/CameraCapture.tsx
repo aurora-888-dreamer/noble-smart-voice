@@ -24,7 +24,25 @@ export function CameraCapture({ onCapture }: { onCapture: (dataUrl: string) => v
         if (videoRef.current) videoRef.current.srcObject = stream;
         setStreaming(true);
       })
-      .catch(() => setError(lang === "id" ? "Kamera tidak tersedia — pakai tombol unggah di bawah." : "Camera unavailable — use the upload button below."));
+      .catch((err) => {
+        console.error("[Noble] Camera getUserMedia failed:", err?.name, err?.message);
+        let msg =
+          lang === "id" ? "Kamera tidak tersedia — pakai tombol unggah di bawah." : "Camera unavailable — use the upload button below.";
+        if (err?.name === "NotAllowedError") {
+          msg =
+            lang === "id"
+              ? "Izin kamera ditolak. Cek izin kamera untuk browser ini di pengaturan HP/browser kamu."
+              : "Camera permission denied. Check this browser's camera permission in your device/browser settings.";
+        } else if (err?.name === "NotFoundError") {
+          msg = lang === "id" ? "Tidak ada kamera terdeteksi di perangkat ini." : "No camera detected on this device.";
+        } else if (err?.name === "NotReadableError") {
+          msg =
+            lang === "id"
+              ? "Kamera sedang dipakai aplikasi lain. Tutup app lain yang mungkin pakai kamera, lalu coba lagi."
+              : "Camera is already in use by another app. Close anything else using it and try again.";
+        }
+        setError(msg);
+      });
     return () => {
       cancelled = true;
       streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -105,7 +123,7 @@ export function CameraCapture({ onCapture }: { onCapture: (dataUrl: string) => v
           <Camera size={15} /> {lang === "id" ? "Jepret" : "Capture"}
         </button>
       </div>
-      <input ref={fileInputRef} type="file" accept="image/*" capture="environment" onChange={handleFile} className="hidden" />
+      <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFile} className="hidden" />
     </div>
   );
 }
