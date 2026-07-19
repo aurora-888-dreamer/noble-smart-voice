@@ -19,6 +19,9 @@ import {
   Calculator,
   Languages,
   Camera,
+  Download,
+  FileText,
+  ShieldCheck,
 } from "lucide-react";
 import { useLang } from "@/lib/settings-store";
 import { usePlugin } from "@/lib/plugins-store";
@@ -126,6 +129,15 @@ export function Sidebar() {
           <Wifi size={16} strokeWidth={pathname === "/sync" ? 2.4 : 1.8} />
           {lang === "id" ? "Sinkronisasi" : "Sync"}
         </Link>
+        <Link
+          to="/backup"
+          className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+            pathname === "/backup" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+          }`}
+        >
+          <Download size={16} strokeWidth={pathname === "/backup" ? 2.4 : 1.8} />
+          {lang === "id" ? "Cadangan Data" : "Backup"}
+        </Link>
         {bottomItems.map(({ to, label, Icon }) => {
           const active = pathname.startsWith(to);
           return (
@@ -141,6 +153,24 @@ export function Sidebar() {
             </Link>
           );
         })}
+        <Link
+          to="/terms"
+          className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+            pathname === "/terms" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+          }`}
+        >
+          <FileText size={16} strokeWidth={pathname === "/terms" ? 2.4 : 1.8} />
+          Terms &amp; Conditions
+        </Link>
+        <Link
+          to="/privacy"
+          className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+            pathname === "/privacy" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+          }`}
+        >
+          <ShieldCheck size={16} strokeWidth={pathname === "/privacy" ? 2.4 : 1.8} />
+          Privacy Policy
+        </Link>
       </div>
     </nav>
   );
