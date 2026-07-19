@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Plane, GanttChart, NotebookPen, Mic, MessageSquare, Calculator, Languages, Camera, MessageCircle, Mail, Music2, Instagram, Facebook, Globe, ExternalLink } from "lucide-react";
+import { Plane, GanttChart, NotebookPen, Mic, MessageSquare, Calculator, Languages, Camera, MessageCircle, Mail, Music2, Instagram, Facebook, Globe, ExternalLink, StickyNote, CheckSquare, Calendar as CalendarIcon, Video, CalendarClock, Users, BellRing, Wifi } from "lucide-react";
 import { usePlugin } from "@/lib/plugins-store";
 import { useEnabledShortcuts } from "@/lib/app-shortcuts-store";
 import { AppShell } from "@/components/AppShell";
@@ -84,8 +84,55 @@ function Home() {
 
   if (!ready) return null;
 
+  const CATEGORY_TILES = [
+    { to: "/notes", label: t(lang, "notes"), Icon: StickyNote },
+    { to: "/tasks", label: t(lang, "tasks"), Icon: CheckSquare },
+    { to: "/calendar", label: t(lang, "calendar"), Icon: CalendarIcon },
+    { to: "/meetings", label: t(lang, "meetings"), Icon: Video },
+    { to: "/appointments", label: t(lang, "appointments"), Icon: CalendarClock },
+    { to: "/contacts", label: t(lang, "contacts"), Icon: Users },
+    { to: "/reminders", label: t(lang, "reminders"), Icon: BellRing },
+    { to: "/diary", label: t(lang, "diary"), Icon: NotebookPen },
+    { to: "/messages", label: t(lang, "messages"), Icon: MessageSquare },
+    { to: "/trips", label: t(lang, "trips"), Icon: Plane },
+    { to: "/projects", label: t(lang, "projects"), Icon: GanttChart },
+    { to: "/sync", label: lang === "id" ? "Sinkronisasi" : "Sync", Icon: Wifi },
+  ] as const;
+
+  const headerExtra = (
+    <div className="flex items-center gap-1.5 lg:hidden">
+      {hasCamera && (
+        <Link
+          to="/camera"
+          aria-label="Camera"
+          className="grid place-items-center w-10 h-10 rounded-full border border-border text-muted-foreground active:scale-95"
+        >
+          <Camera size={19} />
+        </Link>
+      )}
+      {hasCalculator && (
+        <Link
+          to="/calculator"
+          aria-label="Calculator"
+          className="grid place-items-center w-10 h-10 rounded-full border border-border text-muted-foreground active:scale-95"
+        >
+          <Calculator size={19} />
+        </Link>
+      )}
+      {hasTranslator && (
+        <Link
+          to="/translate"
+          aria-label="Translator"
+          className="grid place-items-center w-10 h-10 rounded-full border border-border text-muted-foreground active:scale-95"
+        >
+          <Languages size={19} />
+        </Link>
+      )}
+    </div>
+  );
+
   return (
-    <AppShell title={t(lang, "home")}>
+    <AppShell title={t(lang, "home")} headerExtra={headerExtra}>
       <h2 className="mb-3 text-xl font-semibold">{t(lang, "dailyActivities")}</h2>
 
       <button
@@ -95,132 +142,46 @@ function Home() {
         <Mic size={18} /> {lang === "id" ? "Rekam Sekarang" : "Record Now"}
       </button>
 
-      <Section title={t(lang, "todaysTasks")} href="/tasks" lang={lang}>
-        {tasksToday && tasksToday.length > 0 ? (
-          <ul className="space-y-2">
-            {tasksToday.map((task) => (
-              <li key={task.id} className="rounded-2xl bg-card border border-border p-3">
-                <p className="text-sm font-medium">{task.title}</p>
-                {task.dueAt && (
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {new Date(task.dueAt).toLocaleString()}
-                  </p>
-                )}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <Empty label={t(lang, "empty")} />
-        )}
-      </Section>
+      <MarqueeSection
+        title={t(lang, "todaysTasks")}
+        href="/tasks"
+        lang={lang}
+        items={(tasksToday ?? []).map((task) => `${task.title}${task.dueAt ? " · " + new Date(task.dueAt).toLocaleString() : ""}`)}
+      />
 
-      <Section title={t(lang, "upcomingMeetings")} href="/meetings" lang={lang}>
-        {upcomingMeetings && upcomingMeetings.length > 0 ? (
-          <ul className="space-y-2">
-            {upcomingMeetings.map((m) => (
-              <li key={m.id} className="rounded-2xl bg-card border border-border p-3">
-                <p className="text-sm font-medium">{m.title}</p>
-                {m.meetingAt && (
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {new Date(m.meetingAt).toLocaleString()}
-                  </p>
-                )}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <Empty label={t(lang, "empty")} />
-        )}
-      </Section>
+      <MarqueeSection
+        title={t(lang, "upcomingMeetings")}
+        href="/meetings"
+        lang={lang}
+        items={(upcomingMeetings ?? []).map((m) => `${m.title}${m.meetingAt ? " · " + new Date(m.meetingAt).toLocaleString() : ""}`)}
+      />
 
-      <Section title={t(lang, "recentNotes")} href="/notes" lang={lang}>
-        {recentNotes && recentNotes.length > 0 ? (
-          <ul className="space-y-2">
-            {recentNotes.map((n) => (
-              <li key={n.id} className="rounded-2xl bg-card border border-border p-3">
-                <p className="text-sm font-medium line-clamp-1">{n.title}</p>
-                <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{n.transcript}</p>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <Empty label={t(lang, "empty")} />
-        )}
-      </Section>
+      <MarqueeSection
+        title={t(lang, "recentNotes")}
+        href="/notes"
+        lang={lang}
+        items={(recentNotes ?? []).map((n) => n.title)}
+      />
 
-      <Section title={t(lang, "activeReminders")} href="/reminders" lang={lang}>
-        {reminders && reminders.length > 0 ? (
-          <ul className="space-y-2">
-            {reminders.slice(0, 3).map((r) => (
-              <li key={r.id} className="rounded-2xl bg-accent/20 border border-accent/40 p-3">
-                <p className="text-sm font-medium">{r.label}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {new Date(r.remindAt).toLocaleString()}
-                </p>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <Empty label={t(lang, "empty")} />
-        )}
-      </Section>
+      <MarqueeSection
+        title={t(lang, "activeReminders")}
+        href="/reminders"
+        lang={lang}
+        items={(reminders ?? []).slice(0, 8).map((r) => `${r.label} · ${new Date(r.remindAt).toLocaleString()}`)}
+        accent
+      />
 
-      <section className="mb-6 grid grid-cols-2 gap-3">
-        <Link
-          to="/diary"
-          className="rounded-2xl bg-card border border-border p-4 flex flex-col gap-2 active:scale-[0.98] transition-transform"
-        >
-          <NotebookPen size={22} className="text-primary" />
-          <p className="text-sm font-semibold">{t(lang, "diary")}</p>
-        </Link>
-        <Link
-          to="/messages"
-          className="rounded-2xl bg-card border border-border p-4 flex flex-col gap-2 active:scale-[0.98] transition-transform"
-        >
-          <MessageSquare size={22} className="text-primary" />
-          <p className="text-sm font-semibold">{t(lang, "messages")}</p>
-        </Link>
-        <Link
-          to="/trips"
-          className="rounded-2xl bg-card border border-border p-4 flex flex-col gap-2 active:scale-[0.98] transition-transform"
-        >
-          <Plane size={22} className="text-primary" />
-          <p className="text-sm font-semibold">{t(lang, "trips")}</p>
-        </Link>
-        <Link
-          to="/projects"
-          className="rounded-2xl bg-card border border-border p-4 flex flex-col gap-2 active:scale-[0.98] transition-transform"
-        >
-          <GanttChart size={22} className="text-primary" />
-          <p className="text-sm font-semibold">{t(lang, "projects")}</p>
-        </Link>
-        {hasCalculator && (
+      <section className="mb-6 grid grid-cols-3 gap-3 lg:hidden">
+        {CATEGORY_TILES.map(({ to, label, Icon }) => (
           <Link
-            to="/calculator"
-            className="lg:hidden rounded-2xl bg-card border border-border p-4 flex flex-col gap-2 active:scale-[0.98] transition-transform"
+            key={to}
+            to={to}
+            className="rounded-2xl bg-card border border-border p-3 flex flex-col items-center gap-2 text-center active:scale-[0.98] transition-transform"
           >
-            <Calculator size={22} className="text-primary" />
-            <p className="text-sm font-semibold">{lang === "id" ? "Kalkulator" : "Calculator"}</p>
+            <Icon size={22} className="text-primary" />
+            <p className="text-xs font-semibold leading-tight">{label}</p>
           </Link>
-        )}
-        {hasTranslator && (
-          <Link
-            to="/translate"
-            className="lg:hidden rounded-2xl bg-card border border-border p-4 flex flex-col gap-2 active:scale-[0.98] transition-transform"
-          >
-            <Languages size={22} className="text-primary" />
-            <p className="text-sm font-semibold">{lang === "id" ? "Penerjemah" : "Translator"}</p>
-          </Link>
-        )}
-        {hasCamera && (
-          <Link
-            to="/camera"
-            className="lg:hidden rounded-2xl bg-card border border-border p-4 flex flex-col gap-2 active:scale-[0.98] transition-transform"
-          >
-            <Camera size={22} className="text-primary" />
-            <p className="text-sm font-semibold">{lang === "id" ? "Kamera" : "Camera"}</p>
-          </Link>
-        )}
+        ))}
       </section>
 
       {shortcuts.length > 0 && (
@@ -258,6 +219,55 @@ function Home() {
         />
       )}
     </AppShell>
+  );
+}
+
+function MarqueeSection({
+  title,
+  href,
+  items,
+  lang: _lang,
+  accent,
+}: {
+  title: string;
+  href: "/tasks" | "/meetings" | "/notes" | "/reminders";
+  items: string[];
+  lang: string;
+  accent?: boolean;
+}) {
+  const [paused, setPaused] = useState(false);
+
+  return (
+    <section className="mb-4">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{title}</h3>
+        <Link to={href} className="text-xs text-primary font-medium">
+          →
+        </Link>
+      </div>
+      {items.length === 0 ? (
+        <Empty label="—" />
+      ) : (
+        <Link
+          to={href}
+          onTouchStart={() => setPaused(true)}
+          onTouchEnd={() => setPaused(false)}
+          onMouseEnter={() => setPaused(true)}
+          onMouseLeave={() => setPaused(false)}
+          className={`block overflow-hidden rounded-2xl border py-2.5 ${
+            accent ? "bg-accent/15 border-accent/30" : "bg-card border-border"
+          }`}
+        >
+          <div className={`flex whitespace-nowrap marquee-track ${paused ? "marquee-paused" : ""}`}>
+            {[...items, ...items].map((text, i) => (
+              <span key={i} className="text-sm px-4 shrink-0">
+                {text}
+              </span>
+            ))}
+          </div>
+        </Link>
+      )}
+    </section>
   );
 }
 
