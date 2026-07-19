@@ -18,6 +18,7 @@ import {
   Grid3x3,
   Plus,
   Trash2,
+  Pencil,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { useLang, useWakePhrase, useAutoSaveRaw, useRecordTimeoutMin } from "@/lib/settings-store";
@@ -30,7 +31,9 @@ import {
   useAllShortcuts,
   addCustomShortcut,
   removeCustomShortcut,
+  updateShortcutUrl,
 } from "@/lib/app-shortcuts-store";
+import type { AppShortcut } from "@/lib/app-shortcuts";
 import {
   getProfile,
   hasBiometric,
@@ -428,6 +431,8 @@ function AppShortcutsCard({ lang }: { lang: Lang }) {
   const [newName, setNewName] = useState("");
   const [newUrl, setNewUrl] = useState("");
   const [adding, setAdding] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editUrl, setEditUrl] = useState("");
 
   function submitCustom() {
     if (!newName.trim() || !newUrl.trim()) return;
@@ -437,6 +442,17 @@ function AppShortcutsCard({ lang }: { lang: Lang }) {
     setAdding(false);
   }
 
+  function startEdit(s: AppShortcut) {
+    setEditingId(s.id);
+    setEditUrl(s.url);
+  }
+
+  function saveEdit() {
+    if (!editingId) return;
+    updateShortcutUrl(editingId, editUrl.trim());
+    setEditingId(null);
+  }
+
   return (
     <Card>
       <Label icon={<Grid3x3 size={14} />}>
@@ -444,29 +460,55 @@ function AppShortcutsCard({ lang }: { lang: Lang }) {
       </Label>
       <p className="text-xs text-muted-foreground mt-2 mb-3">
         {lang === "id"
-          ? "Pilih aplikasi luar yang mau ditampilkan sebagai tombol cepat di halaman Home."
-          : "Choose which outside apps show up as quick-launch buttons on Home."}
+          ? "Pilih aplikasi luar yang mau ditampilkan sebagai tombol cepat di halaman Home. Ketuk ikon pensil untuk lihat/ubah link-nya (misal isi nomor WhatsApp kamu sendiri)."
+          : "Choose which outside apps show up as quick-launch buttons on Home. Tap the pencil to view/edit the link (e.g. fill in your own WhatsApp number)."}
       </p>
       <div className="space-y-2">
         {all.map((s) => (
-          <div key={s.id} className="flex items-center justify-between gap-2">
-            <span className="text-sm">{lang === "id" ? s.nameId : s.name}</span>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShortcutEnabled(s.id, !enabled[s.id])}
-                className={`w-11 h-6 rounded-full transition-colors relative ${enabled[s.id] ? "bg-primary" : "bg-secondary"}`}
-                aria-label={`Toggle ${s.name}`}
-              >
-                <span
-                  className={`absolute top-0.5 w-5 h-5 rounded-full bg-background transition-transform ${enabled[s.id] ? "translate-x-[22px]" : "translate-x-0.5"}`}
-                />
-              </button>
-              {s.custom && (
-                <button onClick={() => removeCustomShortcut(s.id)} className="text-muted-foreground" aria-label="Remove">
-                  <Trash2 size={14} />
+          <div key={s.id} className="rounded-xl border border-border p-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm font-medium">{lang === "id" ? s.nameId : s.name}</span>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={() => (editingId === s.id ? setEditingId(null) : startEdit(s))}
+                  className="text-muted-foreground p-1"
+                  aria-label={`Edit ${s.name} URL`}
+                >
+                  <Pencil size={14} />
                 </button>
-              )}
+                <button
+                  onClick={() => setShortcutEnabled(s.id, !enabled[s.id])}
+                  className={`w-11 h-6 rounded-full transition-colors relative ${enabled[s.id] ? "bg-primary" : "bg-secondary"}`}
+                  aria-label={`Toggle ${s.name}`}
+                >
+                  <span
+                    className={`absolute top-0.5 w-5 h-5 rounded-full bg-background transition-transform ${enabled[s.id] ? "translate-x-[22px]" : "translate-x-0.5"}`}
+                  />
+                </button>
+                {s.custom && (
+                  <button onClick={() => removeCustomShortcut(s.id)} className="text-muted-foreground" aria-label="Remove">
+                    <Trash2 size={14} />
+                  </button>
+                )}
+              </div>
             </div>
+
+            {editingId === s.id ? (
+              <div className="mt-2 flex gap-2">
+                <input
+                  value={editUrl}
+                  onChange={(e) => setEditUrl(e.target.value)}
+                  placeholder="https://... atau mailto:... / wa.me/62..."
+                  className="flex-1 rounded-lg bg-secondary text-secondary-foreground px-2.5 py-1.5 text-xs"
+                  autoFocus
+                />
+                <button onClick={saveEdit} className="rounded-lg bg-primary text-primary-foreground px-3 text-xs font-semibold">
+                  {lang === "id" ? "Simpan" : "Save"}
+                </button>
+              </div>
+            ) : (
+              <p className="text-[11px] text-muted-foreground mt-1 truncate">{s.url}</p>
+            )}
           </div>
         ))}
       </div>
