@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Plane, GanttChart, NotebookPen, Mic, MessageSquare, Calculator, Languages, Camera, MessageCircle, Mail, Music2, Instagram, Facebook, Globe, ExternalLink, StickyNote, CheckSquare, Calendar as CalendarIcon, Video, CalendarClock, Users, BellRing, Wifi } from "lucide-react";
+import { Plane, GanttChart, NotebookPen, MessageSquare, Calculator, Languages, Camera, MessageCircle, Mail, Music2, Instagram, Facebook, Globe, ExternalLink, StickyNote, CheckSquare, Calendar as CalendarIcon, Video, CalendarClock, Users, BellRing, Settings as SettingsIcon } from "lucide-react";
 import { usePlugin } from "@/lib/plugins-store";
 import { useEnabledShortcuts } from "@/lib/app-shortcuts-store";
 import { AppShell } from "@/components/AppShell";
@@ -96,7 +96,6 @@ function Home() {
     { to: "/messages", label: t(lang, "messages"), Icon: MessageSquare },
     { to: "/trips", label: t(lang, "trips"), Icon: Plane },
     { to: "/projects", label: t(lang, "projects"), Icon: GanttChart },
-    { to: "/sync", label: lang === "id" ? "Sinkronisasi" : "Sync", Icon: Wifi },
   ] as const;
 
   const headerExtra = (
@@ -128,19 +127,19 @@ function Home() {
           <Languages size={19} />
         </Link>
       )}
+      <Link
+        to="/settings"
+        aria-label="Settings"
+        className="grid place-items-center w-10 h-10 rounded-full border border-border text-muted-foreground active:scale-95"
+      >
+        <SettingsIcon size={19} />
+      </Link>
     </div>
   );
 
   return (
     <AppShell title={t(lang, "home")} headerExtra={headerExtra}>
-      <h2 className="mb-3 text-xl font-semibold">{t(lang, "dailyActivities")}</h2>
-
-      <button
-        onClick={() => navigate({ to: "/record" })}
-        className="w-full mb-5 rounded-2xl bg-primary text-primary-foreground py-3.5 font-semibold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform shadow-md shadow-primary/20"
-      >
-        <Mic size={18} /> {lang === "id" ? "Rekam Sekarang" : "Record Now"}
-      </button>
+      <h2 className="mb-4 text-xl font-semibold">{t(lang, "dailyActivities")}</h2>
 
       <MarqueeSection
         title={t(lang, "todaysTasks")}
