@@ -3,6 +3,23 @@ import { DEFAULT_SHORTCUTS, type AppShortcut } from "./app-shortcuts";
 
 const ENABLED_KEY = "noble.appShortcutsEnabled";
 const CUSTOM_KEY = "noble.appShortcutsCustom";
+const OVERRIDE_KEY = "noble.appShortcutsUrlOverride";
+
+function getUrlOverrides(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  const raw = localStorage.getItem(OVERRIDE_KEY);
+  return raw ? JSON.parse(raw) : {};
+}
+
+/** Lets any shortcut's URL be viewed/edited — e.g. filling in your own
+ * WhatsApp number for the default "wa.me" shortcut, which otherwise opens
+ * a useless generic landing page with no chat attached. */
+export function updateShortcutUrl(id: string, url: string) {
+  const overrides = getUrlOverrides();
+  overrides[id] = url;
+  localStorage.setItem(OVERRIDE_KEY, JSON.stringify(overrides));
+  window.dispatchEvent(new Event("noble:shortcuts"));
+}
 
 function getEnabled(): Record<string, boolean> {
   if (typeof window === "undefined") return {};
@@ -51,7 +68,10 @@ export function removeCustomShortcut(id: string) {
 export function useAllShortcuts(): AppShortcut[] {
   const [list, setList] = useState<AppShortcut[]>([]);
   useEffect(() => {
-    const sync = () => setList([...DEFAULT_SHORTCUTS, ...getCustomShortcuts()]);
+    const sync = () => {
+      const overrides = getUrlOverrides();
+      setList([...DEFAULT_SHORTCUTS, ...getCustomShortcuts()].map((s) => ({ ...s, url: overrides[s.id] ?? s.url })));
+    };
     sync();
     window.addEventListener("noble:shortcuts", sync);
     return () => window.removeEventListener("noble:shortcuts", sync);
