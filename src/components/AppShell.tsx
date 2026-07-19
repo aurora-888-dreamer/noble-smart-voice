@@ -1,4 +1,4 @@
-import { useNavigate, useRouterState } from "@tanstack/react-router";
+import { useNavigate, useRouterState, Link } from "@tanstack/react-router";
 import { Mic, Download } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { BottomNav } from "./BottomNav";
@@ -108,7 +108,9 @@ export function AppShell({
       <div className="flex-1 min-w-0">
         <header className="sticky top-0 z-30 bg-background/80 backdrop-blur border-b border-border">
           <div className="mx-auto max-w-md lg:max-w-3xl px-4 lg:px-8 py-3 flex items-center gap-2">
-            <span className="text-xs font-semibold uppercase tracking-widest text-primary lg:hidden">Noble</span>
+            <Link to="/" className="text-xs font-semibold uppercase tracking-widest text-primary lg:hidden" aria-label="Home">
+              Noble
+            </Link>
             <h1 className="ml-2 lg:ml-0 text-base lg:text-xl font-semibold flex-1 truncate">{title}</h1>
             {installEvt && (
               <button
