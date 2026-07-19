@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Plus, Mail, Phone } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { CategoryToolbar } from "@/components/CategoryToolbar";
 import { SelectionBar } from "@/components/SelectionBar";
 import { EditModal } from "@/components/EditModal";
 import { useMultiSelect } from "@/hooks/useMultiSelect";
@@ -97,6 +98,7 @@ function ContactsPage() {
 
   return (
     <AppShell title={t(lang, "contacts")}>
+      <CategoryToolbar type="contact" />
       <input
         value={q}
         onChange={(e) => setQ(e.target.value)}

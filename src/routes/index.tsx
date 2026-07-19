@@ -1,8 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Plane, GanttChart, NotebookPen, Mic, MessageSquare, Calculator, Languages } from "lucide-react";
+import { Plane, GanttChart, NotebookPen, Mic, MessageSquare, Calculator, Languages, Camera, MessageCircle, Mail, Music2, Instagram, Facebook, Globe, ExternalLink } from "lucide-react";
 import { usePlugin } from "@/lib/plugins-store";
+import { useEnabledShortcuts } from "@/lib/app-shortcuts-store";
 import { AppShell } from "@/components/AppShell";
 import { getDb } from "@/lib/db";
 import { useLang } from "@/lib/settings-store";
@@ -10,6 +11,10 @@ import { t } from "@/lib/i18n";
 import { isOnboarded } from "@/lib/settings-store";
 import { isRegistered, isSignedIn, ensureTrialStarted } from "@/lib/auth-store";
 import { rehydrateReminders } from "@/lib/reminders";
+import { CalculatorWidget } from "@/components/CalculatorWidget";
+import { PhotoCaptureFlow } from "@/components/PhotoCaptureFlow";
+import { PhotoCarousel } from "@/components/PhotoCarousel";
+import { translateText } from "@/lib/ai.functions";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -21,6 +26,8 @@ function Home() {
   const [ready, setReady] = useState(false);
   const hasCalculator = usePlugin("calculator");
   const hasTranslator = usePlugin("translator");
+  const hasCamera = usePlugin("camera");
+  const shortcuts = useEnabledShortcuts();
 
   useEffect(() => {
     if (!isOnboarded()) {
@@ -190,7 +197,7 @@ function Home() {
         {hasCalculator && (
           <Link
             to="/calculator"
-            className="rounded-2xl bg-card border border-border p-4 flex flex-col gap-2 active:scale-[0.98] transition-transform"
+            className="lg:hidden rounded-2xl bg-card border border-border p-4 flex flex-col gap-2 active:scale-[0.98] transition-transform"
           >
             <Calculator size={22} className="text-primary" />
             <p className="text-sm font-semibold">{lang === "id" ? "Kalkulator" : "Calculator"}</p>
@@ -199,13 +206,57 @@ function Home() {
         {hasTranslator && (
           <Link
             to="/translate"
-            className="rounded-2xl bg-card border border-border p-4 flex flex-col gap-2 active:scale-[0.98] transition-transform"
+            className="lg:hidden rounded-2xl bg-card border border-border p-4 flex flex-col gap-2 active:scale-[0.98] transition-transform"
           >
             <Languages size={22} className="text-primary" />
             <p className="text-sm font-semibold">{lang === "id" ? "Penerjemah" : "Translator"}</p>
           </Link>
         )}
+        {hasCamera && (
+          <Link
+            to="/camera"
+            className="lg:hidden rounded-2xl bg-card border border-border p-4 flex flex-col gap-2 active:scale-[0.98] transition-transform"
+          >
+            <Camera size={22} className="text-primary" />
+            <p className="text-sm font-semibold">{lang === "id" ? "Kamera" : "Camera"}</p>
+          </Link>
+        )}
       </section>
+
+      {shortcuts.length > 0 && (
+        <section className="mb-6">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            {lang === "id" ? "Pintasan Aplikasi" : "App Shortcuts"}
+          </h3>
+          <div className="flex flex-wrap gap-3">
+            {shortcuts.map((s) => (
+              <a
+                key={s.id}
+                href={s.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex flex-col items-center gap-1.5 w-16"
+              >
+                <span className="grid place-items-center w-12 h-12 rounded-2xl bg-card border border-border text-primary active:scale-95 transition-transform">
+                  {shortcutIcon(s.id)}
+                </span>
+                <span className="text-[10px] text-muted-foreground text-center truncate w-full">
+                  {lang === "id" ? s.nameId : s.name}
+                </span>
+              </a>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {(hasCalculator || hasTranslator || hasCamera) && (
+        <DesktopToolsPanel
+          lang={lang}
+          hasCalculator={hasCalculator}
+          hasTranslator={hasTranslator}
+          hasCamera={hasCamera}
+        />
+      )}
     </AppShell>
   );
 }
@@ -236,10 +287,117 @@ function Section({
   );
 }
 
+function shortcutIcon(id: string) {
+  switch (id) {
+    case "whatsapp": return <MessageCircle size={20} />;
+    case "email": return <Mail size={20} />;
+    case "tiktok": return <Music2 size={20} />;
+    case "instagram": return <Instagram size={20} />;
+    case "facebook": return <Facebook size={20} />;
+    case "browser": return <Globe size={20} />;
+    default: return <ExternalLink size={20} />;
+  }
+}
+
 function Empty({ label }: { label: string }) {
   return (
     <div className="rounded-2xl border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
       {label}
+    </div>
+  );
+}
+
+function DesktopToolsPanel({
+  lang,
+  hasCalculator,
+  hasTranslator,
+  hasCamera,
+}: {
+  lang: "en" | "id";
+  hasCalculator: boolean;
+  hasTranslator: boolean;
+  hasCamera: boolean;
+}) {
+  return (
+    <section className="hidden lg:grid grid-cols-2 gap-4 mt-2 mb-6">
+      {hasCalculator && (
+        <div className="rounded-2xl bg-card border border-border p-4">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+            {lang === "id" ? "Kalkulator" : "Calculator"}
+          </h3>
+          <CalculatorWidget />
+        </div>
+      )}
+      {hasTranslator && <DesktopTranslatorCard lang={lang} />}
+      {hasCamera && (
+        <div className="rounded-2xl bg-card border border-border p-4 col-span-2">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+            {lang === "id" ? "Kamera & Galeri" : "Camera & Gallery"}
+          </h3>
+          <div className="grid grid-cols-2 gap-4">
+            <PhotoCaptureFlow />
+            <div>
+              <PhotoCarouselGrid />
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function PhotoCarouselGrid() {
+  return (
+    <div className="max-h-[26rem] overflow-y-auto">
+      <PhotoCarousel />
+    </div>
+  );
+}
+
+function DesktopTranslatorCard({ lang }: { lang: "en" | "id" }) {
+  const [text, setText] = useState("");
+  const [targetLang, setTargetLang] = useState(lang === "id" ? "English" : "Bahasa Indonesia");
+  const [result, setResult] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function run() {
+    if (!text.trim()) return;
+    setBusy(true);
+    try {
+      const res = await translateText({ data: { text, targetLang } });
+      setResult(res.ok ? res.text : res.error);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="rounded-2xl bg-card border border-border p-4">
+      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+        {lang === "id" ? "Penerjemah" : "Translator"}
+      </h3>
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        rows={3}
+        placeholder={lang === "id" ? "Ketik teks…" : "Type text…"}
+        className="w-full rounded-xl bg-secondary text-secondary-foreground px-3 py-2 text-sm resize-none mb-2"
+      />
+      <div className="flex gap-2 mb-2">
+        <select
+          value={targetLang}
+          onChange={(e) => setTargetLang(e.target.value)}
+          className="flex-1 rounded-lg bg-secondary text-secondary-foreground px-2 py-1.5 text-xs"
+        >
+          {["English", "Bahasa Indonesia", "Spanish", "Mandarin Chinese", "Japanese", "Arabic", "French", "German"].map((l) => (
+            <option key={l} value={l}>{l}</option>
+          ))}
+        </select>
+        <button onClick={run} disabled={busy} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold disabled:opacity-40">
+          {lang === "id" ? "Terjemahkan" : "Translate"}
+        </button>
+      </div>
+      {result && <p className="text-sm whitespace-pre-wrap leading-relaxed">{result}</p>}
     </div>
   );
 }

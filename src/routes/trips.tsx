@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Trash2, Plus, MapPin, Plane, X, Pencil } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { CategoryToolbar } from "@/components/CategoryToolbar";
 import { DateRangeFilter, inRange } from "@/components/DateRangeFilter";
 import { SelectionBar } from "@/components/SelectionBar";
 import { useMultiSelect } from "@/hooks/useMultiSelect";
@@ -78,6 +79,7 @@ function TripsPage() {
 
   return (
     <AppShell title={t(lang, "trips")}>
+      <CategoryToolbar type="trip" />
       <input
         value={q}
         onChange={(e) => setQ(e.target.value)}

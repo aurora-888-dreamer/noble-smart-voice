@@ -2,7 +2,8 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { ShieldCheck, QrCode } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
-import { activatePremium, isPremium } from "@/lib/auth-store";
+import { activatePremium, isPremium, getProfile, applyRedeemedLicense } from "@/lib/auth-store";
+import { redeemVoucher } from "@/lib/vouchers.functions";
 import { useLang } from "@/lib/settings-store";
 
 export const Route = createFileRoute("/activate")({
@@ -14,13 +15,44 @@ function ActivatePage() {
   const [lang] = useLang();
   const nav = useNavigate();
   const [code, setCode] = useState("");
-  const [status, setStatus] = useState<"idle" | "ok" | "bad">("idle");
+  const [status, setStatus] = useState<"idle" | "ok" | "bad" | "checking">("idle");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const already = isPremium();
 
-  function submit() {
-    const ok = activatePremium(code);
-    setStatus(ok ? "ok" : "bad");
-    if (ok) setTimeout(() => nav({ to: "/settings" }), 800);
+  async function submit() {
+    setStatus("checking");
+    setErrorMsg(null);
+
+    // Local, no-expiry test/admin codes (e.g. the owner code) — no backend needed.
+    if (activatePremium(code)) {
+      setStatus("ok");
+      setTimeout(() => nav({ to: "/settings" }), 800);
+      return;
+    }
+
+    // Otherwise, try it as a real voucher bound to this account's email/WhatsApp.
+    const profile = getProfile();
+    const contact = profile?.email || profile?.whatsapp || "";
+    if (!contact) {
+      setStatus("bad");
+      setErrorMsg(lang === "id" ? "Akun kamu belum punya email/WhatsApp terdaftar." : "Your account has no email/WhatsApp on file.");
+      return;
+    }
+
+    try {
+      const res = await redeemVoucher({ data: { code, contact } });
+      if (res.ok && res.tier && res.durationDays != null) {
+        applyRedeemedLicense({ code: code.trim().toUpperCase(), tier: res.tier, durationDays: res.durationDays });
+        setStatus("ok");
+        setTimeout(() => nav({ to: "/settings" }), 800);
+      } else {
+        setStatus("bad");
+        setErrorMsg(res.error ?? (lang === "id" ? "Kode tidak valid." : "Invalid code."));
+      }
+    } catch (err) {
+      setStatus("bad");
+      setErrorMsg(err instanceof Error ? err.message : String(err));
+    }
   }
 
   return (
@@ -59,13 +91,16 @@ function ActivatePage() {
           />
           <button
             onClick={submit}
-            className="mt-3 w-full rounded-full bg-primary text-primary-foreground py-3 text-sm font-semibold"
+            disabled={status === "checking"}
+            className="mt-3 w-full rounded-full bg-primary text-primary-foreground py-3 text-sm font-semibold disabled:opacity-60"
           >
-            {lang === "id" ? "Aktifkan" : "Activate"}
+            {status === "checking"
+              ? lang === "id" ? "Memeriksa…" : "Checking…"
+              : lang === "id" ? "Aktifkan" : "Activate"}
           </button>
           {status === "bad" && (
             <p className="text-xs text-destructive mt-2">
-              {lang === "id" ? "Kode tidak valid." : "Invalid code."}
+              {errorMsg ?? (lang === "id" ? "Kode tidak valid." : "Invalid code.")}
             </p>
           )}
           {status === "ok" && (
@@ -75,8 +110,8 @@ function ActivatePage() {
           )}
           <p className="text-[10px] text-muted-foreground mt-3">
             {lang === "id"
-              ? "Admin dapat mengaktifkan tanpa kode."
-              : "Admins are activated without a code."}
+              ? "Kode voucher terikat ke email/WhatsApp akun kamu — hanya bisa dipakai sekali oleh akun yang sama."
+              : "Voucher codes are bound to your account's email/WhatsApp — usable once, by that account only."}
           </p>
         </div>
       )}

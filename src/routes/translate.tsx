@@ -10,13 +10,16 @@ import { saveCapturedEntry } from "@/lib/capture";
 import { isPremium } from "@/lib/auth-store";
 import type { ItemType } from "@/lib/db";
 
+const COMMON_LANGS = ["English", "Bahasa Indonesia", "Spanish", "Mandarin Chinese", "Japanese", "Arabic", "French", "German"];
+const TYPES: ItemType[] = ["note", "task", "meeting", "appointment", "contact", "message", "diary", "trip", "project"];
+
 export const Route = createFileRoute("/translate")({
   head: () => ({ meta: [{ title: "Translator — Noble" }] }),
+  validateSearch: (search: Record<string, unknown>) => ({
+    type: TYPES.includes(search.type as ItemType) ? (search.type as ItemType) : undefined,
+  }),
   component: TranslatePage,
 });
-
-const COMMON_LANGS = ["English", "Bahasa Indonesia", "Spanish", "Mandarin Chinese", "Japanese", "Arabic", "French", "German"];
-const TYPES: ItemType[] = ["note", "task", "meeting", "appointment", "contact", "message", "diary"];
 
 type Phase = "translate" | "category" | "editing";
 
@@ -24,6 +27,7 @@ function TranslatePage() {
   const [lang] = useLang();
   const enabled = usePlugin("translator");
   const navigate = useNavigate();
+  const { type: presetType } = Route.useSearch();
 
   const [phase, setPhase] = useState<Phase>("translate");
   const [original, setOriginal] = useState("");
@@ -32,7 +36,7 @@ function TranslatePage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [type, setType] = useState<ItemType>("note");
+  const [type, setType] = useState<ItemType>(presetType ?? "note");
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [structBusy, setStructBusy] = useState(false);
@@ -88,7 +92,11 @@ function TranslatePage() {
   function goToCategory() {
     setContent(translated || original);
     setTitle((translated || original).slice(0, 60));
-    setPhase("category");
+    if (presetType) {
+      pickCategory(presetType);
+    } else {
+      setPhase("category");
+    }
   }
 
   function pickCategory(picked: ItemType) {

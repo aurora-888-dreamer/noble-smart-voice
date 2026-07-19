@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { AppShell } from "@/components/AppShell";
+import { CategoryToolbar } from "@/components/CategoryToolbar";
 import { DateRangeFilter, inRange } from "@/components/DateRangeFilter";
 import { SelectionBar } from "@/components/SelectionBar";
 import { EditModal } from "@/components/EditModal";
@@ -13,6 +14,8 @@ import { useLang } from "@/lib/settings-store";
 import { t } from "@/lib/i18n";
 import { sendViaBluetooth } from "@/lib/bluetooth-share";
 import { shareManyEmail, shareManyWA, printMany } from "@/lib/bulk-share";
+import { usePlugin } from "@/lib/plugins-store";
+import { TranslateInline } from "@/components/TranslateInline";
 
 export const Route = createFileRoute("/diary")({
   head: () => ({ meta: [{ title: "Diary — Noble" }] }),
@@ -21,6 +24,7 @@ export const Route = createFileRoute("/diary")({
 
 function DiaryPage() {
   const [lang] = useLang();
+  const hasTranslator = usePlugin("translator");
   const [q, setQ] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -87,6 +91,7 @@ function DiaryPage() {
 
   return (
     <AppShell title={t(lang, "diary")}>
+      <CategoryToolbar type="diary" />
       <input
         value={q}
         onChange={(e) => setQ(e.target.value)}
@@ -120,6 +125,7 @@ function DiaryPage() {
               onToggle={() => n.id && sel.toggle(n.id)}
               onLongPress={() => n.id && !sel.selectMode && sel.enter(n.id)}
               onOpen={() => !sel.selectMode && setEditing(n)}
+              hasTranslator={hasTranslator}
             />
           ))}
         </ul>
@@ -178,6 +184,7 @@ function DiaryRow({
   onToggle,
   onLongPress,
   onOpen,
+  hasTranslator,
 }: {
   n: DiaryEntry;
   selectMode: boolean;
@@ -185,6 +192,7 @@ function DiaryRow({
   onToggle: () => void;
   onLongPress: () => void;
   onOpen: () => void;
+  hasTranslator: boolean;
 }) {
   const lp = useLongPress(onLongPress);
   return (
@@ -210,6 +218,7 @@ function DiaryRow({
           <p className="text-[10px] uppercase tracking-widest text-muted-foreground mt-2">
             {new Date(n.createdAt).toLocaleString()}
           </p>
+          {hasTranslator && !selectMode && <TranslateInline text={n.entry} />}
         </div>
       </div>
     </li>

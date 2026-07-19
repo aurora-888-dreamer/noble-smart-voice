@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { AppShell } from "@/components/AppShell";
+import { CategoryToolbar } from "@/components/CategoryToolbar";
 import { DateRangeFilter, inRange } from "@/components/DateRangeFilter";
 import { SelectionBar } from "@/components/SelectionBar";
 import { EditModal } from "@/components/EditModal";
@@ -103,6 +104,7 @@ function MessagesPage() {
 
   return (
     <AppShell title={t(lang, "messages")}>
+      <CategoryToolbar type="message" />
       <input
         value={q}
         onChange={(e) => setQ(e.target.value)}

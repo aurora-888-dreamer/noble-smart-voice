@@ -15,12 +15,22 @@ import {
   HardDrive,
   Bluetooth,
   X as XIcon,
+  Grid3x3,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { useLang, useWakePhrase, useAutoSaveRaw, useRecordTimeoutMin } from "@/lib/settings-store";
 import { t, type Lang } from "@/lib/i18n";
 import { useVoice } from "@/lib/voice-controller";
 import { exportAll, importAll } from "@/lib/db";
+import {
+  useShortcutEnabledMap,
+  setShortcutEnabled,
+  useAllShortcuts,
+  addCustomShortcut,
+  removeCustomShortcut,
+} from "@/lib/app-shortcuts-store";
 import {
   getProfile,
   hasBiometric,
@@ -297,6 +307,8 @@ function SettingsPage() {
         </div>
       </Card>
 
+      <AppShortcutsCard lang={lang} />
+
       <Card>
         <Label icon={<Bluetooth size={14} />}>{lang === "id" ? "Sinkronisasi Perangkat" : "Sync Devices"}</Label>
         <p className="text-xs text-muted-foreground mt-2">
@@ -408,6 +420,90 @@ function SettingsPage() {
 
 function Card({ children }: { children: React.ReactNode }) {
   return <div className="rounded-2xl bg-card border border-border p-4 mb-3">{children}</div>;
+}
+
+function AppShortcutsCard({ lang }: { lang: Lang }) {
+  const enabled = useShortcutEnabledMap();
+  const all = useAllShortcuts();
+  const [newName, setNewName] = useState("");
+  const [newUrl, setNewUrl] = useState("");
+  const [adding, setAdding] = useState(false);
+
+  function submitCustom() {
+    if (!newName.trim() || !newUrl.trim()) return;
+    addCustomShortcut(newName.trim(), newUrl.trim());
+    setNewName("");
+    setNewUrl("");
+    setAdding(false);
+  }
+
+  return (
+    <Card>
+      <Label icon={<Grid3x3 size={14} />}>
+        {lang === "id" ? "Pintasan Aplikasi (Home)" : "App Shortcuts (Home)"}
+      </Label>
+      <p className="text-xs text-muted-foreground mt-2 mb-3">
+        {lang === "id"
+          ? "Pilih aplikasi luar yang mau ditampilkan sebagai tombol cepat di halaman Home."
+          : "Choose which outside apps show up as quick-launch buttons on Home."}
+      </p>
+      <div className="space-y-2">
+        {all.map((s) => (
+          <div key={s.id} className="flex items-center justify-between gap-2">
+            <span className="text-sm">{lang === "id" ? s.nameId : s.name}</span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShortcutEnabled(s.id, !enabled[s.id])}
+                className={`w-11 h-6 rounded-full transition-colors relative ${enabled[s.id] ? "bg-primary" : "bg-secondary"}`}
+                aria-label={`Toggle ${s.name}`}
+              >
+                <span
+                  className={`absolute top-0.5 w-5 h-5 rounded-full bg-background transition-transform ${enabled[s.id] ? "translate-x-[22px]" : "translate-x-0.5"}`}
+                />
+              </button>
+              {s.custom && (
+                <button onClick={() => removeCustomShortcut(s.id)} className="text-muted-foreground" aria-label="Remove">
+                  <Trash2 size={14} />
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {adding ? (
+        <div className="mt-3 space-y-2">
+          <input
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            placeholder={lang === "id" ? "Nama app" : "App name"}
+            className="w-full rounded-xl bg-secondary text-secondary-foreground px-3 py-2 text-sm"
+          />
+          <input
+            value={newUrl}
+            onChange={(e) => setNewUrl(e.target.value)}
+            placeholder="https://..."
+            className="w-full rounded-xl bg-secondary text-secondary-foreground px-3 py-2 text-sm"
+          />
+          <div className="flex gap-2">
+            <button onClick={() => setAdding(false)} className="flex-1 rounded-xl border border-border py-2 text-sm font-semibold">
+              {lang === "id" ? "Batal" : "Cancel"}
+            </button>
+            <button onClick={submitCustom} className="flex-1 rounded-xl bg-primary text-primary-foreground py-2 text-sm font-semibold">
+              {lang === "id" ? "Tambah" : "Add"}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={() => setAdding(true)}
+          className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-primary"
+        >
+          <Plus size={14} /> {lang === "id" ? "Tambah pintasan lain" : "Add another shortcut"}
+        </button>
+      )}
+    </Card>
+  );
 }
 
 function BluetoothCard({ lang }: { lang: Lang }) {

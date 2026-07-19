@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { AppShell } from "@/components/AppShell";
+import { CategoryToolbar } from "@/components/CategoryToolbar";
 import { DateRangeFilter, inRange } from "@/components/DateRangeFilter";
 import { SelectionBar, type MoveTarget } from "@/components/SelectionBar";
 import { EditModal } from "@/components/EditModal";
@@ -13,6 +14,8 @@ import { useLang } from "@/lib/settings-store";
 import { t } from "@/lib/i18n";
 import { sendViaBluetooth } from "@/lib/bluetooth-share";
 import { shareManyEmail, shareManyWA, printMany } from "@/lib/bulk-share";
+import { usePlugin } from "@/lib/plugins-store";
+import { TranslateInline } from "@/components/TranslateInline";
 
 export const Route = createFileRoute("/notes")({
   head: () => ({ meta: [{ title: "Notes — Noble" }] }),
@@ -21,6 +24,7 @@ export const Route = createFileRoute("/notes")({
 
 function NotesPage() {
   const [lang] = useLang();
+  const hasTranslator = usePlugin("translator");
   const [q, setQ] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -133,6 +137,7 @@ function NotesPage() {
 
   return (
     <AppShell title={t(lang, "notes")}>
+      <CategoryToolbar type="note" />
       <input
         value={q}
         onChange={(e) => setQ(e.target.value)}
@@ -165,6 +170,7 @@ function NotesPage() {
               selected={n.id ? sel.isSelected(n.id) : false}
               onToggle={() => n.id && sel.toggle(n.id)}
               onLongPress={() => n.id && !sel.selectMode && sel.enter(n.id)}
+              hasTranslator={hasTranslator}
             />
           ))}
         </ul>
@@ -224,12 +230,14 @@ function NoteRow({
   selected,
   onToggle,
   onLongPress,
+  hasTranslator,
 }: {
   n: Note;
   selectMode: boolean;
   selected: boolean;
   onToggle: () => void;
   onLongPress: () => void;
+  hasTranslator: boolean;
 }) {
   const lp = useLongPress(onLongPress);
   return (
@@ -256,6 +264,7 @@ function NoteRow({
             {new Date(n.createdAt).toLocaleString()} · {n.language.toUpperCase()}
             {n.tags?.length > 0 && ` · ${n.tags.join(", ")}`}
           </p>
+          {hasTranslator && !selectMode && <TranslateInline text={n.transcript} />}
         </div>
       </div>
     </li>

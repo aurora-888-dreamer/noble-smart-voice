@@ -11,8 +11,13 @@ import { structureCapture, transcribeAudio } from "@/lib/ai.functions";
 import { startAudioCapture, blobToBase64, convertToWav, type AudioCaptureHandle } from "@/lib/audio-capture";
 import type { ItemType } from "@/lib/db";
 
+const VALID_TYPES: ItemType[] = ["note", "task", "meeting", "appointment", "contact", "message", "diary", "trip", "project"];
+
 export const Route = createFileRoute("/record")({
   head: () => ({ meta: [{ title: "Recording — Noble" }] }),
+  validateSearch: (search: Record<string, unknown>) => ({
+    type: VALID_TYPES.includes(search.type as ItemType) ? (search.type as ItemType) : undefined,
+  }),
   component: RecordPage,
 });
 
@@ -29,7 +34,7 @@ function isMobileDevice(): boolean {
   return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
 
-const TYPES: ItemType[] = ["note", "task", "meeting", "appointment", "contact", "message", "diary"];
+const TYPES: ItemType[] = ["note", "task", "meeting", "appointment", "contact", "message", "diary", "trip", "project"];
 
 function extractEmail(text: string): string | undefined {
   const m = text.match(/[\w.+-]+@[\w-]+\.[\w.-]+/);
@@ -40,6 +45,7 @@ function RecordPage() {
   const [lang] = useLang();
   const [timeoutMin] = useRecordTimeoutMin();
   const navigate = useNavigate();
+  const { type: presetType } = Route.useSearch();
 
   const [phase, setPhase] = useState<Phase>("listening");
   const [interim, setInterim] = useState("");
@@ -102,9 +108,13 @@ function RecordPage() {
     const p = parseUtterance(fullText, lang);
     parsedDefaultsRef.current = { title: p.title || fullText.slice(0, 80), when: p.when };
     setSuggestedType(p.type);
-    setType(p.type);
     setContent(fullText);
-    setPhase("category");
+    if (presetType) {
+      pickCategory(presetType);
+    } else {
+      setType(p.type);
+      setPhase("category");
+    }
 
     // Best-effort, non-blocking: replace the draft transcript with a more
     // accurate bilingual pass once it's ready, but only if the person
@@ -151,7 +161,7 @@ function RecordPage() {
         })
         .finally(() => setTranscriptAiBusy(false));
     }
-  }, [lang, navigate]);
+  }, [lang, navigate, presetType]);
 
   // Raw audio capture (parallel to the live browser captions) — used for a
   // more accurate bilingual transcription pass once recording stops.

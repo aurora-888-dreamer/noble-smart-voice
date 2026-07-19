@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Circle, CheckCircle2 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { CategoryToolbar } from "@/components/CategoryToolbar";
 import { DateRangeFilter, inRange } from "@/components/DateRangeFilter";
 import { SelectionBar, type MoveTarget } from "@/components/SelectionBar";
 import { EditModal } from "@/components/EditModal";
@@ -164,6 +165,7 @@ function TasksPage() {
 
   return (
     <AppShell title={t(lang, "tasks")}>
+      <CategoryToolbar type="task" />
       <div className="flex gap-2 mb-3">
         {tabs.map((tab) => (
           <button
