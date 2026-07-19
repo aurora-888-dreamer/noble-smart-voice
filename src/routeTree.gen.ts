@@ -9,122 +9,72 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as TripsRouteImport } from './routes/trips'
-import { Route as TranslateRouteImport } from './routes/translate'
-import { Route as RecordRouteImport } from './routes/record'
-import { Route as TasksRouteImport } from './routes/tasks'
-import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as SyncRouteImport } from './routes/sync'
-import { Route as RemindersRouteImport } from './routes/reminders'
-import { Route as RegisterRouteImport } from './routes/register'
-import { Route as ReceiveRouteImport } from './routes/receive'
-import { Route as ProjectsRouteImport } from './routes/projects'
-import { Route as ProjectsIdRouteImport } from './routes/projects.$id'
-import { Route as OnboardingRouteImport } from './routes/onboarding'
-import { Route as NotesRouteImport } from './routes/notes'
-import { Route as MeetingsRouteImport } from './routes/meetings'
-import { Route as MessagesRouteImport } from './routes/messages'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as GuideRouteImport } from './routes/guide'
+import { Route as IndexRouteImport } from './routes/index'
+import { Route as AboutRouteImport } from './routes/about'
+import { Route as ActivateRouteImport } from './routes/activate'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AppointmentsRouteImport } from './routes/appointments'
+import { Route as CalculatorRouteImport } from './routes/calculator'
+import { Route as CalendarRouteImport } from './routes/calendar'
+import { Route as CameraRouteImport } from './routes/camera'
 import { Route as ContactsRouteImport } from './routes/contacts'
 import { Route as DiaryRouteImport } from './routes/diary'
-import { Route as CalculatorRouteImport } from './routes/calculator'
-import { Route as CameraRouteImport } from './routes/camera'
-import { Route as CalendarRouteImport } from './routes/calendar'
-import { Route as AppointmentsRouteImport } from './routes/appointments'
-import { Route as ActivateRouteImport } from './routes/activate'
-import { Route as AboutRouteImport } from './routes/about'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as GuideRouteImport } from './routes/guide'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as MeetingsRouteImport } from './routes/meetings'
+import { Route as MessagesRouteImport } from './routes/messages'
+import { Route as NotesRouteImport } from './routes/notes'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as ProjectsRouteImport } from './routes/projects'
+import { Route as ReceiveRouteImport } from './routes/receive'
+import { Route as RecordRouteImport } from './routes/record'
+import { Route as RegisterRouteImport } from './routes/register'
+import { Route as RemindersRouteImport } from './routes/reminders'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as SyncRouteImport } from './routes/sync'
+import { Route as TasksRouteImport } from './routes/tasks'
+import { Route as TranslateRouteImport } from './routes/translate'
+import { Route as TripsRouteImport } from './routes/trips'
+import { Route as ProjectsIdRouteImport } from './routes/projects.$id'
 
-const TripsRoute = TripsRouteImport.update({
-  id: '/trips',
-  path: '/trips',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TranslateRoute = TranslateRouteImport.update({
-  id: '/translate',
-  path: '/translate',
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
   getParentRoute: () => rootRouteImport,
 } as any)
-const RecordRoute = RecordRouteImport.update({
-  id: '/record',
-  path: '/record',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TasksRoute = TasksRouteImport.update({
-  id: '/tasks',
-  path: '/tasks',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SyncRoute = SyncRouteImport.update({
-  id: '/sync',
-  path: '/sync',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RemindersRoute = RemindersRouteImport.update({
-  id: '/reminders',
-  path: '/reminders',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RegisterRoute = RegisterRouteImport.update({
-  id: '/register',
-  path: '/register',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ReceiveRoute = ReceiveRouteImport.update({
-  id: '/receive',
-  path: '/receive',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ProjectsRoute = ProjectsRouteImport.update({
-  id: '/projects',
-  path: '/projects',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ProjectsIdRoute = ProjectsIdRouteImport.update({
-  id: '/projects/$id',
-  path: '/projects/$id',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OnboardingRoute = OnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const NotesRoute = NotesRouteImport.update({
-  id: '/notes',
-  path: '/notes',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MeetingsRoute = MeetingsRouteImport.update({
-  id: '/meetings',
-  path: '/meetings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MessagesRoute = MessagesRouteImport.update({
-  id: '/messages',
-  path: '/messages',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const GuideRoute = GuideRouteImport.update({
-  id: '/guide',
-  path: '/guide',
+const ActivateRoute = ActivateRouteImport.update({
+  id: '/activate',
+  path: '/activate',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppointmentsRoute = AppointmentsRouteImport.update({
+  id: '/appointments',
+  path: '/appointments',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CalculatorRoute = CalculatorRouteImport.update({
+  id: '/calculator',
+  path: '/calculator',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CalendarRoute = CalendarRouteImport.update({
+  id: '/calendar',
+  path: '/calendar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CameraRoute = CameraRouteImport.update({
+  id: '/camera',
+  path: '/camera',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ContactsRoute = ContactsRouteImport.update({
@@ -137,51 +87,101 @@ const DiaryRoute = DiaryRouteImport.update({
   path: '/diary',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CalculatorRoute = CalculatorRouteImport.update({
-  id: '/calculator',
-  path: '/calculator',
+const GuideRoute = GuideRouteImport.update({
+  id: '/guide',
+  path: '/guide',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CameraRoute = CameraRouteImport.update({
-  id: '/camera',
-  path: '/camera',
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CalendarRoute = CalendarRouteImport.update({
-  id: '/calendar',
-  path: '/calendar',
+const MeetingsRoute = MeetingsRouteImport.update({
+  id: '/meetings',
+  path: '/meetings',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AppointmentsRoute = AppointmentsRouteImport.update({
-  id: '/appointments',
-  path: '/appointments',
+const MessagesRoute = MessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ActivateRoute = ActivateRouteImport.update({
-  id: '/activate',
-  path: '/activate',
+const NotesRoute = NotesRouteImport.update({
+  id: '/notes',
+  path: '/notes',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AboutRoute = AboutRouteImport.update({
-  id: '/about',
-  path: '/about',
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const ProjectsRoute = ProjectsRouteImport.update({
+  id: '/projects',
+  path: '/projects',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ReceiveRoute = ReceiveRouteImport.update({
+  id: '/receive',
+  path: '/receive',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecordRoute = RecordRouteImport.update({
+  id: '/record',
+  path: '/record',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RemindersRoute = RemindersRouteImport.update({
+  id: '/reminders',
+  path: '/reminders',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SyncRoute = SyncRouteImport.update({
+  id: '/sync',
+  path: '/sync',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TasksRoute = TasksRouteImport.update({
+  id: '/tasks',
+  path: '/tasks',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TranslateRoute = TranslateRouteImport.update({
+  id: '/translate',
+  path: '/translate',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TripsRoute = TripsRouteImport.update({
+  id: '/trips',
+  path: '/trips',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProjectsIdRoute = ProjectsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ProjectsRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/activate': typeof ActivateRoute
+  '/admin': typeof AdminRoute
   '/appointments': typeof AppointmentsRoute
   '/calculator': typeof CalculatorRoute
-  '/camera': typeof CameraRoute
   '/calendar': typeof CalendarRoute
-  '/admin': typeof AdminRoute
+  '/camera': typeof CameraRoute
   '/contacts': typeof ContactsRoute
   '/diary': typeof DiaryRoute
   '/guide': typeof GuideRoute
@@ -190,8 +190,7 @@ export interface FileRoutesByFullPath {
   '/messages': typeof MessagesRoute
   '/notes': typeof NotesRoute
   '/onboarding': typeof OnboardingRoute
-  '/projects': typeof ProjectsRoute
-  '/projects/$id': typeof ProjectsIdRoute
+  '/projects': typeof ProjectsRouteWithChildren
   '/receive': typeof ReceiveRoute
   '/record': typeof RecordRoute
   '/register': typeof RegisterRoute
@@ -199,18 +198,19 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/sync': typeof SyncRoute
   '/tasks': typeof TasksRoute
-  '/trips': typeof TripsRoute
   '/translate': typeof TranslateRoute
+  '/trips': typeof TripsRoute
+  '/projects/$id': typeof ProjectsIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/activate': typeof ActivateRoute
+  '/admin': typeof AdminRoute
   '/appointments': typeof AppointmentsRoute
   '/calculator': typeof CalculatorRoute
-  '/camera': typeof CameraRoute
   '/calendar': typeof CalendarRoute
-  '/admin': typeof AdminRoute
+  '/camera': typeof CameraRoute
   '/contacts': typeof ContactsRoute
   '/diary': typeof DiaryRoute
   '/guide': typeof GuideRoute
@@ -219,8 +219,7 @@ export interface FileRoutesByTo {
   '/messages': typeof MessagesRoute
   '/notes': typeof NotesRoute
   '/onboarding': typeof OnboardingRoute
-  '/projects': typeof ProjectsRoute
-  '/projects/$id': typeof ProjectsIdRoute
+  '/projects': typeof ProjectsRouteWithChildren
   '/receive': typeof ReceiveRoute
   '/record': typeof RecordRoute
   '/register': typeof RegisterRoute
@@ -228,19 +227,20 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/sync': typeof SyncRoute
   '/tasks': typeof TasksRoute
-  '/trips': typeof TripsRoute
   '/translate': typeof TranslateRoute
+  '/trips': typeof TripsRoute
+  '/projects/$id': typeof ProjectsIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/activate': typeof ActivateRoute
+  '/admin': typeof AdminRoute
   '/appointments': typeof AppointmentsRoute
   '/calculator': typeof CalculatorRoute
-  '/camera': typeof CameraRoute
   '/calendar': typeof CalendarRoute
-  '/admin': typeof AdminRoute
+  '/camera': typeof CameraRoute
   '/contacts': typeof ContactsRoute
   '/diary': typeof DiaryRoute
   '/guide': typeof GuideRoute
@@ -249,8 +249,7 @@ export interface FileRoutesById {
   '/messages': typeof MessagesRoute
   '/notes': typeof NotesRoute
   '/onboarding': typeof OnboardingRoute
-  '/projects': typeof ProjectsRoute
-  '/projects/$id': typeof ProjectsIdRoute
+  '/projects': typeof ProjectsRouteWithChildren
   '/receive': typeof ReceiveRoute
   '/record': typeof RecordRoute
   '/register': typeof RegisterRoute
@@ -258,8 +257,9 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/sync': typeof SyncRoute
   '/tasks': typeof TasksRoute
-  '/trips': typeof TripsRoute
   '/translate': typeof TranslateRoute
+  '/trips': typeof TripsRoute
+  '/projects/$id': typeof ProjectsIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -267,11 +267,11 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/activate'
+    | '/admin'
     | '/appointments'
     | '/calculator'
-    | '/camera'
     | '/calendar'
-    | '/admin'
+    | '/camera'
     | '/contacts'
     | '/diary'
     | '/guide'
@@ -281,7 +281,6 @@ export interface FileRouteTypes {
     | '/notes'
     | '/onboarding'
     | '/projects'
-    | '/projects/$id'
     | '/receive'
     | '/record'
     | '/register'
@@ -289,18 +288,19 @@ export interface FileRouteTypes {
     | '/settings'
     | '/sync'
     | '/tasks'
-    | '/trips'
     | '/translate'
+    | '/trips'
+    | '/projects/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/about'
     | '/activate'
+    | '/admin'
     | '/appointments'
     | '/calculator'
-    | '/camera'
     | '/calendar'
-    | '/admin'
+    | '/camera'
     | '/contacts'
     | '/diary'
     | '/guide'
@@ -310,7 +310,6 @@ export interface FileRouteTypes {
     | '/notes'
     | '/onboarding'
     | '/projects'
-    | '/projects/$id'
     | '/receive'
     | '/record'
     | '/register'
@@ -318,18 +317,19 @@ export interface FileRouteTypes {
     | '/settings'
     | '/sync'
     | '/tasks'
-    | '/trips'
     | '/translate'
+    | '/trips'
+    | '/projects/$id'
   id:
     | '__root__'
     | '/'
     | '/about'
     | '/activate'
+    | '/admin'
     | '/appointments'
     | '/calculator'
-    | '/camera'
     | '/calendar'
-    | '/admin'
+    | '/camera'
     | '/contacts'
     | '/diary'
     | '/guide'
@@ -339,7 +339,6 @@ export interface FileRouteTypes {
     | '/notes'
     | '/onboarding'
     | '/projects'
-    | '/projects/$id'
     | '/receive'
     | '/record'
     | '/register'
@@ -347,150 +346,61 @@ export interface FileRouteTypes {
     | '/settings'
     | '/sync'
     | '/tasks'
-    | '/trips'
     | '/translate'
+    | '/trips'
+    | '/projects/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
   ActivateRoute: typeof ActivateRoute
+  AdminRoute: typeof AdminRoute
   AppointmentsRoute: typeof AppointmentsRoute
+  CalculatorRoute: typeof CalculatorRoute
   CalendarRoute: typeof CalendarRoute
+  CameraRoute: typeof CameraRoute
   ContactsRoute: typeof ContactsRoute
+  DiaryRoute: typeof DiaryRoute
   GuideRoute: typeof GuideRoute
   LoginRoute: typeof LoginRoute
   MeetingsRoute: typeof MeetingsRoute
+  MessagesRoute: typeof MessagesRoute
   NotesRoute: typeof NotesRoute
   OnboardingRoute: typeof OnboardingRoute
-  ProjectsRoute: typeof ProjectsRoute
+  ProjectsRoute: typeof ProjectsRouteWithChildren
   ReceiveRoute: typeof ReceiveRoute
+  RecordRoute: typeof RecordRoute
   RegisterRoute: typeof RegisterRoute
   RemindersRoute: typeof RemindersRoute
   SettingsRoute: typeof SettingsRoute
+  SyncRoute: typeof SyncRoute
   TasksRoute: typeof TasksRoute
+  TranslateRoute: typeof TranslateRoute
   TripsRoute: typeof TripsRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/trips': {
-      id: '/trips'
-      path: '/trips'
-      fullPath: '/trips'
-      preLoaderRoute: typeof TripsRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/translate': {
-      id: '/translate'
-      path: '/translate'
-      fullPath: '/translate'
-      preLoaderRoute: typeof TranslateRouteImport
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/tasks': {
-      id: '/tasks'
-      path: '/tasks'
-      fullPath: '/tasks'
-      preLoaderRoute: typeof TasksRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sync': {
-      id: '/sync'
-      path: '/sync'
-      fullPath: '/sync'
-      preLoaderRoute: typeof SyncRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/reminders': {
-      id: '/reminders'
-      path: '/reminders'
-      fullPath: '/reminders'
-      preLoaderRoute: typeof RemindersRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/register': {
-      id: '/register'
-      path: '/register'
-      fullPath: '/register'
-      preLoaderRoute: typeof RegisterRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/receive': {
-      id: '/receive'
-      path: '/receive'
-      fullPath: '/receive'
-      preLoaderRoute: typeof ReceiveRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/record': {
-      id: '/record'
-      path: '/record'
-      fullPath: '/record'
-      preLoaderRoute: typeof RecordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/projects': {
-      id: '/projects'
-      path: '/projects'
-      fullPath: '/projects'
-      preLoaderRoute: typeof ProjectsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/projects/$id': {
-      id: '/projects/$id'
-      path: '/projects/$id'
-      fullPath: '/projects/$id'
-      preLoaderRoute: typeof ProjectsIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/onboarding': {
-      id: '/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof OnboardingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/notes': {
-      id: '/notes'
-      path: '/notes'
-      fullPath: '/notes'
-      preLoaderRoute: typeof NotesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/meetings': {
-      id: '/meetings'
-      path: '/meetings'
-      fullPath: '/meetings'
-      preLoaderRoute: typeof MeetingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/messages': {
-      id: '/messages'
-      path: '/messages'
-      fullPath: '/messages'
-      preLoaderRoute: typeof MessagesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/guide': {
-      id: '/guide'
-      path: '/guide'
-      fullPath: '/guide'
-      preLoaderRoute: typeof GuideRouteImport
+    '/activate': {
+      id: '/activate'
+      path: '/activate'
+      fullPath: '/activate'
+      preLoaderRoute: typeof ActivateRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -498,6 +408,34 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/appointments': {
+      id: '/appointments'
+      path: '/appointments'
+      fullPath: '/appointments'
+      preLoaderRoute: typeof AppointmentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/calculator': {
+      id: '/calculator'
+      path: '/calculator'
+      fullPath: '/calculator'
+      preLoaderRoute: typeof CalculatorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/calendar': {
+      id: '/calendar'
+      path: '/calendar'
+      fullPath: '/calendar'
+      preLoaderRoute: typeof CalendarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/camera': {
+      id: '/camera'
+      path: '/camera'
+      fullPath: '/camera'
+      preLoaderRoute: typeof CameraRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/contacts': {
@@ -514,67 +452,149 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DiaryRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/calculator': {
-      id: '/calculator'
-      path: '/calculator'
-      fullPath: '/calculator'
-      preLoaderRoute: typeof CalculatorRouteImport
+    '/guide': {
+      id: '/guide'
+      path: '/guide'
+      fullPath: '/guide'
+      preLoaderRoute: typeof GuideRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/camera': {
-      id: '/camera'
-      path: '/camera'
-      fullPath: '/camera'
-      preLoaderRoute: typeof CameraRouteImport
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/calendar': {
-      id: '/calendar'
-      path: '/calendar'
-      fullPath: '/calendar'
-      preLoaderRoute: typeof CalendarRouteImport
+    '/meetings': {
+      id: '/meetings'
+      path: '/meetings'
+      fullPath: '/meetings'
+      preLoaderRoute: typeof MeetingsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/appointments': {
-      id: '/appointments'
-      path: '/appointments'
-      fullPath: '/appointments'
-      preLoaderRoute: typeof AppointmentsRouteImport
+    '/messages': {
+      id: '/messages'
+      path: '/messages'
+      fullPath: '/messages'
+      preLoaderRoute: typeof MessagesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/activate': {
-      id: '/activate'
-      path: '/activate'
-      fullPath: '/activate'
-      preLoaderRoute: typeof ActivateRouteImport
+    '/notes': {
+      id: '/notes'
+      path: '/notes'
+      fullPath: '/notes'
+      preLoaderRoute: typeof NotesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/about': {
-      id: '/about'
-      path: '/about'
-      fullPath: '/about'
-      preLoaderRoute: typeof AboutRouteImport
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/projects': {
+      id: '/projects'
+      path: '/projects'
+      fullPath: '/projects'
+      preLoaderRoute: typeof ProjectsRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/receive': {
+      id: '/receive'
+      path: '/receive'
+      fullPath: '/receive'
+      preLoaderRoute: typeof ReceiveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/record': {
+      id: '/record'
+      path: '/record'
+      fullPath: '/record'
+      preLoaderRoute: typeof RecordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reminders': {
+      id: '/reminders'
+      path: '/reminders'
+      fullPath: '/reminders'
+      preLoaderRoute: typeof RemindersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sync': {
+      id: '/sync'
+      path: '/sync'
+      fullPath: '/sync'
+      preLoaderRoute: typeof SyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tasks': {
+      id: '/tasks'
+      path: '/tasks'
+      fullPath: '/tasks'
+      preLoaderRoute: typeof TasksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/translate': {
+      id: '/translate'
+      path: '/translate'
+      fullPath: '/translate'
+      preLoaderRoute: typeof TranslateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/trips': {
+      id: '/trips'
+      path: '/trips'
+      fullPath: '/trips'
+      preLoaderRoute: typeof TripsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/projects/$id': {
+      id: '/projects/$id'
+      path: '/$id'
+      fullPath: '/projects/$id'
+      preLoaderRoute: typeof ProjectsIdRouteImport
+      parentRoute: typeof ProjectsRoute
     }
   }
 }
+
+interface ProjectsRouteChildren {
+  ProjectsIdRoute: typeof ProjectsIdRoute
+}
+
+const ProjectsRouteChildren: ProjectsRouteChildren = {
+  ProjectsIdRoute: ProjectsIdRoute,
+}
+
+const ProjectsRouteWithChildren = ProjectsRoute._addFileChildren(
+  ProjectsRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   ActivateRoute: ActivateRoute,
+  AdminRoute: AdminRoute,
   AppointmentsRoute: AppointmentsRoute,
   CalculatorRoute: CalculatorRoute,
-  CameraRoute: CameraRoute,
   CalendarRoute: CalendarRoute,
-  AdminRoute: AdminRoute,
+  CameraRoute: CameraRoute,
   ContactsRoute: ContactsRoute,
   DiaryRoute: DiaryRoute,
   GuideRoute: GuideRoute,
@@ -583,8 +603,7 @@ const rootRouteChildren: RootRouteChildren = {
   MessagesRoute: MessagesRoute,
   NotesRoute: NotesRoute,
   OnboardingRoute: OnboardingRoute,
-  ProjectsRoute: ProjectsRoute,
-  ProjectsIdRoute: ProjectsIdRoute,
+  ProjectsRoute: ProjectsRouteWithChildren,
   ReceiveRoute: ReceiveRoute,
   RecordRoute: RecordRoute,
   RegisterRoute: RegisterRoute,
@@ -592,8 +611,8 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   SyncRoute: SyncRoute,
   TasksRoute: TasksRoute,
-  TripsRoute: TripsRoute,
   TranslateRoute: TranslateRoute,
+  TripsRoute: TripsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
