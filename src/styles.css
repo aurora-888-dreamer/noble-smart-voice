@@ -180,6 +180,21 @@
 @utility mic-pulse {
   animation: vt-pulse 1.6s ease-in-out infinite;
 }
+@keyframes vt-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@utility marquee-track {
+  animation: vt-marquee 22s linear infinite;
+}
+@utility marquee-paused {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track {
+    animation: none;
+  }
+}
 @utility page-slide {
   animation: vt-slide-in 260ms cubic-bezier(0.22, 1, 0.36, 1);
 }
