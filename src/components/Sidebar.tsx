@@ -18,6 +18,7 @@ import {
   MessageSquare,
   Calculator,
   Languages,
+  Camera,
 } from "lucide-react";
 import { useLang } from "@/lib/settings-store";
 import { usePlugin } from "@/lib/plugins-store";
@@ -28,6 +29,7 @@ export function Sidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const hasCalculator = usePlugin("calculator");
   const hasTranslator = usePlugin("translator");
+  const hasCamera = usePlugin("camera");
 
   const items = [
     { to: "/", label: t(lang, "home"), Icon: Home },
@@ -82,6 +84,17 @@ export function Sidebar() {
       </ul>
 
       <div className="pt-2 mt-2 border-t border-border space-y-0.5">
+        {hasCamera && (
+          <Link
+            to="/camera"
+            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+              pathname === "/camera" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+            }`}
+          >
+            <Camera size={16} strokeWidth={pathname === "/camera" ? 2.4 : 1.8} />
+            {lang === "id" ? "Kamera & Foto" : "Camera & Photos"}
+          </Link>
+        )}
         {hasTranslator && (
           <Link
             to="/translate"

@@ -57,6 +57,8 @@ export function SelectionBar({
     appointment: t(lang, "appointment"),
     message: t(lang, "message"),
     diary: t(lang, "diary"),
+    trip: t(lang, "trip"),
+    project: t(lang, "project"),
   };
 
   return (
