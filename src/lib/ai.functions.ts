@@ -83,6 +83,69 @@ Return JSON only.`,
     }
   });
 
+// Translator plugin: translate a piece of captured text (note, diary entry,
+// etc.) into a target language. Text-only, uses whichever model resolveModel
+// picks (free direct Google key first, Lovable gateway fallback).
+export const translateText = createServerFn({ method: "POST" })
+  .inputValidator((input: { text: string; targetLang: string }) => input)
+  .handler(async ({ data }) => {
+    const resolved = resolveModel();
+    if (!resolved) {
+      return { ok: false as const, error: "AI unavailable" };
+    }
+    try {
+      const { text } = await generateText({
+        model: resolved.model,
+        prompt: `Translate the following text into ${data.targetLang}. Keep names, numbers, dates, and formatting intact. Return ONLY the translated text, no preamble, no explanation.
+
+Text:
+"""
+${data.text}
+"""`,
+      });
+      return { ok: true as const, text: text.trim() };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return { ok: false as const, error: message };
+    }
+  });
+
+// Camera plugin: generate a short factual caption for a captured/uploaded
+// photo, aware of which documentation category it was filed under.
+export const captionPhoto = createServerFn({ method: "POST" })
+  .inputValidator((input: { imageBase64: string; mimeType: string; category: string }) => input)
+  .handler(async ({ data }) => {
+    const resolved = resolveModel();
+    if (!resolved) {
+      return { ok: false as const, error: "AI unavailable" };
+    }
+    try {
+      const { text } = await generateText({
+        model: resolved.model,
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: `Write a short, factual caption (max 15 words) describing exactly what is visible in this photo. This is being filed as documentation under the category "${data.category}". Return ONLY the caption text, no preamble.`,
+              },
+              {
+                type: "image",
+                image: data.imageBase64,
+                mediaType: data.mimeType,
+              },
+            ],
+          },
+        ],
+      });
+      return { ok: true as const, text: text.trim() };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return { ok: false as const, error: message };
+    }
+  });
+
 export const analyzeVoice = createServerFn({ method: "POST" })
   .inputValidator((input: { transcript: string }) => input)
   .handler(async ({ data }) => {

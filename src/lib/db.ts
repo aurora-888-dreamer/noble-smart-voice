@@ -1,6 +1,6 @@
 import Dexie, { type Table } from "dexie";
 
-export type ItemType = "note" | "message" | "task" | "meeting" | "appointment" | "contact" | "diary";
+export type ItemType = "note" | "message" | "task" | "meeting" | "appointment" | "contact" | "diary" | "trip" | "project";
 
 export interface Note {
   id?: number;
@@ -103,6 +103,14 @@ export interface ProjectActivity {
   createdAt: number;
 }
 
+export interface Photo {
+  id?: number;
+  dataUrl: string; // base64 data URL (image/jpeg)
+  caption?: string;
+  category?: ItemType; // which documentation category this photo belongs to
+  createdAt: number;
+}
+
 export interface Project {
   id?: number;
   name: string;
@@ -134,6 +142,7 @@ class NobleDB extends Dexie {
   trips!: Table<Trip, number>;
   projects!: Table<Project, number>;
   diaries!: Table<DiaryEntry, number>;
+  photos!: Table<Photo, number>;
 
   constructor() {
     super("voicetag");
@@ -169,6 +178,19 @@ class NobleDB extends Dexie {
       projects: "++id, startAt, createdAt",
       diaries: "++id, createdAt",
     });
+    this.version(4).stores({
+      notes: "++id, createdAt, language",
+      messages: "++id, createdAt, relatedContactId",
+      tasks: "++id, status, dueAt, createdAt",
+      meetings: "++id, meetingAt, createdAt",
+      appointments: "++id, appointmentAt",
+      contacts: "++id, fullName, email",
+      reminders: "++id, remindAt, status, targetType",
+      trips: "++id, startAt, createdAt",
+      projects: "++id, startAt, createdAt",
+      diaries: "++id, createdAt",
+      photos: "++id, createdAt",
+    });
   }
 }
 
@@ -196,6 +218,7 @@ export async function exportAll() {
     trips: await db.trips.toArray(),
     projects: await db.projects.toArray(),
     diaries: await db.diaries.toArray(),
+    photos: await db.photos.toArray(),
   };
 }
 
@@ -203,7 +226,7 @@ export async function importAll(payload: Record<string, unknown[]>) {
   const db = getDb();
   await db.transaction(
     "rw",
-    [db.notes, db.messages, db.tasks, db.meetings, db.appointments, db.contacts, db.reminders, db.trips, db.projects, db.diaries],
+    [db.notes, db.messages, db.tasks, db.meetings, db.appointments, db.contacts, db.reminders, db.trips, db.projects, db.diaries, db.photos],
     async () => {
       if (Array.isArray(payload.notes)) await db.notes.bulkPut(payload.notes as Note[]);
       if (Array.isArray(payload.messages)) await db.messages.bulkPut(payload.messages as Message[]);
@@ -217,6 +240,7 @@ export async function importAll(payload: Record<string, unknown[]>) {
       if (Array.isArray(payload.trips)) await db.trips.bulkPut(payload.trips as Trip[]);
       if (Array.isArray(payload.projects)) await db.projects.bulkPut(payload.projects as Project[]);
       if (Array.isArray(payload.diaries)) await db.diaries.bulkPut(payload.diaries as DiaryEntry[]);
+      if (Array.isArray(payload.photos)) await db.photos.bulkPut(payload.photos as Photo[]);
     },
   );
 }

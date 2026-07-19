@@ -1,0 +1,83 @@
+import { useEffect, useState } from "react";
+import { DEFAULT_SHORTCUTS, type AppShortcut } from "./app-shortcuts";
+
+const ENABLED_KEY = "noble.appShortcutsEnabled";
+const CUSTOM_KEY = "noble.appShortcutsCustom";
+
+function getEnabled(): Record<string, boolean> {
+  if (typeof window === "undefined") return {};
+  const raw = localStorage.getItem(ENABLED_KEY);
+  if (raw) return JSON.parse(raw);
+  // Default: WhatsApp, Email, Browser on; the social apps off (keep Home tidy until chosen).
+  return { whatsapp: true, email: true, browser: true };
+}
+
+function saveEnabled(state: Record<string, boolean>) {
+  localStorage.setItem(ENABLED_KEY, JSON.stringify(state));
+  window.dispatchEvent(new Event("noble:shortcuts"));
+}
+
+export function isShortcutEnabled(id: string): boolean {
+  return !!getEnabled()[id];
+}
+
+export function setShortcutEnabled(id: string, enabled: boolean) {
+  const state = getEnabled();
+  state[id] = enabled;
+  saveEnabled(state);
+}
+
+export function getCustomShortcuts(): AppShortcut[] {
+  if (typeof window === "undefined") return [];
+  const raw = localStorage.getItem(CUSTOM_KEY);
+  return raw ? JSON.parse(raw) : [];
+}
+
+export function addCustomShortcut(name: string, url: string) {
+  const list = getCustomShortcuts();
+  const id = "custom-" + Date.now();
+  list.push({ id, name, nameId: name, url, custom: true });
+  localStorage.setItem(CUSTOM_KEY, JSON.stringify(list));
+  setShortcutEnabled(id, true);
+  window.dispatchEvent(new Event("noble:shortcuts"));
+}
+
+export function removeCustomShortcut(id: string) {
+  const list = getCustomShortcuts().filter((s) => s.id !== id);
+  localStorage.setItem(CUSTOM_KEY, JSON.stringify(list));
+  window.dispatchEvent(new Event("noble:shortcuts"));
+}
+
+export function useAllShortcuts(): AppShortcut[] {
+  const [list, setList] = useState<AppShortcut[]>([]);
+  useEffect(() => {
+    const sync = () => setList([...DEFAULT_SHORTCUTS, ...getCustomShortcuts()]);
+    sync();
+    window.addEventListener("noble:shortcuts", sync);
+    return () => window.removeEventListener("noble:shortcuts", sync);
+  }, []);
+  return list;
+}
+
+export function useEnabledShortcuts(): AppShortcut[] {
+  const all = useAllShortcuts();
+  const [enabled, setEnabled] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    const sync = () => setEnabled(getEnabled());
+    sync();
+    window.addEventListener("noble:shortcuts", sync);
+    return () => window.removeEventListener("noble:shortcuts", sync);
+  }, []);
+  return all.filter((s) => enabled[s.id]);
+}
+
+export function useShortcutEnabledMap(): Record<string, boolean> {
+  const [enabled, setEnabled] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    const sync = () => setEnabled(getEnabled());
+    sync();
+    window.addEventListener("noble:shortcuts", sync);
+    return () => window.removeEventListener("noble:shortcuts", sync);
+  }, []);
+  return enabled;
+}

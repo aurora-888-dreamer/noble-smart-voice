@@ -89,6 +89,24 @@ export async function saveCapturedEntry(input: CaptureInput, lang: Lang): Promis
         updatedAt: now,
       });
       break;
+    case "trip":
+      id = await db.trips.add({
+        title,
+        destination: input.body ? input.body.slice(0, 60) : title,
+        stops: [],
+        packingList: [],
+        notes: input.body,
+        createdAt: now,
+      });
+      break;
+    case "project":
+      id = await db.projects.add({
+        name: title,
+        summary: input.body,
+        milestones: [],
+        createdAt: now,
+      });
+      break;
   }
 
   if (input.when && id && (input.type === "task" || input.type === "appointment" || input.type === "meeting")) {

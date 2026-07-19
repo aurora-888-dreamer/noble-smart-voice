@@ -37,6 +37,18 @@ const TRIGGERS: Record<ItemType, { en: RegExp; id: RegExp }> = {
     en: /^(save (a )?message|message|memo)[\s:,-]+/i,
     id: /^(simpan pesan|pesan|memo)[\s:,-]+/i,
   },
+  diary: {
+    en: /^(diary( entry)?|journal)[\s:,-]+/i,
+    id: /^(diary|catatan harian|jurnal)[\s:,-]+/i,
+  },
+  trip: {
+    en: /^(save (a )?trip|trip|plan a trip)[\s:,-]+/i,
+    id: /^(simpan trip|trip|rencana perjalanan|perjalanan)[\s:,-]+/i,
+  },
+  project: {
+    en: /^(save (a )?project|new project|project)[\s:,-]+/i,
+    id: /^(simpan proyek|proyek baru|proyek)[\s:,-]+/i,
+  },
 };
 
 function detectType(text: string, lang: Lang): { type: ItemType; rest: string } {

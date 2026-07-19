@@ -239,6 +239,18 @@ export function ensureTrialStarted() {
   });
 }
 
+/** After the server confirms a voucher redemption, store it as a real license locally. */
+export function applyRedeemedLicense(input: { code: string; tier: "standard" | "premium"; durationDays: number }) {
+  saveLicenseRecord({
+    source: "code",
+    code: input.code,
+    tier: input.tier,
+    activatedAt: Date.now(),
+    durationDays: input.durationDays,
+  });
+  setPremiumTestOverride(false);
+}
+
 export function activatePremium(code: string): boolean {
   const c = code.trim().toUpperCase();
   const isOwnerCode = c === "AURORA-ADMIN" || c === "NOBLE440077";
