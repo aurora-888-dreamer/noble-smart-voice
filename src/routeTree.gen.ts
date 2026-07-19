@@ -30,6 +30,7 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as ContactsRouteImport } from './routes/contacts'
 import { Route as DiaryRouteImport } from './routes/diary'
 import { Route as CalculatorRouteImport } from './routes/calculator'
+import { Route as CameraRouteImport } from './routes/camera'
 import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as AppointmentsRouteImport } from './routes/appointments'
 import { Route as ActivateRouteImport } from './routes/activate'
@@ -141,6 +142,11 @@ const CalculatorRoute = CalculatorRouteImport.update({
   path: '/calculator',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CameraRoute = CameraRouteImport.update({
+  id: '/camera',
+  path: '/camera',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CalendarRoute = CalendarRouteImport.update({
   id: '/calendar',
   path: '/calendar',
@@ -173,6 +179,7 @@ export interface FileRoutesByFullPath {
   '/activate': typeof ActivateRoute
   '/appointments': typeof AppointmentsRoute
   '/calculator': typeof CalculatorRoute
+  '/camera': typeof CameraRoute
   '/calendar': typeof CalendarRoute
   '/admin': typeof AdminRoute
   '/contacts': typeof ContactsRoute
@@ -201,6 +208,7 @@ export interface FileRoutesByTo {
   '/activate': typeof ActivateRoute
   '/appointments': typeof AppointmentsRoute
   '/calculator': typeof CalculatorRoute
+  '/camera': typeof CameraRoute
   '/calendar': typeof CalendarRoute
   '/admin': typeof AdminRoute
   '/contacts': typeof ContactsRoute
@@ -230,6 +238,7 @@ export interface FileRoutesById {
   '/activate': typeof ActivateRoute
   '/appointments': typeof AppointmentsRoute
   '/calculator': typeof CalculatorRoute
+  '/camera': typeof CameraRoute
   '/calendar': typeof CalendarRoute
   '/admin': typeof AdminRoute
   '/contacts': typeof ContactsRoute
@@ -260,6 +269,7 @@ export interface FileRouteTypes {
     | '/activate'
     | '/appointments'
     | '/calculator'
+    | '/camera'
     | '/calendar'
     | '/admin'
     | '/contacts'
@@ -288,6 +298,7 @@ export interface FileRouteTypes {
     | '/activate'
     | '/appointments'
     | '/calculator'
+    | '/camera'
     | '/calendar'
     | '/admin'
     | '/contacts'
@@ -316,6 +327,7 @@ export interface FileRouteTypes {
     | '/activate'
     | '/appointments'
     | '/calculator'
+    | '/camera'
     | '/calendar'
     | '/admin'
     | '/contacts'
@@ -509,6 +521,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CalculatorRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/camera': {
+      id: '/camera'
+      path: '/camera'
+      fullPath: '/camera'
+      preLoaderRoute: typeof CameraRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/calendar': {
       id: '/calendar'
       path: '/calendar'
@@ -553,6 +572,7 @@ const rootRouteChildren: RootRouteChildren = {
   ActivateRoute: ActivateRoute,
   AppointmentsRoute: AppointmentsRoute,
   CalculatorRoute: CalculatorRoute,
+  CameraRoute: CameraRoute,
   CalendarRoute: CalendarRoute,
   AdminRoute: AdminRoute,
   ContactsRoute: ContactsRoute,
