@@ -30,10 +30,12 @@ type BIP = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome:
 export function AppShell({
   title,
   children,
+  headerExtra,
 }: {
   title: string;
   children: ReactNode;
   showFab?: boolean; // retained for backwards compat; ignored
+  headerExtra?: ReactNode; // extra icon buttons rendered before the mic (e.g. Home's Camera/Calculator/Translator shortcuts)
 }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
@@ -118,6 +120,7 @@ export function AppShell({
                 <Download size={16} />
               </button>
             )}
+            {headerExtra}
             <button
               onClick={handleMicTap}
               disabled={!supported}
