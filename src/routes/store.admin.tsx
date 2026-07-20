@@ -117,7 +117,7 @@ function AdminDashboard() {
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-border mb-4">
-        {(["orders", "tools", "settings"] as const).map((t) => (
+        {(["orders", "analytics", "customers", "tools", "settings"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
