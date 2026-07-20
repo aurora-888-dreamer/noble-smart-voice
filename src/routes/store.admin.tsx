@@ -177,6 +177,7 @@ function AdminDashboard() {
 
       {tab === "analytics" && <AnalyticsTab />}
       {tab === "customers" && <CustomersTab />}
+      {tab === "discounts" && <DiscountsTab />}
       {tab === "tools" && <ToolsTab />}
       {tab === "settings" && <SettingsTab />}
     </div>
