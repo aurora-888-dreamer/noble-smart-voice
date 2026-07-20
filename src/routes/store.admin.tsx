@@ -2,12 +2,13 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
   Lock, LogOut, ShieldCheck, Search, Trash2, CheckCircle2, Send,
-  KeyRound, Download, Copy, Check, RefreshCw,
+  KeyRound, Download, Copy, Check, RefreshCw, TrendingUp, Users, Megaphone,
+  AlertTriangle, Mail,
 } from "lucide-react";
 import {
   useOrders, useAdmin, adminLogin, adminLogout, setAdminPassword, getAdminPassword,
   markPaid, markDelivered, cancelOrder, deleteOrder, generateSerial, verifySerial,
-  formatIDR, statusLabel, type OrderRecord, type OrderStatus, PLANS,
+  formatIDR, statusLabel, type OrderRecord, type OrderStatus, PLANS, type PlanId,
 } from "@/lib/aurora-store";
 import { PLUGIN_REGISTRY } from "@/lib/plugins";
 
