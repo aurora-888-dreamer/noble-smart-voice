@@ -110,7 +110,15 @@ function OrderPage() {
         <div className="md:col-span-2 flex items-center justify-between rounded-2xl bg-card border border-border p-4">
           <div>
             <div className="text-xs uppercase tracking-widest text-muted-foreground">Total</div>
-            <div className="text-2xl font-bold text-primary">{formatIDR(plan.priceIDR)}</div>
+            {activeDiscount && (
+              <div className="text-xs text-muted-foreground line-through">{formatIDR(plan.priceIDR)}</div>
+            )}
+            <div className="text-2xl font-bold text-primary">{formatIDR(finalPrice)}</div>
+            {activeDiscount && (
+              <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-primary/15 text-primary text-[10px] font-semibold uppercase tracking-widest px-2 py-0.5">
+                <Tag size={10} /> {activeDiscount.name}
+              </div>
+            )}
           </div>
           <button
             type="submit"
