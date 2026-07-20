@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { ArrowLeft, Flag, Trash2, X } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
-import { getDb, type TimelineMilestone, type ProjectActivity } from "@/lib/db";
+import { getDb, type TimelineMilestone, type ProjectActivity, type Project } from "@/lib/db";
 import { useLang } from "@/lib/settings-store";
 import { t } from "@/lib/i18n";
 
@@ -42,7 +42,7 @@ function ProjectDetailPage() {
     );
   }
 
-  async function updateField(patch: Partial<typeof project>) {
+  async function updateField(patch: Partial<Project>) {
     if (!project?.id) return;
     await getDb().projects.update(project.id, patch);
   }
