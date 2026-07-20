@@ -3,8 +3,7 @@ import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
-import { getDb } from "@/lib/db";
-import type { ItemType } from "@/lib/db";
+import { getDb, nextOccurrence, type ItemType } from "@/lib/db";
 import { saveCapturedEntry } from "@/lib/capture";
 import { useLang } from "@/lib/settings-store";
 import { t } from "@/lib/i18n";
@@ -17,7 +16,7 @@ export const Route = createFileRoute("/calendar")({
 interface DayEvent {
   when: number;
   title: string;
-  kind: "task" | "meeting" | "appointment" | "reminder";
+  kind: "task" | "meeting" | "appointment" | "reminder" | "event";
 }
 
 function CalendarPage() {
@@ -28,17 +27,22 @@ function CalendarPage() {
   const events = useLiveQuery<DayEvent[]>(async () => {
     if (typeof window === "undefined") return [];
     const db = getDb();
-    const [tasks, meetings, appointments, reminders] = await Promise.all([
+    const [tasks, meetings, appointments, reminders, eventEntries] = await Promise.all([
       db.tasks.toArray(),
       db.meetings.toArray(),
       db.appointments.toArray(),
       db.reminders.toArray(),
+      db.events.toArray(),
     ]);
     const out: DayEvent[] = [];
     tasks.forEach((x) => x.dueAt && out.push({ when: x.dueAt, title: x.title, kind: "task" }));
     meetings.forEach((x) => x.meetingAt && out.push({ when: x.meetingAt, title: x.title, kind: "meeting" }));
     appointments.forEach((x) => out.push({ when: x.appointmentAt, title: x.title, kind: "appointment" }));
     reminders.forEach((x) => out.push({ when: x.remindAt, title: x.label, kind: "reminder" }));
+    // Yearly events use their computed NEXT occurrence here so the
+    // "Upcoming" list, general sorting, and the month grid all reflect the
+    // real next date, not the originally-entered year.
+    eventEntries.forEach((x) => out.push({ when: nextOccurrence(x.eventAt, x.recurring), title: x.title, kind: "event" }));
     return out.sort((a, b) => a.when - b.when);
   }, []);
 
@@ -169,7 +173,7 @@ function CalendarPage() {
   );
 }
 
-const EVENT_TYPES: Extract<ItemType, "task" | "meeting" | "appointment">[] = ["task", "meeting", "appointment"];
+const EVENT_TYPES: Extract<ItemType, "task" | "meeting" | "appointment" | "event">[] = ["task", "meeting", "appointment", "event"];
 
 function toLocalInputValue(d: Date) {
   return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
@@ -184,7 +188,7 @@ function NewEventForm({
   defaultDate: Date;
   onClose: () => void;
 }) {
-  const [type, setType] = useState<Extract<ItemType, "task" | "meeting" | "appointment">>("task");
+  const [type, setType] = useState<Extract<ItemType, "task" | "meeting" | "appointment" | "event">>("task");
   const [title, setTitle] = useState("");
   const [when, setWhen] = useState(toLocalInputValue(defaultDate));
 
@@ -207,12 +211,12 @@ function NewEventForm({
           </button>
         </div>
 
-        <div className="flex gap-2 mb-3">
+        <div className="grid grid-cols-2 gap-2 mb-3">
           {EVENT_TYPES.map((tp) => (
             <button
               key={tp}
               onClick={() => setType(tp)}
-              className={`flex-1 rounded-xl px-3 py-2 text-xs font-semibold border transition-colors ${
+              className={`rounded-xl px-3 py-2 text-xs font-semibold border transition-colors ${
                 type === tp ? "bg-primary text-primary-foreground border-primary" : "bg-secondary text-secondary-foreground border-border"
               }`}
             >

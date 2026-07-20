@@ -25,6 +25,7 @@ function OrderPage() {
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [order, setOrder] = useState<OrderRecord | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   const plan = useMemo(() => PLANS.find((p) => p.id === planId)!, [planId]);
@@ -43,25 +44,28 @@ function OrderPage() {
 
   const finalPrice = activeDiscount ? applyDiscount(plan, activeDiscount) : plan.priceIDR;
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim() || (!email.trim() && !whatsapp.trim())) return;
     setSubmitting(true);
-    setTimeout(() => {
-      const o = createOrder({
-        planId,
-        buyer: { name: name.trim(), email: email.trim(), whatsapp: whatsapp.trim(), note: note.trim() || undefined },
-        priceIDR: finalPrice,
-        originalPriceIDR: activeDiscount ? plan.priceIDR : undefined,
-        discountId: activeDiscount?.id,
-        discountLabel: activeDiscount?.name,
-        groupId: groupId,
-      });
-      // If the discount promotes to an upgrade group, remember it locally.
-      if (activeDiscount?.upgradeGroupId) setUserGroupId(activeDiscount.upgradeGroupId);
-      setOrder(o);
-      setSubmitting(false);
-    }, 300);
+    setError(null);
+    const res = await createOrder({
+      planId,
+      buyer: { name: name.trim(), email: email.trim(), whatsapp: whatsapp.trim(), note: note.trim() || undefined },
+      priceIDR: finalPrice,
+      originalPriceIDR: activeDiscount ? plan.priceIDR : undefined,
+      discountId: activeDiscount?.id,
+      discountLabel: activeDiscount?.name,
+      groupId: groupId,
+    });
+    setSubmitting(false);
+    if (!res.ok) {
+      setError(res.error);
+      return;
+    }
+    // If the discount promotes to an upgrade group, remember it locally.
+    if (activeDiscount?.upgradeGroupId) setUserGroupId(activeDiscount.upgradeGroupId);
+    setOrder(res.order);
   }
 
   if (order) return <OrderReceipt order={order} copied={copied} setCopied={setCopied} />;
@@ -129,6 +133,12 @@ function OrderPage() {
             Create Order
           </button>
         </div>
+
+        {error && (
+          <p className="md:col-span-2 text-sm text-destructive rounded-xl bg-destructive/10 border border-destructive/30 p-3">
+            {error}
+          </p>
+        )}
 
         <p className="md:col-span-2 text-[11px] text-muted-foreground">
           By ordering you agree to our{" "}

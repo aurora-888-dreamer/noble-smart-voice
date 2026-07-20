@@ -9,7 +9,7 @@ import { getDb } from "@/lib/db";
 import { useLang } from "@/lib/settings-store";
 import { t } from "@/lib/i18n";
 import { isOnboarded } from "@/lib/settings-store";
-import { isRegistered, isSignedIn, ensureTrialStarted } from "@/lib/auth-store";
+import { isRegistered, isSignedIn, ensureTrialStarted, useLicenseInfo } from "@/lib/auth-store";
 import { rehydrateReminders } from "@/lib/reminders";
 import { CalculatorWidget } from "@/components/CalculatorWidget";
 import { PhotoCaptureFlow } from "@/components/PhotoCaptureFlow";
@@ -27,6 +27,7 @@ function Home() {
   const hasCalculator = usePlugin("calculator");
   const hasTranslator = usePlugin("translator");
   const hasCamera = usePlugin("camera");
+  const license = useLicenseInfo();
   const shortcuts = useEnabledShortcuts();
 
   useEffect(() => {
@@ -100,25 +101,27 @@ function Home() {
 
   return (
     <AppShell title={t(lang, "home")}>
-      <Link
-        to="/upgrade"
-        className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-primary/40 bg-gradient-to-br from-primary/15 to-primary/5 p-4 hover:opacity-90"
-      >
-        <div className="flex items-center gap-3 min-w-0">
-          <Crown size={20} className="text-primary shrink-0" />
-          <div className="min-w-0">
-            <div className="text-sm font-semibold truncate">
-              {lang === "id" ? "Upgrade ke Premium" : "Upgrade to Premium"}
-            </div>
-            <div className="text-xs text-muted-foreground truncate">
-              {lang === "id" ? "Lihat paket & kode grup khusus" : "See plans & apply your group code"}
+      {license.tier !== "premium" && (
+        <Link
+          to="/upgrade"
+          className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-primary/40 bg-gradient-to-br from-primary/15 to-primary/5 p-4 hover:opacity-90"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <Crown size={20} className="text-primary shrink-0" />
+            <div className="min-w-0">
+              <div className="text-sm font-semibold truncate">
+                {lang === "id" ? "Upgrade ke Premium" : "Upgrade to Premium"}
+              </div>
+              <div className="text-xs text-muted-foreground truncate">
+                {lang === "id" ? "Lihat paket & kode grup khusus" : "See plans & apply your group code"}
+              </div>
             </div>
           </div>
-        </div>
-        <span className="text-xs text-primary font-semibold shrink-0">
-          {lang === "id" ? "Buka →" : "Open →"}
-        </span>
-      </Link>
+          <span className="text-xs text-primary font-semibold shrink-0">
+            {lang === "id" ? "Buka →" : "Open →"}
+          </span>
+        </Link>
+      )}
 
       <h2 className="mb-4 text-xl font-semibold">{t(lang, "dailyActivities")}</h2>
 

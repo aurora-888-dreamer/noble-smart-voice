@@ -1,14 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Lock, LogOut, ShieldCheck, Search, Trash2, CheckCircle2, Send,
-  KeyRound, Download, Copy, Check, RefreshCw, TrendingUp, Users, Megaphone,
-  AlertTriangle, Mail, Tag, Percent, Plus, Pencil, X,
+  Download, Copy, Check, RefreshCw, TrendingUp, Users, Megaphone,
+  AlertTriangle, Mail, Tag, Percent, Plus, Pencil, X, KeyRound,
 } from "lucide-react";
 import {
-  useOrders, useAdmin, adminLogin, adminLogout, setAdminPassword, getAdminPassword,
-  markPaid, markDelivered, cancelOrder, deleteOrder, generateSerial, verifySerial,
-  formatIDR, statusLabel, type OrderRecord, type OrderStatus, PLANS, type PlanId,
+  useOrders, useAdmin, adminLogin, adminLogout, getAdminSessionPassword,
+  markPaid, markDelivered, cancelOrder, deleteOrder, generateSerialPreview, verifySerial,
+  wipeAllOrders, formatIDR, statusLabel, type OrderRecord, type OrderStatus, PLANS, type PlanId,
 } from "@/lib/aurora-store";
 import {
   useDiscounts, useGroups, upsertDiscount, deleteDiscount, upsertGroup, deleteGroup,
@@ -23,17 +23,31 @@ export const Route = createFileRoute("/store/admin")({
 
 function AdminPage() {
   const ok = useAdmin();
-  if (!ok) return <AdminLogin />;
-  return <AdminDashboard />;
+  const [pw, setPw] = useState<string | null>(null);
+  useEffect(() => {
+    const sync = () => setPw(getAdminSessionPassword());
+    sync();
+    window.addEventListener("aurora:store", sync);
+    return () => window.removeEventListener("aurora:store", sync);
+  }, []);
+  if (!ok || !pw) return <AdminLogin />;
+  return <AdminDashboard adminPassword={pw} />;
 }
 
 function AdminLogin() {
   const [pw, setPw] = useState("");
   const [err, setErr] = useState<string | null>(null);
-  function submit(e: React.FormEvent) {
+  const [checking, setChecking] = useState(false);
+
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!adminLogin(pw)) setErr("Incorrect password");
+    setErr(null);
+    setChecking(true);
+    const ok = await adminLogin(pw);
+    setChecking(false);
+    if (!ok) setErr("Incorrect password");
   }
+
   return (
     <div className="max-w-sm mx-auto mt-16 rounded-2xl bg-card border border-border p-6">
       <div className="flex items-center gap-2 mb-4">
@@ -51,20 +65,22 @@ function AdminLogin() {
         {err && <p className="text-xs text-destructive">{err}</p>}
         <button
           type="submit"
-          className="w-full rounded-full bg-primary text-primary-foreground py-3 text-sm font-semibold"
+          disabled={checking || !pw.trim()}
+          className="w-full rounded-full bg-primary text-primary-foreground py-3 text-sm font-semibold disabled:opacity-50"
         >
-          Sign in
+          {checking ? "Checking…" : "Sign in"}
         </button>
         <p className="text-[11px] text-muted-foreground text-center pt-2">
-          Default password: <code className="font-mono">AURORA-ADMIN</code> — change it after login.
+          Password is set via the <code className="font-mono">STORE_ADMIN_PASSWORD</code> environment
+          variable (default: <code className="font-mono">AURORA-ADMIN</code>).
         </p>
       </form>
     </div>
   );
 }
 
-function AdminDashboard() {
-  const orders = useOrders();
+function AdminDashboard({ adminPassword }: { adminPassword: string }) {
+  const orders = useOrders(adminPassword);
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | OrderStatus>("all");
   const [tab, setTab] = useState<"orders" | "analytics" | "customers" | "discounts" | "tools" | "settings">("orders");
@@ -120,18 +136,18 @@ function AdminDashboard() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-border mb-4">
-        {(["orders", "analytics", "customers", "discounts", "tools", "settings"] as const).map((t) => (
+      <div className="flex gap-1 border-b border-border mb-4 overflow-x-auto">
+        {(["orders", "analytics", "customers", "discounts", "tools", "settings"] as const).map((tKey) => (
           <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-4 py-2 text-sm capitalize border-b-2 transition ${
-              tab === t
+            key={tKey}
+            onClick={() => setTab(tKey)}
+            className={`px-4 py-2 text-sm capitalize border-b-2 transition shrink-0 ${
+              tab === tKey
                 ? "border-primary text-primary"
                 : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
-            {t}
+            {tKey}
           </button>
         ))}
       </div>
@@ -163,23 +179,23 @@ function AdminDashboard() {
 
           {filtered.length === 0 ? (
             <div className="rounded-2xl bg-card border border-border p-8 text-center text-sm text-muted-foreground">
-              No orders match. Orders placed on this device will appear here.
+              No orders match. Every order — from any device — appears here.
             </div>
           ) : (
             <div className="space-y-2">
               {filtered.map((o) => (
-                <OrderRow key={o.id} order={o} />
+                <OrderRow key={o.id} order={o} adminPassword={adminPassword} />
               ))}
             </div>
           )}
         </>
       )}
 
-      {tab === "analytics" && <AnalyticsTab />}
-      {tab === "customers" && <CustomersTab />}
+      {tab === "analytics" && <AnalyticsTab orders={orders} />}
+      {tab === "customers" && <CustomersTab orders={orders} />}
       {tab === "discounts" && <DiscountsTab />}
-      {tab === "tools" && <ToolsTab />}
-      {tab === "settings" && <SettingsTab />}
+      {tab === "tools" && <ToolsTab orders={orders} adminPassword={adminPassword} />}
+      {tab === "settings" && <SettingsTab orders={orders} adminPassword={adminPassword} />}
     </div>
   );
 }
@@ -193,16 +209,26 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function OrderRow({ order }: { order: OrderRecord }) {
+function OrderRow({ order, adminPassword }: { order: OrderRecord; adminPassword: string }) {
   const plan = PLANS.find((p) => p.id === order.planId);
   const [expanded, setExpanded] = useState(false);
   const [ref, setRef] = useState("");
   const [copied, setCopied] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   function copySerial() {
     navigator.clipboard.writeText(order.serial);
     setCopied(true);
     setTimeout(() => setCopied(false), 1200);
+  }
+
+  async function run(action: () => Promise<{ ok: boolean; error?: string }>) {
+    setBusy(true);
+    setActionError(null);
+    const res = await action();
+    setBusy(false);
+    if (!res.ok) setActionError(res.error ?? "Action failed.");
   }
 
   const waText = encodeURIComponent(
@@ -275,19 +301,27 @@ function OrderRow({ order }: { order: OrderRecord }) {
                 className="flex-1 min-w-40 rounded-lg bg-secondary px-3 py-2 text-xs outline-none"
               />
               <button
-                onClick={() => markPaid(order.id, ref || undefined)}
-                className="inline-flex items-center gap-1 rounded-full bg-blue-500/20 text-blue-400 px-3 py-1.5 text-xs font-semibold"
+                disabled={busy}
+                onClick={() => run(() => markPaid(order.id, adminPassword, ref || undefined))}
+                className="inline-flex items-center gap-1 rounded-full bg-blue-500/20 text-blue-400 px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
               >
                 <CheckCircle2 size={14} /> Mark Paid
               </button>
             </div>
           )}
+          {order.status === "pending" && (
+            <p className="text-[11px] text-muted-foreground">
+              Marking this Paid also issues a real, redeemable voucher — the buyer's serial becomes
+              usable at Noble's Activate page right away.
+            </p>
+          )}
 
           <div className="flex flex-wrap gap-2">
             {order.status === "paid" && (
               <button
-                onClick={() => markDelivered(order.id)}
-                className="inline-flex items-center gap-1 rounded-full bg-primary/20 text-primary px-3 py-1.5 text-xs font-semibold"
+                disabled={busy}
+                onClick={() => run(() => markDelivered(order.id, adminPassword))}
+                className="inline-flex items-center gap-1 rounded-full bg-primary/20 text-primary px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
               >
                 <CheckCircle2 size={14} /> Mark Delivered
               </button>
@@ -302,21 +336,25 @@ function OrderRow({ order }: { order: OrderRecord }) {
             </a>
             {order.status !== "cancelled" && order.status !== "delivered" && (
               <button
-                onClick={() => cancelOrder(order.id)}
-                className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-xs"
+                disabled={busy}
+                onClick={() => run(() => cancelOrder(order.id, adminPassword))}
+                className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-xs disabled:opacity-50"
               >
                 Cancel
               </button>
             )}
             <button
+              disabled={busy}
               onClick={() => {
-                if (confirm("Delete this order permanently?")) deleteOrder(order.id);
+                if (confirm("Delete this order permanently?")) run(() => deleteOrder(order.id, adminPassword));
               }}
-              className="ml-auto inline-flex items-center gap-1 rounded-full bg-destructive/20 text-destructive px-3 py-1.5 text-xs font-semibold"
+              className="ml-auto inline-flex items-center gap-1 rounded-full bg-destructive/20 text-destructive px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
             >
               <Trash2 size={14} /> Delete
             </button>
           </div>
+
+          {actionError && <p className="text-xs text-destructive">{actionError}</p>}
         </div>
       )}
     </div>
@@ -332,10 +370,20 @@ function Info({ label, value, full }: { label: string; value: string; full?: boo
   );
 }
 
-function ToolsTab() {
-  const [serial, setSerial] = useState(generateSerial());
+function ToolsTab({ orders, adminPassword }: { orders: OrderRecord[]; adminPassword: string }) {
+  const [serial, setSerial] = useState(generateSerialPreview());
   const [check, setCheck] = useState("");
-  const orders = useOrders();
+  const [checkResult, setCheckResult] = useState<{ found: boolean; order: OrderRecord | null } | null>(null);
+  const [checking, setChecking] = useState(false);
+
+  async function runCheck() {
+    if (!check.trim()) return;
+    setChecking(true);
+    const res = await verifySerial(check.trim(), adminPassword);
+    setChecking(false);
+    if (res.ok) setCheckResult({ found: !!res.order, order: res.order });
+    else setCheckResult({ found: false, order: null });
+  }
 
   function exportCSV() {
     const rows = [
@@ -360,22 +408,22 @@ function ToolsTab() {
     URL.revokeObjectURL(url);
   }
 
-  const checkResult = check.trim() ? verifySerial(check) : null;
-
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div className="rounded-2xl bg-card border border-border p-4">
         <div className="flex items-center gap-2 mb-3">
           <KeyRound size={16} className="text-primary" />
-          <h3 className="font-semibold">Generate Serial</h3>
+          <h3 className="font-semibold">Generate Serial (preview)</h3>
         </div>
         <p className="text-xs text-muted-foreground mb-3">
-          For hand-issued licenses (giveaways, resellers) — not tied to an order record.
+          For hand-issued licenses (giveaways, resellers). This only formats a string — issue it as a
+          real voucher via Supabase (see the example in <code className="font-mono">noble_vouchers.sql</code>)
+          for it to actually activate anything.
         </p>
         <div className="flex items-center gap-2">
           <code className="flex-1 rounded-lg bg-secondary px-3 py-2 text-sm font-mono">{serial}</code>
           <button
-            onClick={() => setSerial(generateSerial())}
+            onClick={() => setSerial(generateSerialPreview())}
             className="rounded-lg border border-border p-2 hover:bg-secondary"
             aria-label="Regenerate"
           >
@@ -396,16 +444,32 @@ function ToolsTab() {
           <ShieldCheck size={16} className="text-primary" />
           <h3 className="font-semibold">Verify Serial</h3>
         </div>
-        <input
-          value={check}
-          onChange={(e) => setCheck(e.target.value.toUpperCase())}
-          placeholder="NBL-202607-XXXX-XX"
-          className="w-full rounded-lg bg-secondary px-3 py-2 text-sm font-mono outline-none"
-        />
-        {checkResult !== null && (
-          <p className={`mt-2 text-xs ${checkResult ? "text-primary" : "text-destructive"}`}>
-            {checkResult ? "✓ Checksum valid" : "✗ Invalid checksum"}
-          </p>
+        <div className="flex gap-2">
+          <input
+            value={check}
+            onChange={(e) => { setCheck(e.target.value.toUpperCase()); setCheckResult(null); }}
+            onKeyDown={(e) => e.key === "Enter" && runCheck()}
+            placeholder="NBL-202607-XXXX-XX"
+            className="flex-1 rounded-lg bg-secondary px-3 py-2 text-sm font-mono outline-none"
+          />
+          <button
+            onClick={runCheck}
+            disabled={checking || !check.trim()}
+            className="rounded-lg bg-primary text-primary-foreground px-3 text-xs font-semibold disabled:opacity-50"
+          >
+            {checking ? "…" : "Check"}
+          </button>
+        </div>
+        {checkResult && (
+          <div className="mt-2 text-xs">
+            {checkResult.found && checkResult.order ? (
+              <p className="text-primary">
+                ✓ Found — {checkResult.order.buyer.name}, {statusLabel(checkResult.order.status, "en")}
+              </p>
+            ) : (
+              <p className="text-destructive">✗ No matching order found.</p>
+            )}
+          </div>
         )}
       </div>
 
@@ -445,8 +509,7 @@ function ToolsTab() {
   );
 }
 
-function AnalyticsTab() {
-  const orders = useOrders();
+function AnalyticsTab({ orders }: { orders: OrderRecord[] }) {
   const now = Date.now();
   const DAY = 86400_000;
 
@@ -460,14 +523,13 @@ function AnalyticsTab() {
 
   const windowStats = (days: number) => {
     const cutoff = now - days * DAY;
-    const os = paidOrders.filter((o) => (o.paidAt ?? o.createdAt) >= cutoff);
+    const os = paidOrders.filter((o) => (o.paidAt ? new Date(o.paidAt).getTime() : new Date(o.createdAt).getTime()) >= cutoff);
     return { count: os.length, revenue: os.reduce((s, o) => s + o.priceIDR, 0) };
   };
   const s7 = windowStats(7);
   const s30 = windowStats(30);
   const s90 = windowStats(90);
 
-  // Daily revenue for last 14 days sparkline
   const buckets: { label: string; revenue: number }[] = [];
   for (let i = 13; i >= 0; i--) {
     const start = new Date(now - i * DAY);
@@ -475,7 +537,7 @@ function AnalyticsTab() {
     const end = start.getTime() + DAY;
     const rev = paidOrders
       .filter((o) => {
-        const t = o.paidAt ?? o.createdAt;
+        const t = o.paidAt ? new Date(o.paidAt).getTime() : new Date(o.createdAt).getTime();
         return t >= start.getTime() && t < end;
       })
       .reduce((s, o) => s + o.priceIDR, 0);
@@ -555,8 +617,7 @@ interface CustomerAgg {
   lastStatus: OrderStatus;
 }
 
-function CustomersTab() {
-  const orders = useOrders();
+function CustomersTab({ orders }: { orders: OrderRecord[] }) {
   const [q, setQ] = useState("");
 
   const customers = useMemo(() => {
@@ -564,12 +625,13 @@ function CustomersTab() {
     for (const o of orders) {
       const key = (o.buyer.email || o.buyer.whatsapp || o.buyer.name).toLowerCase();
       const spent = o.status === "paid" || o.status === "delivered" ? o.priceIDR : 0;
+      const createdAtMs = new Date(o.createdAt).getTime();
       const prev = map.get(key);
       if (prev) {
         prev.orders += 1;
         prev.spent += spent;
-        if (o.createdAt > prev.lastAt) {
-          prev.lastAt = o.createdAt;
+        if (createdAtMs > prev.lastAt) {
+          prev.lastAt = createdAtMs;
           prev.lastStatus = o.status;
         }
       } else {
@@ -580,7 +642,7 @@ function CustomersTab() {
           whatsapp: o.buyer.whatsapp,
           orders: 1,
           spent,
-          lastAt: o.createdAt,
+          lastAt: createdAtMs,
           lastStatus: o.status,
         });
       }
@@ -640,62 +702,37 @@ function CustomersTab() {
   );
 }
 
-function SettingsTab() {
-  const [newPw, setNewPw] = useState("");
-  const [saved, setSaved] = useState(false);
-  const current = getAdminPassword();
-
-  function save() {
-    if (!newPw.trim()) return;
-    setAdminPassword(newPw.trim());
-    setNewPw("");
-    setSaved(true);
-    setTimeout(() => setSaved(false), 1500);
-  }
-
+function SettingsTab({ orders, adminPassword }: { orders: OrderRecord[]; adminPassword: string }) {
   return (
     <div className="max-w-lg space-y-4">
       <div className="rounded-2xl bg-card border border-border p-4">
         <h3 className="font-semibold mb-2">Admin password</h3>
-        <p className="text-xs text-muted-foreground mb-3">
-          Current: <code className="font-mono">{current}</code>. Change it now if you're still on the default.
+        <p className="text-xs text-muted-foreground">
+          Now set via the <code className="font-mono">STORE_ADMIN_PASSWORD</code> environment variable
+          in Lovable — not changeable from this screen anymore, since the password is checked on the
+          server for every admin action (orders, discounts, tools). Update the env var and sign in again
+          with the new value to change it.
         </p>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={newPw}
-            onChange={(e) => setNewPw(e.target.value)}
-            placeholder="New password"
-            className="flex-1 rounded-lg bg-secondary px-3 py-2 text-sm outline-none"
-          />
-          <button
-            onClick={save}
-            className="rounded-full bg-primary text-primary-foreground px-4 text-xs font-semibold"
-          >
-            Save
-          </button>
-        </div>
-        {saved && <p className="text-xs text-primary mt-2">Updated.</p>}
       </div>
 
-      <BroadcastCard />
+      <BroadcastCard orders={orders} />
 
-      <DangerZone />
+      <DangerZone orders={orders} adminPassword={adminPassword} />
 
       <div className="rounded-2xl bg-card border border-border p-4 text-xs text-muted-foreground">
         <p className="font-semibold text-foreground mb-1">Note on storage</p>
         <p>
-          Orders and admin credentials are stored in your browser's local storage on this device.
-          To share the dashboard across devices, plug in Lovable Cloud (Supabase) and migrate
-          <code className="font-mono"> aurora-store.ts</code> to server-backed reads.
+          Orders now live in Supabase (<code className="font-mono">store_orders</code>) — shared across
+          every device, admin included. Marking an order Paid also issues a real voucher in{" "}
+          <code className="font-mono">noble_vouchers</code>, so the buyer's serial works immediately at
+          Noble's Activate page.
         </p>
       </div>
     </div>
   );
 }
 
-function BroadcastCard() {
-  const orders = useOrders();
+function BroadcastCard({ orders }: { orders: OrderRecord[] }) {
   const [audience, setAudience] = useState<"all" | OrderStatus | PlanId>("all");
   const [msg, setMsg] = useState(
     "Halo {name} 👋\n\nSalam dari AURORA MASTER — kami ingin memberi info terbaru tentang Noble Smart Voice.\n\nTerima kasih!",
@@ -795,15 +832,20 @@ function BroadcastCard() {
   );
 }
 
-function DangerZone() {
-  const orders = useOrders();
+function DangerZone({ orders, adminPassword }: { orders: OrderRecord[]; adminPassword: string }) {
   const [confirmText, setConfirmText] = useState("");
+  const [wiping, setWiping] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
-  function wipeAll() {
+  async function wipeAll() {
     if (confirmText !== "DELETE") return;
     if (!confirm(`Permanently delete all ${orders.length} orders? This cannot be undone.`)) return;
-    for (const o of orders) deleteOrder(o.id);
-    setConfirmText("");
+    setWiping(true);
+    setErr(null);
+    const res = await wipeAllOrders(adminPassword);
+    setWiping(false);
+    if (!res.ok) setErr(res.error);
+    else setConfirmText("");
   }
 
   return (
@@ -813,7 +855,7 @@ function DangerZone() {
         <h3 className="font-semibold text-destructive">Danger zone</h3>
       </div>
       <p className="text-xs text-muted-foreground mb-3">
-        Wipe every order on this device. Type <code className="font-mono">DELETE</code> to enable.
+        Wipe every order (all devices). Type <code className="font-mono">DELETE</code> to enable.
       </p>
       <div className="flex gap-2">
         <input
@@ -824,17 +866,18 @@ function DangerZone() {
         />
         <button
           onClick={wipeAll}
-          disabled={confirmText !== "DELETE"}
+          disabled={confirmText !== "DELETE" || wiping}
           className="rounded-full bg-destructive text-destructive-foreground px-4 text-xs font-semibold disabled:opacity-40"
         >
-          Wipe all
+          {wiping ? "Wiping…" : "Wipe all"}
         </button>
       </div>
+      {err && <p className="text-xs text-destructive mt-2">{err}</p>}
     </div>
   );
 }
 
-// ————————— Discounts & Groups —————————
+// ————————— Discounts & Groups (still local-only — flagged separately) —————————
 function DiscountsTab() {
   const discounts = useDiscounts();
   const groups = useGroups();
@@ -843,6 +886,11 @@ function DiscountsTab() {
 
   return (
     <div className="space-y-6">
+      <div className="rounded-xl border border-accent/40 bg-accent/10 p-3 text-xs text-accent-foreground">
+        Note: Discounts and Groups are still stored per-device for now (not yet moved to Supabase like
+        Orders were) — they won't be visible/usable from a customer's own device until that's migrated too.
+      </div>
+
       {/* Groups */}
       <section className="rounded-2xl bg-card border border-border p-4">
         <div className="flex items-center justify-between mb-3">
