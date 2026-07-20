@@ -673,6 +673,10 @@ function SettingsTab() {
         {saved && <p className="text-xs text-primary mt-2">Updated.</p>}
       </div>
 
+      <BroadcastCard />
+
+      <DangerZone />
+
       <div className="rounded-2xl bg-card border border-border p-4 text-xs text-muted-foreground">
         <p className="font-semibold text-foreground mb-1">Note on storage</p>
         <p>
@@ -680,6 +684,146 @@ function SettingsTab() {
           To share the dashboard across devices, plug in Lovable Cloud (Supabase) and migrate
           <code className="font-mono"> aurora-store.ts</code> to server-backed reads.
         </p>
+      </div>
+    </div>
+  );
+}
+
+function BroadcastCard() {
+  const orders = useOrders();
+  const [audience, setAudience] = useState<"all" | OrderStatus | PlanId>("all");
+  const [msg, setMsg] = useState(
+    "Halo {name} 👋\n\nSalam dari AURORA MASTER — kami ingin memberi info terbaru tentang Noble Smart Voice.\n\nTerima kasih!",
+  );
+
+  const recipients = useMemo(() => {
+    const seen = new Set<string>();
+    const list: OrderRecord[] = [];
+    for (const o of orders) {
+      if (!o.buyer.whatsapp) continue;
+      const key = o.buyer.whatsapp.replace(/\D/g, "");
+      if (seen.has(key)) continue;
+      if (audience === "all") {
+        // ok
+      } else if (["pending", "paid", "delivered", "cancelled"].includes(audience)) {
+        if (o.status !== audience) continue;
+      } else {
+        if (o.planId !== audience) continue;
+      }
+      seen.add(key);
+      list.push(o);
+    }
+    return list;
+  }, [orders, audience]);
+
+  function openFirst() {
+    if (recipients.length === 0) return;
+    for (const r of recipients) {
+      const text = encodeURIComponent(msg.replace(/\{name\}/g, r.buyer.name).replace(/\{serial\}/g, r.serial));
+      const url = `https://wa.me/${r.buyer.whatsapp.replace(/\D/g, "")}?text=${text}`;
+      window.open(url, "_blank", "noopener");
+    }
+  }
+
+  function mailtoAll() {
+    const emails = Array.from(
+      new Set(orders.filter((o) => o.buyer.email).map((o) => o.buyer.email)),
+    ).join(",");
+    if (!emails) return;
+    const subject = encodeURIComponent("Update from AURORA MASTER — Noble Smart Voice");
+    const body = encodeURIComponent(msg.replace(/\{name\}/g, "").replace(/\{serial\}/g, ""));
+    window.location.href = `mailto:?bcc=${emails}&subject=${subject}&body=${body}`;
+  }
+
+  return (
+    <div className="rounded-2xl bg-card border border-border p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <Megaphone size={16} className="text-primary" />
+        <h3 className="font-semibold">Broadcast to customers</h3>
+      </div>
+      <p className="text-xs text-muted-foreground mb-3">
+        Use tokens <code className="font-mono">{"{name}"}</code> and{" "}
+        <code className="font-mono">{"{serial}"}</code>. WhatsApp opens one tab per recipient — allow popups.
+      </p>
+      <div className="space-y-2">
+        <select
+          value={audience}
+          onChange={(e) => setAudience(e.target.value as typeof audience)}
+          className="w-full rounded-lg bg-secondary px-3 py-2 text-sm"
+        >
+          <option value="all">All customers ({new Set(orders.map((o) => o.buyer.whatsapp)).size})</option>
+          <option value="pending">Pending payment</option>
+          <option value="paid">Paid</option>
+          <option value="delivered">Delivered</option>
+          {PLANS.map((p) => (
+            <option key={p.id} value={p.id}>Plan · {p.name}</option>
+          ))}
+        </select>
+        <textarea
+          value={msg}
+          onChange={(e) => setMsg(e.target.value)}
+          rows={5}
+          className="w-full rounded-lg bg-secondary px-3 py-2 text-sm outline-none font-mono"
+        />
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-xs text-muted-foreground flex items-center gap-1">
+            <Users size={12} /> {recipients.length} WA recipients
+          </span>
+          <div className="flex gap-2">
+            <button
+              onClick={mailtoAll}
+              className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-xs font-semibold"
+            >
+              <Mail size={12} /> Email all
+            </button>
+            <button
+              onClick={openFirst}
+              disabled={recipients.length === 0}
+              className="inline-flex items-center gap-1 rounded-full bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
+            >
+              <Send size={12} /> Send via WA
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DangerZone() {
+  const orders = useOrders();
+  const [confirmText, setConfirmText] = useState("");
+
+  function wipeAll() {
+    if (confirmText !== "DELETE") return;
+    if (!confirm(`Permanently delete all ${orders.length} orders? This cannot be undone.`)) return;
+    for (const o of orders) deleteOrder(o.id);
+    setConfirmText("");
+  }
+
+  return (
+    <div className="rounded-2xl border border-destructive/40 bg-destructive/5 p-4">
+      <div className="flex items-center gap-2 mb-2">
+        <AlertTriangle size={16} className="text-destructive" />
+        <h3 className="font-semibold text-destructive">Danger zone</h3>
+      </div>
+      <p className="text-xs text-muted-foreground mb-3">
+        Wipe every order on this device. Type <code className="font-mono">DELETE</code> to enable.
+      </p>
+      <div className="flex gap-2">
+        <input
+          value={confirmText}
+          onChange={(e) => setConfirmText(e.target.value)}
+          placeholder="Type DELETE"
+          className="flex-1 rounded-lg bg-secondary px-3 py-2 text-sm outline-none"
+        />
+        <button
+          onClick={wipeAll}
+          disabled={confirmText !== "DELETE"}
+          className="rounded-full bg-destructive text-destructive-foreground px-4 text-xs font-semibold disabled:opacity-40"
+        >
+          Wipe all
+        </button>
       </div>
     </div>
   );
