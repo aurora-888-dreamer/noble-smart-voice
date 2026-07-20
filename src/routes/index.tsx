@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Plane, GanttChart, NotebookPen, MessageSquare, Calculator, Languages, Camera, MessageCircle, Mail, Music2, Instagram, Facebook, Globe, ExternalLink, StickyNote, CheckSquare, Calendar as CalendarIcon, Video, CalendarClock, Users, BellRing, Settings as SettingsIcon } from "lucide-react";
+import { Plane, GanttChart, NotebookPen, MessageSquare, Calculator, Languages, Camera, MessageCircle, Mail, Music2, Instagram, Facebook, Globe, ExternalLink, StickyNote, CheckSquare, Calendar as CalendarIcon, Video, CalendarClock, Users, BellRing } from "lucide-react";
 import { usePlugin } from "@/lib/plugins-store";
 import { useEnabledShortcuts } from "@/lib/app-shortcuts-store";
 import { AppShell } from "@/components/AppShell";
@@ -98,47 +98,8 @@ function Home() {
     { to: "/projects", label: t(lang, "projects"), Icon: GanttChart },
   ] as const;
 
-  const headerExtra = (
-    <div className="flex items-center gap-1.5 lg:hidden">
-      {hasCamera && (
-        <Link
-          to="/camera"
-          aria-label="Camera"
-          className="grid place-items-center w-10 h-10 rounded-full border border-border text-muted-foreground active:scale-95"
-        >
-          <Camera size={19} />
-        </Link>
-      )}
-      {hasCalculator && (
-        <Link
-          to="/calculator"
-          aria-label="Calculator"
-          className="grid place-items-center w-10 h-10 rounded-full border border-border text-muted-foreground active:scale-95"
-        >
-          <Calculator size={19} />
-        </Link>
-      )}
-      {hasTranslator && (
-        <Link
-          to="/translate"
-          aria-label="Translator"
-          className="grid place-items-center w-10 h-10 rounded-full border border-border text-muted-foreground active:scale-95"
-        >
-          <Languages size={19} />
-        </Link>
-      )}
-      <Link
-        to="/settings"
-        aria-label="Settings"
-        className="grid place-items-center w-10 h-10 rounded-full border border-border text-muted-foreground active:scale-95"
-      >
-        <SettingsIcon size={19} />
-      </Link>
-    </div>
-  );
-
   return (
-    <AppShell title={t(lang, "home")} headerExtra={headerExtra}>
+    <AppShell title={t(lang, "home")}>
       <h2 className="mb-4 text-xl font-semibold">{t(lang, "dailyActivities")}</h2>
 
       <MarqueeSection
