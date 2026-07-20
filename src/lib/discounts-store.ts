@@ -1,93 +1,149 @@
 // Discounts + customer Groups for Aurora Master.
-// Local-first (localStorage), mirrors aurora-store style.
+//
+// Data now lives in Supabase (see discounts.functions.ts), shared across
+// every device — this file used to read/write localStorage directly, which
+// meant a discount/group the admin created only existed on their own
+// browser and could never actually be redeemed by a customer elsewhere.
+//
+// Public storefront pages (Upgrade, Order) get read-only access to ACTIVE
+// discounts and code lookup, no password needed. The admin dashboard uses
+// separate admin-gated hooks/functions for full listings and writes.
 import { useEffect, useState } from "react";
+import {
+  getActiveDiscounts,
+  findGroupByCodePublic,
+  findGroupByIdPublic,
+  listAllDiscounts,
+  listAllGroups,
+  upsertGroupFn,
+  deleteGroupFn,
+  upsertDiscountFn,
+  deleteDiscountFn,
+  type Discount,
+  type DiscountKind,
+  type CustomerGroup,
+} from "./discounts.functions";
 import { PLANS, type PlanId, type Plan } from "./aurora-store";
 
-const GROUPS_KEY = "aurora.groups";
-const DISCOUNTS_KEY = "aurora.discounts";
-const USER_GROUP_KEY = "aurora.userGroup"; // current user's group id
+export type { Discount, DiscountKind, CustomerGroup };
 
-export interface CustomerGroup {
-  id: string;
-  name: string;
-  code: string; // upper-case code the user types on /upgrade
-  note?: string;
-  createdAt: number;
+const USER_GROUP_KEY = "aurora.userGroup"; // current user's own group id — stays device-local, that's fine
+
+// ————— Public: storefront reads —————
+export async function findGroupByCode(code: string): Promise<CustomerGroup | undefined> {
+  const res = await findGroupByCodePublic({ data: { code } });
+  return res.ok && res.group ? res.group : undefined;
 }
-
-export type DiscountKind = "percent" | "fixed"; // percent off, or fixed final price
-
-export interface Discount {
-  id: string;
-  name: string;
-  kind: DiscountKind;
-  value: number; // if percent → 0-100; if fixed → final IDR price
-  planIds: PlanId[]; // [] = applies to ALL plans
-  groupIds: string[]; // [] = public (anyone can use); else only these groups
-  upgradeGroupId?: string; // on purchase, promote buyer to this group
-  validFrom?: number | null;
-  validUntil?: number | null;
-  active: boolean;
-  createdAt: number;
+export async function findGroupById(id: string): Promise<CustomerGroup | undefined> {
+  const res = await findGroupByIdPublic({ data: { id } });
+  return res.ok && res.group ? res.group : undefined;
 }
 
-// ————— storage —————
-function readJSON<T>(key: string, fallback: T): T {
-  if (typeof window === "undefined") return fallback;
-  try { const r = localStorage.getItem(key); return r ? (JSON.parse(r) as T) : fallback; } catch { return fallback; }
-}
-function writeJSON(key: string, val: unknown) {
-  localStorage.setItem(key, JSON.stringify(val));
-  window.dispatchEvent(new Event("aurora:store"));
-}
-
-// ————— Groups —————
-export function listGroups(): CustomerGroup[] {
-  return readJSON<CustomerGroup[]>(GROUPS_KEY, []).sort((a, b) => a.name.localeCompare(b.name));
-}
-export function upsertGroup(g: Omit<CustomerGroup, "id" | "createdAt"> & { id?: string }): CustomerGroup {
-  const all = readJSON<CustomerGroup[]>(GROUPS_KEY, []);
-  const code = g.code.trim().toUpperCase();
-  if (g.id) {
-    const idx = all.findIndex((x) => x.id === g.id);
-    if (idx >= 0) { all[idx] = { ...all[idx], ...g, code }; writeJSON(GROUPS_KEY, all); return all[idx]; }
-  }
-  const rec: CustomerGroup = { id: crypto.randomUUID(), name: g.name.trim(), code, note: g.note, createdAt: Date.now() };
-  all.push(rec);
-  writeJSON(GROUPS_KEY, all);
-  return rec;
-}
-export function deleteGroup(id: string) {
-  writeJSON(GROUPS_KEY, readJSON<CustomerGroup[]>(GROUPS_KEY, []).filter((g) => g.id !== id));
-}
-export function findGroupByCode(code: string): CustomerGroup | undefined {
-  const c = code.trim().toUpperCase();
-  return listGroups().find((g) => g.code === c);
+export function useDiscounts() {
+  const [v, setV] = useState<Discount[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    const sync = () => {
+      getActiveDiscounts({ data: undefined as never }).then((res) => {
+        if (!cancelled && res.ok) setV(res.discounts);
+      });
+    };
+    sync();
+    window.addEventListener("aurora:store", sync);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("aurora:store", sync);
+    };
+  }, []);
+  return v;
 }
 
-// ————— Discounts —————
-export function listDiscounts(): Discount[] {
-  return readJSON<Discount[]>(DISCOUNTS_KEY, []).sort((a, b) => b.createdAt - a.createdAt);
-}
-export function upsertDiscount(d: Omit<Discount, "id" | "createdAt"> & { id?: string }): Discount {
-  const all = readJSON<Discount[]>(DISCOUNTS_KEY, []);
-  if (d.id) {
-    const idx = all.findIndex((x) => x.id === d.id);
-    if (idx >= 0) { all[idx] = { ...all[idx], ...d }; writeJSON(DISCOUNTS_KEY, all); return all[idx]; }
-  }
-  const rec: Discount = { ...d, id: crypto.randomUUID(), createdAt: Date.now() };
-  all.push(rec);
-  writeJSON(DISCOUNTS_KEY, all);
-  return rec;
-}
-export function deleteDiscount(id: string) {
-  writeJSON(DISCOUNTS_KEY, readJSON<Discount[]>(DISCOUNTS_KEY, []).filter((d) => d.id !== id));
-}
-export function getDiscount(id: string): Discount | undefined {
-  return listDiscounts().find((d) => d.id === id);
+// ————— Admin: full listings + writes (all require the admin password) —————
+export function useAdminDiscounts(adminPassword: string | null) {
+  const [v, setV] = useState<Discount[]>([]);
+  useEffect(() => {
+    if (!adminPassword) {
+      setV([]);
+      return;
+    }
+    let cancelled = false;
+    const sync = () => {
+      listAllDiscounts({ data: { adminPassword } }).then((res) => {
+        if (!cancelled && res.ok) setV(res.discounts);
+      });
+    };
+    sync();
+    window.addEventListener("aurora:store", sync);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("aurora:store", sync);
+    };
+  }, [adminPassword]);
+  return v;
 }
 
-// ————— User group (device-local) —————
+export function useAdminGroups(adminPassword: string | null) {
+  const [v, setV] = useState<CustomerGroup[]>([]);
+  useEffect(() => {
+    if (!adminPassword) {
+      setV([]);
+      return;
+    }
+    let cancelled = false;
+    const sync = () => {
+      listAllGroups({ data: { adminPassword } }).then((res) => {
+        if (!cancelled && res.ok) setV(res.groups);
+      });
+    };
+    sync();
+    window.addEventListener("aurora:store", sync);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("aurora:store", sync);
+    };
+  }, [adminPassword]);
+  return v;
+}
+
+export async function upsertGroup(
+  g: { id?: string; name: string; code: string; note?: string },
+  adminPassword: string,
+) {
+  const res = await upsertGroupFn({ data: { ...g, adminPassword } });
+  if (res.ok) window.dispatchEvent(new Event("aurora:store"));
+  return res;
+}
+export async function deleteGroup(id: string, adminPassword: string) {
+  const res = await deleteGroupFn({ data: { id, adminPassword } });
+  if (res.ok) window.dispatchEvent(new Event("aurora:store"));
+  return res;
+}
+export async function upsertDiscount(
+  d: {
+    id?: string;
+    name: string;
+    kind: DiscountKind;
+    value: number;
+    planIds: PlanId[];
+    groupIds: string[];
+    upgradeGroupId?: string;
+    validFrom?: number | null;
+    validUntil?: number | null;
+    active: boolean;
+  },
+  adminPassword: string,
+) {
+  const res = await upsertDiscountFn({ data: { ...d, adminPassword } });
+  if (res.ok) window.dispatchEvent(new Event("aurora:store"));
+  return res;
+}
+export async function deleteDiscount(id: string, adminPassword: string) {
+  const res = await deleteDiscountFn({ data: { id, adminPassword } });
+  if (res.ok) window.dispatchEvent(new Event("aurora:store"));
+  return res;
+}
+
+// ————— User's own group (device-local — this one's fine to keep local, it's just "which group am I in") —————
 export function getUserGroupId(): string | null {
   if (typeof window === "undefined") return null;
   return localStorage.getItem(USER_GROUP_KEY);
@@ -97,12 +153,22 @@ export function setUserGroupId(id: string | null) {
   else localStorage.removeItem(USER_GROUP_KEY);
   window.dispatchEvent(new Event("aurora:store"));
 }
+export function useUserGroupId() {
+  const [v, setV] = useState<string | null>(null);
+  useEffect(() => {
+    const sync = () => setV(getUserGroupId());
+    sync();
+    window.addEventListener("aurora:store", sync);
+    return () => window.removeEventListener("aurora:store", sync);
+  }, []);
+  return v;
+}
 
-// ————— Application logic —————
+// ————— Pure application logic (unchanged — operates on already-fetched data, no I/O) —————
 export function isDiscountValid(d: Discount, now = Date.now()): boolean {
   if (!d.active) return false;
-  if (d.validFrom && now < d.validFrom) return false;
-  if (d.validUntil && now > d.validUntil) return false;
+  if (d.validFrom && now < new Date(d.validFrom).getTime()) return false;
+  if (d.validUntil && now > new Date(d.validUntil).getTime()) return false;
   return true;
 }
 export function discountAppliesToPlan(d: Discount, planId: PlanId): boolean {
@@ -116,12 +182,16 @@ export function applyDiscount(plan: Plan, d: Discount): number {
   if (d.kind === "percent") return Math.max(0, Math.round(plan.priceIDR * (1 - d.value / 100)));
   return Math.max(0, Math.round(d.value));
 }
-export function bestDiscountFor(planId: PlanId, groupId: string | null): { discount: Discount; finalPrice: number } | null {
+export function bestDiscountFor(
+  planId: PlanId,
+  groupId: string | null,
+  discounts: Discount[],
+): { discount: Discount; finalPrice: number } | null {
   const plan = PLANS.find((p) => p.id === planId);
   if (!plan) return null;
   const now = Date.now();
   let best: { discount: Discount; finalPrice: number } | null = null;
-  for (const d of listDiscounts()) {
+  for (const d of discounts) {
     if (!isDiscountValid(d, now)) continue;
     if (!discountAppliesToPlan(d, planId)) continue;
     if (!discountAppliesToGroup(d, groupId)) continue;
@@ -131,37 +201,6 @@ export function bestDiscountFor(planId: PlanId, groupId: string | null): { disco
   }
   return best;
 }
-
-// ————— Hooks —————
-export function useDiscounts() {
-  const [v, set] = useState<Discount[]>([]);
-  useEffect(() => {
-    const sync = () => set(listDiscounts());
-    sync();
-    window.addEventListener("aurora:store", sync);
-    window.addEventListener("storage", sync);
-    return () => { window.removeEventListener("aurora:store", sync); window.removeEventListener("storage", sync); };
-  }, []);
-  return v;
-}
-export function useGroups() {
-  const [v, set] = useState<CustomerGroup[]>([]);
-  useEffect(() => {
-    const sync = () => set(listGroups());
-    sync();
-    window.addEventListener("aurora:store", sync);
-    window.addEventListener("storage", sync);
-    return () => { window.removeEventListener("aurora:store", sync); window.removeEventListener("storage", sync); };
-  }, []);
-  return v;
-}
-export function useUserGroupId() {
-  const [v, set] = useState<string | null>(null);
-  useEffect(() => {
-    const sync = () => set(getUserGroupId());
-    sync();
-    window.addEventListener("aurora:store", sync);
-    return () => window.removeEventListener("aurora:store", sync);
-  }, []);
-  return v;
+export function getDiscount(id: string, discounts: Discount[]): Discount | undefined {
+  return discounts.find((d) => d.id === id);
 }
