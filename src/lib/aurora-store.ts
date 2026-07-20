@@ -1,208 +1,141 @@
-// Aurora Master storefront: local-first order + serial management.
-// Data lives in localStorage under "aurora.*" — the same device that
-// hosts the admin dashboard also hosts the order log. Good enough for a
-// small owner-operated business, and trivially portable to Supabase later.
+// Aurora Master storefront — client-facing helpers.
+//
+// Data now lives in Supabase (see store.functions.ts), shared across every
+// device — this file used to read/write localStorage directly, which meant
+// the admin dashboard could only ever see orders placed on that exact same
+// browser. That's fixed now: everything here calls the server functions.
+//
+// Kept as a thin wrapper (same export names as before) so store.index.tsx
+// and other pages that only need PLANS/formatIDR/types don't need to change.
 import { useEffect, useState } from "react";
+import {
+  createStoreOrder,
+  listStoreOrders,
+  markOrderPaid as markOrderPaidFn,
+  markOrderDelivered as markOrderDeliveredFn,
+  cancelStoreOrder as cancelStoreOrderFn,
+  deleteStoreOrder as deleteStoreOrderFn,
+  verifyStoreSerial as verifyStoreSerialFn,
+  wipeAllStoreOrders as wipeAllStoreOrdersFn,
+  PLANS,
+  formatIDR,
+  statusLabel,
+  type PlanId,
+  type PlanTier,
+  type OrderStatus,
+  type StoreOrder,
+  type Plan,
+} from "./store.functions";
 import type { PluginId } from "./plugins";
 
-const ORDERS_KEY = "aurora.orders";
-const SERIALS_KEY = "aurora.serials";
-const ADMIN_KEY = "aurora.adminSession";
-const ADMIN_PASS_KEY = "aurora.adminPass";
-const DEFAULT_ADMIN_PASS = "AURORA-ADMIN";
+export { PLANS, formatIDR, statusLabel };
+export type { PlanId, PlanTier, OrderStatus, Plan };
+// Same shape as before, new name upstream — kept as an alias so existing
+// `type OrderRecord` imports elsewhere don't need to change.
+export type OrderRecord = StoreOrder;
 
-export type PlanId = "monthly" | "quarterly" | "yearly" | "lifetime";
-export type PlanTier = "standard" | "premium";
-export type OrderStatus = "pending" | "paid" | "delivered" | "cancelled";
+const SESSION_KEY = "aurora.adminSession"; // holds the password itself now, not just a "1" flag —
+                                            // needed so every admin action can be verified server-side.
 
-export interface Plan {
-  id: PlanId;
-  name: string;
-  nameId: string;
-  priceIDR: number;
-  durationDays: number | null;
-  tier: PlanTier;
-  highlight?: boolean;
-}
-
-export const PLANS: Plan[] = [
-  { id: "monthly",   name: "Monthly Premium",   nameId: "Bulanan Premium",   priceIDR: 49_000,   durationDays: 30,   tier: "premium" },
-  { id: "quarterly", name: "3-Month Premium",   nameId: "3 Bulan Premium",   priceIDR: 129_000,  durationDays: 90,   tier: "premium", highlight: true },
-  { id: "yearly",    name: "Yearly Premium",    nameId: "Tahunan Premium",   priceIDR: 449_000,  durationDays: 365,  tier: "premium" },
-  { id: "lifetime",  name: "Lifetime Premium",  nameId: "Seumur Hidup",      priceIDR: 1_499_000,durationDays: null, tier: "premium" },
-];
-
-export interface OrderRecord {
-  id: string;
-  serial: string;
-  createdAt: number;
-  paidAt?: number;
-  deliveredAt?: number;
-  status: OrderStatus;
-  planId: PlanId;
-  tier: PlanTier;
-  durationDays: number | null;
-  priceIDR: number;
-  originalPriceIDR?: number; // list price before discount, if any
-  discountId?: string;
-  discountLabel?: string;
-  groupId?: string; // customer group at time of order
-  buyer: {
-    name: string;
-    email: string;
-    whatsapp: string;
-    note?: string;
-  };
-  plugins: PluginId[];
-  paymentRef?: string; // QRIS ref / bank last4 / manual note
-}
-
-// ————— Storage helpers —————
-function readJSON<T>(key: string, fallback: T): T {
-  if (typeof window === "undefined") return fallback;
-  try { const r = localStorage.getItem(key); return r ? (JSON.parse(r) as T) : fallback; } catch { return fallback; }
-}
-function writeJSON(key: string, val: unknown) {
-  localStorage.setItem(key, JSON.stringify(val));
-  window.dispatchEvent(new Event("aurora:store"));
-}
-
-// ————— Serial generation —————
-// Format: NBL-YYYYMM-XXXX-CHK (human-typeable, checksum-guarded)
-function rand(n: number) {
-  const alpha = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no confusing chars
-  let out = "";
-  const buf = new Uint8Array(n);
-  crypto.getRandomValues(buf);
-  for (let i = 0; i < n; i++) out += alpha[buf[i] % alpha.length];
-  return out;
-}
-function checksum(s: string): string {
-  let c = 0;
-  for (const ch of s) c = (c * 31 + ch.charCodeAt(0)) % 1296;
-  return c.toString(36).toUpperCase().padStart(2, "0");
-}
-export function generateSerial(prefix = "NBL"): string {
-  const now = new Date();
-  const ym = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const body = rand(4);
-  const core = `${prefix}-${ym}-${body}`;
-  return `${core}-${checksum(core)}`;
-}
-export function verifySerial(serial: string): boolean {
-  const parts = serial.trim().toUpperCase().split("-");
-  if (parts.length !== 4) return false;
-  const [prefix, ym, body, chk] = parts;
-  return chk === checksum(`${prefix}-${ym}-${body}`);
-}
-
-// ————— Orders —————
-export function listOrders(): OrderRecord[] {
-  return readJSON<OrderRecord[]>(ORDERS_KEY, []).sort((a, b) => b.createdAt - a.createdAt);
-}
-export function getOrder(id: string): OrderRecord | undefined {
-  return listOrders().find((o) => o.id === id);
-}
-export function findOrderBySerial(serial: string): OrderRecord | undefined {
-  const s = serial.trim().toUpperCase();
-  return listOrders().find((o) => o.serial === s);
-}
-export function createOrder(input: {
+// ————— Orders (buyer-facing: create) —————
+export async function createOrder(input: {
   planId: PlanId;
   buyer: { name: string; email: string; whatsapp: string; note?: string };
   plugins?: PluginId[];
-  priceIDR?: number; // override (after discount)
+  priceIDR?: number;
   originalPriceIDR?: number;
   discountId?: string;
   discountLabel?: string;
   groupId?: string;
-}): OrderRecord {
+}): Promise<{ ok: true; order: StoreOrder } | { ok: false; error: string }> {
   const plan = PLANS.find((p) => p.id === input.planId);
-  if (!plan) throw new Error("Unknown plan");
-  const order: OrderRecord = {
-    id: crypto.randomUUID(),
-    serial: generateSerial(),
-    createdAt: Date.now(),
-    status: "pending",
-    planId: plan.id,
-    tier: plan.tier,
-    durationDays: plan.durationDays,
-    priceIDR: input.priceIDR ?? plan.priceIDR,
-    originalPriceIDR: input.originalPriceIDR ?? (input.priceIDR != null && input.priceIDR !== plan.priceIDR ? plan.priceIDR : undefined),
-    discountId: input.discountId,
-    discountLabel: input.discountLabel,
-    groupId: input.groupId,
-    buyer: input.buyer,
-    plugins: input.plugins ?? [],
-  };
-  const all = readJSON<OrderRecord[]>(ORDERS_KEY, []);
-  all.push(order);
-  writeJSON(ORDERS_KEY, all);
-  const serials = readJSON<string[]>(SERIALS_KEY, []);
-  serials.push(order.serial);
-  writeJSON(SERIALS_KEY, serials);
-  return order;
-}
-export function updateOrder(id: string, patch: Partial<OrderRecord>): OrderRecord | undefined {
-  const all = readJSON<OrderRecord[]>(ORDERS_KEY, []);
-  const idx = all.findIndex((o) => o.id === id);
-  if (idx === -1) return undefined;
-  all[idx] = { ...all[idx], ...patch };
-  writeJSON(ORDERS_KEY, all);
-  return all[idx];
-}
-export function markPaid(id: string, paymentRef?: string) {
-  return updateOrder(id, { status: "paid", paidAt: Date.now(), paymentRef });
-}
-export function markDelivered(id: string) {
-  return updateOrder(id, { status: "delivered", deliveredAt: Date.now() });
-}
-export function cancelOrder(id: string) {
-  return updateOrder(id, { status: "cancelled" });
-}
-export function deleteOrder(id: string) {
-  const all = readJSON<OrderRecord[]>(ORDERS_KEY, []).filter((o) => o.id !== id);
-  writeJSON(ORDERS_KEY, all);
+  if (!plan) return { ok: false, error: "Unknown plan" };
+  return createStoreOrder({
+    data: {
+      planId: plan.id,
+      tier: plan.tier,
+      durationDays: plan.durationDays,
+      priceIDR: input.priceIDR ?? plan.priceIDR,
+      originalPriceIDR: input.originalPriceIDR,
+      discountId: input.discountId,
+      discountLabel: input.discountLabel,
+      groupId: input.groupId,
+      buyer: input.buyer,
+      plugins: input.plugins ?? [],
+    },
+  });
 }
 
-// ————— Admin session (local password gate) —————
-export function getAdminPassword(): string {
-  if (typeof window === "undefined") return DEFAULT_ADMIN_PASS;
-  return localStorage.getItem(ADMIN_PASS_KEY) || DEFAULT_ADMIN_PASS;
+// ————— Orders (admin-facing: list/update) — all require the admin password —————
+export async function listOrders(adminPassword: string): Promise<StoreOrder[]> {
+  const res = await listStoreOrders({ data: { adminPassword } });
+  return res.ok ? res.orders : [];
 }
-export function setAdminPassword(pw: string) {
-  localStorage.setItem(ADMIN_PASS_KEY, pw);
+export async function markPaid(orderId: string, adminPassword: string, paymentRef?: string) {
+  return markOrderPaidFn({ data: { orderId, adminPassword, paymentRef } });
 }
-export function adminLogin(pw: string): boolean {
-  if (pw !== getAdminPassword()) return false;
-  sessionStorage.setItem(ADMIN_KEY, "1");
+export async function markDelivered(orderId: string, adminPassword: string) {
+  return markOrderDeliveredFn({ data: { orderId, adminPassword } });
+}
+export async function cancelOrder(orderId: string, adminPassword: string) {
+  return cancelStoreOrderFn({ data: { orderId, adminPassword } });
+}
+export async function deleteOrder(orderId: string, adminPassword: string) {
+  return deleteStoreOrderFn({ data: { orderId, adminPassword } });
+}
+export async function verifySerial(serial: string, adminPassword: string) {
+  return verifyStoreSerialFn({ data: { serial, adminPassword } });
+}
+export async function wipeAllOrders(adminPassword: string) {
+  return wipeAllStoreOrdersFn({ data: { adminPassword } });
+}
+
+// Pure client-side formatter — same shape as the real (server-generated)
+// serials, but this is only ever a convenience string for the admin's
+// "Generate Serial" tool (hand-issued licenses not tied to an order). It's
+// not registered anywhere by itself; the admin still has to separately
+// issue it as a real voucher (e.g. via the Supabase SQL example in
+// noble_vouchers.sql) for it to actually activate anything.
+export function generateSerialPreview(prefix = "NBL"): string {
+  const alpha = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const now = new Date();
+  const ym = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
+  let body = "";
+  for (let i = 0; i < 4; i++) body += alpha[Math.floor(Math.random() * alpha.length)];
+  const core = `${prefix}-${ym}-${body}`;
+  let c = 0;
+  for (const ch of core) c = (c * 31 + ch.charCodeAt(0)) % 1296;
+  return `${core}-${c.toString(36).toUpperCase().padStart(2, "0")}`;
+}
+
+// ————— Admin session —————
+// Login now verifies the password against the SERVER (via a lightweight
+// listStoreOrders call) instead of comparing to a locally-stored value —
+// there's no longer a client-side "correct password" to compare against,
+// since the real check lives in store.functions.ts against
+// STORE_ADMIN_PASSWORD. The password itself is kept in sessionStorage (not
+// just a yes/no flag) so subsequent admin actions can pass it along
+// automatically without asking again.
+export async function adminLogin(pw: string): Promise<boolean> {
+  const res = await listStoreOrders({ data: { adminPassword: pw } });
+  if (!res.ok) return false;
+  sessionStorage.setItem(SESSION_KEY, pw);
   window.dispatchEvent(new Event("aurora:store"));
   return true;
 }
 export function adminLogout() {
-  sessionStorage.removeItem(ADMIN_KEY);
+  sessionStorage.removeItem(SESSION_KEY);
   window.dispatchEvent(new Event("aurora:store"));
 }
 export function isAdmin(): boolean {
   if (typeof window === "undefined") return false;
-  return sessionStorage.getItem(ADMIN_KEY) === "1";
+  return !!sessionStorage.getItem(SESSION_KEY);
+}
+export function getAdminSessionPassword(): string | null {
+  if (typeof window === "undefined") return null;
+  return sessionStorage.getItem(SESSION_KEY);
 }
 
-// ————— Hooks —————
-export function useOrders() {
-  const [orders, setOrders] = useState<OrderRecord[]>([]);
-  useEffect(() => {
-    const sync = () => setOrders(listOrders());
-    sync();
-    window.addEventListener("aurora:store", sync);
-    window.addEventListener("storage", sync);
-    return () => {
-      window.removeEventListener("aurora:store", sync);
-      window.removeEventListener("storage", sync);
-    };
-  }, []);
-  return orders;
-}
 export function useAdmin() {
   const [ok, setOk] = useState(false);
   useEffect(() => {
@@ -214,16 +147,31 @@ export function useAdmin() {
   return ok;
 }
 
-// ————— Helpers —————
-export function formatIDR(n: number): string {
-  return "Rp " + n.toLocaleString("id-ID");
-}
-export function statusLabel(s: OrderStatus, lang: "en" | "id"): string {
-  const map = {
-    pending:   { en: "Awaiting Payment", id: "Menunggu Pembayaran" },
-    paid:      { en: "Paid",             id: "Sudah Dibayar" },
-    delivered: { en: "Delivered",        id: "Terkirim" },
-    cancelled: { en: "Cancelled",        id: "Dibatalkan" },
-  } as const;
-  return map[s][lang];
+// Live-refreshing order list for the admin dashboard. Re-fetches whenever
+// an admin action fires "aurora:store", plus a light poll so a second
+// admin session (or a customer's own order) shows up without a manual
+// refresh.
+export function useOrders(adminPassword: string | null) {
+  const [orders, setOrders] = useState<StoreOrder[]>([]);
+  useEffect(() => {
+    if (!adminPassword) {
+      setOrders([]);
+      return;
+    }
+    let cancelled = false;
+    const sync = () => {
+      listOrders(adminPassword).then((o) => {
+        if (!cancelled) setOrders(o);
+      });
+    };
+    sync();
+    window.addEventListener("aurora:store", sync);
+    const poll = setInterval(sync, 15_000);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("aurora:store", sync);
+      clearInterval(poll);
+    };
+  }, [adminPassword]);
+  return orders;
 }

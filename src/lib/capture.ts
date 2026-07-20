@@ -107,9 +107,19 @@ export async function saveCapturedEntry(input: CaptureInput, lang: Lang): Promis
         createdAt: now,
       });
       break;
+    case "event":
+      id = await db.events.add({
+        title,
+        eventAt: input.when ?? now,
+        recurring: "none",
+        notes: input.body,
+        reminderAt: input.when,
+        createdAt: now,
+      });
+      break;
   }
 
-  if (input.when && id && (input.type === "task" || input.type === "appointment" || input.type === "meeting")) {
+  if (input.when && id && (input.type === "task" || input.type === "appointment" || input.type === "meeting" || input.type === "event")) {
     await createReminder(input.type, id, label, input.when);
   }
 

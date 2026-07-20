@@ -31,12 +31,23 @@ export function setPluginEnabled(id: PluginId, enabled: boolean) {
 }
 
 export function usePluginState(): Partial<Record<PluginId, boolean>> {
-  const [state, setState] = useState<Partial<Record<PluginId, boolean>>>({});
+  const [state, setState] = useState<Partial<Record<PluginId, boolean>>>(() => getPluginState());
   useEffect(() => {
     const sync = () => setState(getPluginState());
     sync();
+    // "noble:auth" covers explicit plugin toggles. resize + a short delayed
+    // re-check are cheap safety nets against any render/hydration timing
+    // where the very first sync lands before something else settles —
+    // window resize (which DevTools opening also fires) is a known trigger
+    // for this class of stuck-state issue.
     window.addEventListener("noble:auth", sync);
-    return () => window.removeEventListener("noble:auth", sync);
+    window.addEventListener("resize", sync);
+    const safetyTimer = setTimeout(sync, 300);
+    return () => {
+      window.removeEventListener("noble:auth", sync);
+      window.removeEventListener("resize", sync);
+      clearTimeout(safetyTimer);
+    };
   }, []);
   return state;
 }

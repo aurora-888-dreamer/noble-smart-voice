@@ -264,7 +264,6 @@ export function activatePremium(code: string): boolean {
     // paid plans exist (30/90/365-day, standard/premium), issue those
     // through a separate flow that sets a real durationDays here instead.
     durationDays: null,
-    activatedAt: Date.now(),
   });
   setPremiumTestOverride(false);
   return true;
@@ -296,9 +295,12 @@ export interface LicenseInfo {
 
 export function getLicenseInfo(): LicenseInfo {
   const manuallyOff = isPremiumManuallyOff();
-  if (getProfile()?.isAdmin) {
-    return { hasLicense: true, tier: "premium", source: "admin", code: "admin", daysLeft: null, expired: false, manuallyOff };
-  }
+  // NOTE: profile.isAdmin is a client-side-only flag (set at registration
+  // via a hardcoded email/PIN check) — it must NEVER be trusted to grant
+  // premium automatically. Anyone could set it by registering with PIN
+  // 999999, or by editing localStorage directly. The only legitimate
+  // no-cost path is the owner activation code, which already flows through
+  // the normal license record below.
   const rec = getLicenseRecord();
   if (!rec) {
     return { hasLicense: false, tier: null, source: null, code: null, daysLeft: null, expired: false, manuallyOff };
