@@ -174,7 +174,7 @@ function OrderReceipt({
   }
 
   const waText = encodeURIComponent(
-    `Halo Aurora Master 👋\n\nSaya sudah order Noble Smart Voice:\n• Order: ${order.id.slice(0, 8)}\n• Serial: ${order.serial}\n• Plan: ${plan.name} — ${formatIDR(plan.priceIDR)}\n\nBerikut bukti transfer QRIS saya. Mohon aktifkan serial saya. Terima kasih!`,
+    `Halo Aurora Master 👋\n\nSaya sudah order Noble Smart Voice:\n• Order: ${order.id.slice(0, 8)}\n• Serial: ${order.serial}\n• Plan: ${plan.name} — ${formatIDR(order.priceIDR)}\n\nBerikut bukti transfer QRIS saya. Mohon aktifkan serial saya. Terima kasih!`,
   );
 
   return (
