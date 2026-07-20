@@ -3,13 +3,17 @@ import { useMemo, useState } from "react";
 import {
   Lock, LogOut, ShieldCheck, Search, Trash2, CheckCircle2, Send,
   KeyRound, Download, Copy, Check, RefreshCw, TrendingUp, Users, Megaphone,
-  AlertTriangle, Mail,
+  AlertTriangle, Mail, Tag, Percent, Plus, Pencil, X,
 } from "lucide-react";
 import {
   useOrders, useAdmin, adminLogin, adminLogout, setAdminPassword, getAdminPassword,
   markPaid, markDelivered, cancelOrder, deleteOrder, generateSerial, verifySerial,
   formatIDR, statusLabel, type OrderRecord, type OrderStatus, PLANS, type PlanId,
 } from "@/lib/aurora-store";
+import {
+  useDiscounts, useGroups, upsertDiscount, deleteDiscount, upsertGroup, deleteGroup,
+  type Discount, type DiscountKind, type CustomerGroup,
+} from "@/lib/discounts-store";
 import { PLUGIN_REGISTRY } from "@/lib/plugins";
 
 export const Route = createFileRoute("/store/admin")({
