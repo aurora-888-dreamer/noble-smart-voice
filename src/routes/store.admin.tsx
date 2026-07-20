@@ -3,13 +3,17 @@ import { useMemo, useState } from "react";
 import {
   Lock, LogOut, ShieldCheck, Search, Trash2, CheckCircle2, Send,
   KeyRound, Download, Copy, Check, RefreshCw, TrendingUp, Users, Megaphone,
-  AlertTriangle, Mail,
+  AlertTriangle, Mail, Tag, Percent, Plus, Pencil, X,
 } from "lucide-react";
 import {
   useOrders, useAdmin, adminLogin, adminLogout, setAdminPassword, getAdminPassword,
   markPaid, markDelivered, cancelOrder, deleteOrder, generateSerial, verifySerial,
   formatIDR, statusLabel, type OrderRecord, type OrderStatus, PLANS, type PlanId,
 } from "@/lib/aurora-store";
+import {
+  useDiscounts, useGroups, upsertDiscount, deleteDiscount, upsertGroup, deleteGroup,
+  type Discount, type DiscountKind, type CustomerGroup,
+} from "@/lib/discounts-store";
 import { PLUGIN_REGISTRY } from "@/lib/plugins";
 
 export const Route = createFileRoute("/store/admin")({
@@ -63,7 +67,7 @@ function AdminDashboard() {
   const orders = useOrders();
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | OrderStatus>("all");
-  const [tab, setTab] = useState<"orders" | "analytics" | "customers" | "tools" | "settings">("orders");
+  const [tab, setTab] = useState<"orders" | "analytics" | "customers" | "discounts" | "tools" | "settings">("orders");
 
   const filtered = useMemo(() => {
     const qs = q.trim().toLowerCase();
@@ -117,7 +121,7 @@ function AdminDashboard() {
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-border mb-4">
-        {(["orders", "analytics", "customers", "tools", "settings"] as const).map((t) => (
+        {(["orders", "analytics", "customers", "discounts", "tools", "settings"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -173,6 +177,7 @@ function AdminDashboard() {
 
       {tab === "analytics" && <AnalyticsTab />}
       {tab === "customers" && <CustomersTab />}
+      {tab === "discounts" && <DiscountsTab />}
       {tab === "tools" && <ToolsTab />}
       {tab === "settings" && <SettingsTab />}
     </div>
@@ -824,6 +829,378 @@ function DangerZone() {
         >
           Wipe all
         </button>
+      </div>
+    </div>
+  );
+}
+
+// ————————— Discounts & Groups —————————
+function DiscountsTab() {
+  const discounts = useDiscounts();
+  const groups = useGroups();
+  const [editing, setEditing] = useState<Discount | null>(null);
+  const [showNew, setShowNew] = useState(false);
+
+  return (
+    <div className="space-y-6">
+      {/* Groups */}
+      <section className="rounded-2xl bg-card border border-border p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Users size={16} className="text-primary" />
+            <h3 className="font-semibold">Customer Groups</h3>
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground mb-3">
+          Groups let you target discounts to specific customer segments (e.g. Early Bird, Reseller, VIP).
+          Users type the <b>code</b> on the Upgrade page to join.
+        </p>
+        <GroupEditor />
+        {groups.length > 0 && (
+          <ul className="mt-3 divide-y divide-border border border-border rounded-xl">
+            {groups.map((g) => (
+              <li key={g.id} className="flex items-center justify-between px-3 py-2 text-sm">
+                <div className="min-w-0">
+                  <div className="font-semibold truncate">{g.name}</div>
+                  <div className="text-xs text-muted-foreground font-mono">{g.code}</div>
+                </div>
+                <button
+                  onClick={() => confirm(`Delete group "${g.name}"?`) && deleteGroup(g.id)}
+                  className="text-destructive p-1"
+                  aria-label="Delete group"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/* Discounts */}
+      <section className="rounded-2xl bg-card border border-border p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Tag size={16} className="text-primary" />
+            <h3 className="font-semibold">Discounts</h3>
+          </div>
+          <button
+            onClick={() => { setEditing(null); setShowNew(true); }}
+            className="inline-flex items-center gap-1 rounded-full bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold"
+          >
+            <Plus size={12} /> New Discount
+          </button>
+        </div>
+
+        {discounts.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            No discounts yet. Create one to offer per-plan pricing, group-exclusive deals, or time-limited promos.
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {discounts.map((d) => (
+              <DiscountRow
+                key={d.id}
+                discount={d}
+                groups={groups}
+                onEdit={() => { setEditing(d); setShowNew(true); }}
+              />
+            ))}
+          </ul>
+        )}
+
+        {showNew && (
+          <DiscountEditor
+            initial={editing}
+            groups={groups}
+            onClose={() => { setShowNew(false); setEditing(null); }}
+          />
+        )}
+      </section>
+    </div>
+  );
+}
+
+function GroupEditor() {
+  const [name, setName] = useState("");
+  const [code, setCode] = useState("");
+  function save() {
+    if (!name.trim() || !code.trim()) return;
+    upsertGroup({ name: name.trim(), code: code.trim() });
+    setName(""); setCode("");
+  }
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2">
+      <input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="Group name (e.g. Early Bird)"
+        className="rounded-lg bg-secondary px-3 py-2 text-sm outline-none"
+      />
+      <input
+        value={code}
+        onChange={(e) => setCode(e.target.value.toUpperCase())}
+        placeholder="CODE"
+        className="rounded-lg bg-secondary px-3 py-2 text-sm outline-none font-mono tracking-wider"
+      />
+      <button
+        onClick={save}
+        disabled={!name.trim() || !code.trim()}
+        className="rounded-full bg-primary text-primary-foreground px-4 text-xs font-semibold disabled:opacity-40"
+      >
+        Add
+      </button>
+    </div>
+  );
+}
+
+function DiscountRow({
+  discount, groups, onEdit,
+}: { discount: Discount; groups: CustomerGroup[]; onEdit: () => void }) {
+  const planNames = discount.planIds.length === 0
+    ? "All plans"
+    : discount.planIds.map((id) => PLANS.find((p) => p.id === id)?.name ?? id).join(", ");
+  const groupNames = discount.groupIds.length === 0
+    ? "Public"
+    : discount.groupIds.map((id) => groups.find((g) => g.id === id)?.name ?? "?").join(", ");
+  const upgrade = discount.upgradeGroupId
+    ? groups.find((g) => g.id === discount.upgradeGroupId)?.name
+    : null;
+  const validity = [
+    discount.validFrom ? `from ${new Date(discount.validFrom).toLocaleDateString()}` : null,
+    discount.validUntil ? `until ${new Date(discount.validUntil).toLocaleDateString()}` : null,
+  ].filter(Boolean).join(" ") || "no limit";
+
+  return (
+    <li className="rounded-xl border border-border p-3">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-semibold text-sm">{discount.name}</span>
+            <span className="text-[10px] uppercase tracking-widest rounded-full bg-primary/15 text-primary px-2 py-0.5">
+              {discount.kind === "percent" ? `${discount.value}% off` : `Fixed ${formatIDR(discount.value)}`}
+            </span>
+            {!discount.active && (
+              <span className="text-[10px] uppercase tracking-widest rounded-full bg-muted text-muted-foreground px-2 py-0.5">
+                inactive
+              </span>
+            )}
+          </div>
+          <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+            <div>Plans: {planNames}</div>
+            <div>Audience: {groupNames}</div>
+            {upgrade && <div>Upgrade to group: <b className="text-primary">{upgrade}</b></div>}
+            <div>Validity: {validity}</div>
+          </div>
+        </div>
+        <div className="flex gap-1 shrink-0">
+          <button onClick={onEdit} className="p-1.5 rounded hover:bg-secondary" aria-label="Edit">
+            <Pencil size={14} />
+          </button>
+          <button
+            onClick={() => confirm(`Delete discount "${discount.name}"?`) && deleteDiscount(discount.id)}
+            className="p-1.5 rounded hover:bg-destructive/20 text-destructive"
+            aria-label="Delete"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
+      </div>
+    </li>
+  );
+}
+
+function DiscountEditor({
+  initial, groups, onClose,
+}: { initial: Discount | null; groups: CustomerGroup[]; onClose: () => void }) {
+  const [name, setName] = useState(initial?.name ?? "");
+  const [kind, setKind] = useState<DiscountKind>(initial?.kind ?? "percent");
+  const [value, setValue] = useState<number>(initial?.value ?? 10);
+  const [planIds, setPlanIds] = useState<PlanId[]>(initial?.planIds ?? []);
+  const [groupIds, setGroupIds] = useState<string[]>(initial?.groupIds ?? []);
+  const [upgradeGroupId, setUpgradeGroupId] = useState<string>(initial?.upgradeGroupId ?? "");
+  const [validFrom, setValidFrom] = useState<string>(
+    initial?.validFrom ? new Date(initial.validFrom).toISOString().slice(0, 10) : "",
+  );
+  const [validUntil, setValidUntil] = useState<string>(
+    initial?.validUntil ? new Date(initial.validUntil).toISOString().slice(0, 10) : "",
+  );
+  const [active, setActive] = useState<boolean>(initial?.active ?? true);
+
+  function togglePlan(id: PlanId) {
+    setPlanIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+  }
+  function toggleGroup(id: string) {
+    setGroupIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+  }
+
+  function save() {
+    if (!name.trim()) return;
+    upsertDiscount({
+      id: initial?.id,
+      name: name.trim(),
+      kind,
+      value: Number(value) || 0,
+      planIds,
+      groupIds,
+      upgradeGroupId: upgradeGroupId || undefined,
+      validFrom: validFrom ? new Date(validFrom).getTime() : null,
+      validUntil: validUntil ? new Date(validUntil + "T23:59:59").getTime() : null,
+      active,
+    });
+    onClose();
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 grid place-items-center p-4" onClick={onClose}>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-lg rounded-2xl bg-card border border-border p-5 max-h-[90dvh] overflow-y-auto"
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold">{initial ? "Edit Discount" : "New Discount"}</h3>
+          <button onClick={onClose} className="p-1" aria-label="Close"><X size={16} /></button>
+        </div>
+
+        <div className="space-y-3 text-sm">
+          <label className="block">
+            <span className="text-xs text-muted-foreground">Name</span>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Early bird 20%"
+              className="mt-1 w-full rounded-lg bg-secondary px-3 py-2 text-sm outline-none"
+            />
+          </label>
+
+          <div className="grid grid-cols-2 gap-2">
+            <label className="block">
+              <span className="text-xs text-muted-foreground">Type</span>
+              <select
+                value={kind}
+                onChange={(e) => setKind(e.target.value as DiscountKind)}
+                className="mt-1 w-full rounded-lg bg-secondary px-3 py-2 text-sm"
+              >
+                <option value="percent">Percent off (%)</option>
+                <option value="fixed">Fixed final price (IDR)</option>
+              </select>
+            </label>
+            <label className="block">
+              <span className="text-xs text-muted-foreground">
+                {kind === "percent" ? "Discount %" : "Final price"}
+              </span>
+              <div className="mt-1 flex items-center rounded-lg bg-secondary px-3">
+                <input
+                  type="number"
+                  min={0}
+                  value={value}
+                  onChange={(e) => setValue(Number(e.target.value))}
+                  className="flex-1 bg-transparent py-2 text-sm outline-none"
+                />
+                <span className="text-xs text-muted-foreground">
+                  {kind === "percent" ? <Percent size={12} /> : "IDR"}
+                </span>
+              </div>
+            </label>
+          </div>
+
+          <div>
+            <div className="text-xs text-muted-foreground mb-1">Applies to plans (empty = all)</div>
+            <div className="flex flex-wrap gap-1.5">
+              {PLANS.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => togglePlan(p.id)}
+                  className={`text-xs rounded-full px-3 py-1 border ${
+                    planIds.includes(p.id)
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "border-border bg-secondary"
+                  }`}
+                >
+                  {p.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div className="text-xs text-muted-foreground mb-1">Validity group (empty = public)</div>
+            {groups.length === 0 ? (
+              <p className="text-xs text-muted-foreground italic">No groups yet — add one above.</p>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {groups.map((g) => (
+                  <button
+                    key={g.id}
+                    type="button"
+                    onClick={() => toggleGroup(g.id)}
+                    className={`text-xs rounded-full px-3 py-1 border ${
+                      groupIds.includes(g.id)
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "border-border bg-secondary"
+                    }`}
+                  >
+                    {g.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <label className="block">
+            <span className="text-xs text-muted-foreground">Upgrade group (after purchase)</span>
+            <select
+              value={upgradeGroupId}
+              onChange={(e) => setUpgradeGroupId(e.target.value)}
+              className="mt-1 w-full rounded-lg bg-secondary px-3 py-2 text-sm"
+            >
+              <option value="">— None —</option>
+              {groups.map((g) => (
+                <option key={g.id} value={g.id}>{g.name}</option>
+              ))}
+            </select>
+          </label>
+
+          <div className="grid grid-cols-2 gap-2">
+            <label className="block">
+              <span className="text-xs text-muted-foreground">Valid from</span>
+              <input
+                type="date"
+                value={validFrom}
+                onChange={(e) => setValidFrom(e.target.value)}
+                className="mt-1 w-full rounded-lg bg-secondary px-3 py-2 text-sm outline-none"
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs text-muted-foreground">Valid until</span>
+              <input
+                type="date"
+                value={validUntil}
+                onChange={(e) => setValidUntil(e.target.value)}
+                className="mt-1 w-full rounded-lg bg-secondary px-3 py-2 text-sm outline-none"
+              />
+            </label>
+          </div>
+
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
+            Active
+          </label>
+        </div>
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button onClick={onClose} className="rounded-full border border-border px-4 py-2 text-xs">
+            Cancel
+          </button>
+          <button
+            onClick={save}
+            disabled={!name.trim()}
+            className="rounded-full bg-primary text-primary-foreground px-4 py-2 text-xs font-semibold disabled:opacity-40"
+          >
+            {initial ? "Save changes" : "Create discount"}
+          </button>
+        </div>
       </div>
     </div>
   );

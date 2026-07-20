@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as UpgradeRouteImport } from './routes/upgrade'
 import { Route as TripsRouteImport } from './routes/trips'
 import { Route as TranslateRouteImport } from './routes/translate'
 import { Route as TermsRouteImport } from './routes/terms'
@@ -46,6 +47,11 @@ import { Route as StoreOrderRouteImport } from './routes/store.order'
 import { Route as StoreAdminRouteImport } from './routes/store.admin'
 import { Route as ProjectsIdRouteImport } from './routes/projects.$id'
 
+const UpgradeRoute = UpgradeRouteImport.update({
+  id: '/upgrade',
+  path: '/upgrade',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TripsRoute = TripsRouteImport.update({
   id: '/trips',
   path: '/trips',
@@ -258,6 +264,7 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/translate': typeof TranslateRoute
   '/trips': typeof TripsRoute
+  '/upgrade': typeof UpgradeRoute
   '/projects/$id': typeof ProjectsIdRoute
   '/store/admin': typeof StoreAdminRoute
   '/store/order': typeof StoreOrderRoute
@@ -295,6 +302,7 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/translate': typeof TranslateRoute
   '/trips': typeof TripsRoute
+  '/upgrade': typeof UpgradeRoute
   '/projects/$id': typeof ProjectsIdRoute
   '/store/admin': typeof StoreAdminRoute
   '/store/order': typeof StoreOrderRoute
@@ -334,6 +342,7 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/translate': typeof TranslateRoute
   '/trips': typeof TripsRoute
+  '/upgrade': typeof UpgradeRoute
   '/projects/$id': typeof ProjectsIdRoute
   '/store/admin': typeof StoreAdminRoute
   '/store/order': typeof StoreOrderRoute
@@ -374,6 +383,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/translate'
     | '/trips'
+    | '/upgrade'
     | '/projects/$id'
     | '/store/admin'
     | '/store/order'
@@ -411,6 +421,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/translate'
     | '/trips'
+    | '/upgrade'
     | '/projects/$id'
     | '/store/admin'
     | '/store/order'
@@ -449,6 +460,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/translate'
     | '/trips'
+    | '/upgrade'
     | '/projects/$id'
     | '/store/admin'
     | '/store/order'
@@ -488,10 +500,18 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   TranslateRoute: typeof TranslateRoute
   TripsRoute: typeof TripsRoute
+  UpgradeRoute: typeof UpgradeRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/upgrade': {
+      id: '/upgrade'
+      path: '/upgrade'
+      fullPath: '/upgrade'
+      preLoaderRoute: typeof UpgradeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/trips': {
       id: '/trips'
       path: '/trips'
@@ -808,6 +828,7 @@ const rootRouteChildren: RootRouteChildren = {
   TermsRoute: TermsRoute,
   TranslateRoute: TranslateRoute,
   TripsRoute: TripsRoute,
+  UpgradeRoute: UpgradeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

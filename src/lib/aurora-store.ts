@@ -43,6 +43,10 @@ export interface OrderRecord {
   tier: PlanTier;
   durationDays: number | null;
   priceIDR: number;
+  originalPriceIDR?: number; // list price before discount, if any
+  discountId?: string;
+  discountLabel?: string;
+  groupId?: string; // customer group at time of order
   buyer: {
     name: string;
     email: string;
@@ -107,6 +111,11 @@ export function createOrder(input: {
   planId: PlanId;
   buyer: { name: string; email: string; whatsapp: string; note?: string };
   plugins?: PluginId[];
+  priceIDR?: number; // override (after discount)
+  originalPriceIDR?: number;
+  discountId?: string;
+  discountLabel?: string;
+  groupId?: string;
 }): OrderRecord {
   const plan = PLANS.find((p) => p.id === input.planId);
   if (!plan) throw new Error("Unknown plan");
@@ -118,7 +127,11 @@ export function createOrder(input: {
     planId: plan.id,
     tier: plan.tier,
     durationDays: plan.durationDays,
-    priceIDR: plan.priceIDR,
+    priceIDR: input.priceIDR ?? plan.priceIDR,
+    originalPriceIDR: input.originalPriceIDR ?? (input.priceIDR != null && input.priceIDR !== plan.priceIDR ? plan.priceIDR : undefined),
+    discountId: input.discountId,
+    discountLabel: input.discountLabel,
+    groupId: input.groupId,
     buyer: input.buyer,
     plugins: input.plugins ?? [],
   };

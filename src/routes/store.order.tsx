@@ -1,20 +1,23 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { QrCode, Copy, Check, Crown, Loader2 } from "lucide-react";
+import { QrCode, Copy, Check, Crown, Loader2, Tag } from "lucide-react";
 import qrisAsset from "@/assets/qris.png.asset.json";
 import {
   PLANS, formatIDR, createOrder, type PlanId, type OrderRecord,
 } from "@/lib/aurora-store";
+import { getDiscount, isDiscountValid, discountAppliesToPlan, discountAppliesToGroup, applyDiscount, setUserGroupId } from "@/lib/discounts-store";
 
 export const Route = createFileRoute("/store/order")({
   validateSearch: (s: Record<string, unknown>) => ({
     plan: (s.plan as PlanId) ?? "quarterly",
+    discount: typeof s.discount === "string" ? (s.discount as string) : undefined,
+    group: typeof s.group === "string" ? (s.group as string) : undefined,
   }),
   component: OrderPage,
 });
 
 function OrderPage() {
-  const { plan: initial } = Route.useSearch();
+  const { plan: initial, discount: discountId, group: groupId } = Route.useSearch();
   const [planId, setPlanId] = useState<PlanId>(initial);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -26,6 +29,20 @@ function OrderPage() {
 
   const plan = useMemo(() => PLANS.find((p) => p.id === planId)!, [planId]);
 
+  // Validate the discount against the current plan/group. If the user swaps
+  // to a plan the discount doesn't cover, we quietly drop it.
+  const activeDiscount = useMemo(() => {
+    if (!discountId) return null;
+    const d = getDiscount(discountId);
+    if (!d) return null;
+    if (!isDiscountValid(d)) return null;
+    if (!discountAppliesToPlan(d, planId)) return null;
+    if (!discountAppliesToGroup(d, groupId ?? null)) return null;
+    return d;
+  }, [discountId, planId, groupId]);
+
+  const finalPrice = activeDiscount ? applyDiscount(plan, activeDiscount) : plan.priceIDR;
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim() || (!email.trim() && !whatsapp.trim())) return;
@@ -34,7 +51,14 @@ function OrderPage() {
       const o = createOrder({
         planId,
         buyer: { name: name.trim(), email: email.trim(), whatsapp: whatsapp.trim(), note: note.trim() || undefined },
+        priceIDR: finalPrice,
+        originalPriceIDR: activeDiscount ? plan.priceIDR : undefined,
+        discountId: activeDiscount?.id,
+        discountLabel: activeDiscount?.name,
+        groupId: groupId,
       });
+      // If the discount promotes to an upgrade group, remember it locally.
+      if (activeDiscount?.upgradeGroupId) setUserGroupId(activeDiscount.upgradeGroupId);
       setOrder(o);
       setSubmitting(false);
     }, 300);
@@ -86,7 +110,15 @@ function OrderPage() {
         <div className="md:col-span-2 flex items-center justify-between rounded-2xl bg-card border border-border p-4">
           <div>
             <div className="text-xs uppercase tracking-widest text-muted-foreground">Total</div>
-            <div className="text-2xl font-bold text-primary">{formatIDR(plan.priceIDR)}</div>
+            {activeDiscount && (
+              <div className="text-xs text-muted-foreground line-through">{formatIDR(plan.priceIDR)}</div>
+            )}
+            <div className="text-2xl font-bold text-primary">{formatIDR(finalPrice)}</div>
+            {activeDiscount && (
+              <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-primary/15 text-primary text-[10px] font-semibold uppercase tracking-widest px-2 py-0.5">
+                <Tag size={10} /> {activeDiscount.name}
+              </div>
+            )}
           </div>
           <button
             type="submit"
@@ -142,7 +174,7 @@ function OrderReceipt({
   }
 
   const waText = encodeURIComponent(
-    `Halo Aurora Master 👋\n\nSaya sudah order Noble Smart Voice:\n• Order: ${order.id.slice(0, 8)}\n• Serial: ${order.serial}\n• Plan: ${plan.name} — ${formatIDR(plan.priceIDR)}\n\nBerikut bukti transfer QRIS saya. Mohon aktifkan serial saya. Terima kasih!`,
+    `Halo Aurora Master 👋\n\nSaya sudah order Noble Smart Voice:\n• Order: ${order.id.slice(0, 8)}\n• Serial: ${order.serial}\n• Plan: ${plan.name} — ${formatIDR(order.priceIDR)}\n\nBerikut bukti transfer QRIS saya. Mohon aktifkan serial saya. Terima kasih!`,
   );
 
   return (
@@ -153,7 +185,7 @@ function OrderReceipt({
           Order Created
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Scan the QRIS below and complete the transfer of <b className="text-primary">{formatIDR(plan.priceIDR)}</b>.
+          Scan the QRIS below and complete the transfer of <b className="text-primary">{formatIDR(order.priceIDR)}</b>.
         </p>
       </div>
 
@@ -197,7 +229,7 @@ function OrderReceipt({
             <Row label="Order ID" value={order.id.slice(0, 8).toUpperCase()} />
             <Row label="Plan" value={plan.name} />
             <Row label="Duration" value={plan.durationDays == null ? "Lifetime" : `${plan.durationDays} days`} />
-            <Row label="Amount" value={formatIDR(plan.priceIDR)} />
+            <Row label="Amount" value={formatIDR(order.priceIDR)} />
             <Row label="Buyer" value={order.buyer.name} />
             {order.buyer.whatsapp && <Row label="WA" value={order.buyer.whatsapp} />}
             {order.buyer.email && <Row label="Email" value={order.buyer.email} />}

@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Plane, GanttChart, NotebookPen, MessageSquare, Calculator, Languages, Camera, MessageCircle, Mail, Music2, Instagram, Facebook, Globe, ExternalLink, StickyNote, CheckSquare, Calendar as CalendarIcon, Video, CalendarClock, Users, BellRing } from "lucide-react";
+import { Plane, GanttChart, NotebookPen, MessageSquare, Calculator, Languages, Camera, MessageCircle, Mail, Music2, Instagram, Facebook, Globe, ExternalLink, StickyNote, CheckSquare, Calendar as CalendarIcon, Video, CalendarClock, Users, BellRing, Crown } from "lucide-react";
 import { usePlugin } from "@/lib/plugins-store";
 import { useEnabledShortcuts } from "@/lib/app-shortcuts-store";
 import { AppShell } from "@/components/AppShell";
@@ -100,6 +100,26 @@ function Home() {
 
   return (
     <AppShell title={t(lang, "home")}>
+      <Link
+        to="/upgrade"
+        className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-primary/40 bg-gradient-to-br from-primary/15 to-primary/5 p-4 hover:opacity-90"
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          <Crown size={20} className="text-primary shrink-0" />
+          <div className="min-w-0">
+            <div className="text-sm font-semibold truncate">
+              {lang === "id" ? "Upgrade ke Premium" : "Upgrade to Premium"}
+            </div>
+            <div className="text-xs text-muted-foreground truncate">
+              {lang === "id" ? "Lihat paket & kode grup khusus" : "See plans & apply your group code"}
+            </div>
+          </div>
+        </div>
+        <span className="text-xs text-primary font-semibold shrink-0">
+          {lang === "id" ? "Buka →" : "Open →"}
+        </span>
+      </Link>
+
       <h2 className="mb-4 text-xl font-semibold">{t(lang, "dailyActivities")}</h2>
 
       <MarqueeSection
