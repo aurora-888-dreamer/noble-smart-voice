@@ -42,7 +42,7 @@ function ProjectDetailPage() {
     );
   }
 
-  async function updateField(patch: Partial<typeof project>) {
+  async function updateField(patch: Partial<Project>) {
     if (!project?.id) return;
     await getDb().projects.update(project.id, patch);
   }
