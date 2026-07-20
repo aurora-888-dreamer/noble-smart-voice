@@ -8,7 +8,7 @@ create table if not exists noble_vouchers (
   code text not null unique,                 -- e.g. "NOBLE-7F3K-9QRT" (human-typeable)
   bound_contact text not null,                -- normalized email OR phone (see normalizeContact in code)
   tier text not null check (tier in ('standard', 'premium')),
-  duration_days integer not null,             -- 30, 90, 365, ...
+  duration_days integer,                      -- 30, 90, 365, ... — NULL means lifetime/unlimited
   status text not null default 'unused' check (status in ('unused', 'used', 'revoked')),
   created_at timestamptz not null default now(),
   used_at timestamptz,
@@ -18,6 +18,10 @@ create table if not exists noble_vouchers (
 
 create index if not exists idx_noble_vouchers_code on noble_vouchers (code);
 create index if not exists idx_noble_vouchers_contact on noble_vouchers (bound_contact);
+
+-- If this table already exists from an earlier run (duration_days was
+-- NOT NULL before), run this once to allow lifetime vouchers:
+-- alter table noble_vouchers alter column duration_days drop not null;
 
 -- Row Level Security: locked down by default. All access goes through the
 -- server function using the service_role key, which bypasses RLS — the
