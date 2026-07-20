@@ -185,7 +185,7 @@ function OrderReceipt({
           Order Created
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Scan the QRIS below and complete the transfer of <b className="text-primary">{formatIDR(plan.priceIDR)}</b>.
+          Scan the QRIS below and complete the transfer of <b className="text-primary">{formatIDR(order.priceIDR)}</b>.
         </p>
       </div>
 
@@ -229,7 +229,7 @@ function OrderReceipt({
             <Row label="Order ID" value={order.id.slice(0, 8).toUpperCase()} />
             <Row label="Plan" value={plan.name} />
             <Row label="Duration" value={plan.durationDays == null ? "Lifetime" : `${plan.durationDays} days`} />
-            <Row label="Amount" value={formatIDR(plan.priceIDR)} />
+            <Row label="Amount" value={formatIDR(order.priceIDR)} />
             <Row label="Buyer" value={order.buyer.name} />
             {order.buyer.whatsapp && <Row label="WA" value={order.buyer.whatsapp} />}
             {order.buyer.email && <Row label="Email" value={order.buyer.email} />}
