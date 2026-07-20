@@ -105,9 +105,10 @@ export interface ProjectActivity {
 
 export interface Photo {
   id?: number;
-  kind?: "photo" | "video";
-  dataUrl: string; // base64 data URL (image/jpeg) or video poster
+  kind?: "image" | "photo" | "video";
+  dataUrl: string; // base64 data URL (image/jpeg) or empty for video
   videoBlob?: Blob;
+  videoMimeType?: string;
   caption?: string;
   category?: ItemType; // which documentation category this photo belongs to
   createdAt: number;
