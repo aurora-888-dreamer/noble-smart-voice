@@ -440,6 +440,201 @@ function ToolsTab() {
   );
 }
 
+function AnalyticsTab() {
+  const orders = useOrders();
+  const now = Date.now();
+  const DAY = 86400_000;
+
+  const paidOrders = orders.filter((o) => o.status === "paid" || o.status === "delivered");
+
+  const byPlan = PLANS.map((p) => {
+    const os = paidOrders.filter((o) => o.planId === p.id);
+    return { plan: p, count: os.length, revenue: os.reduce((s, o) => s + o.priceIDR, 0) };
+  });
+  const maxRev = Math.max(1, ...byPlan.map((b) => b.revenue));
+
+  const windowStats = (days: number) => {
+    const cutoff = now - days * DAY;
+    const os = paidOrders.filter((o) => (o.paidAt ?? o.createdAt) >= cutoff);
+    return { count: os.length, revenue: os.reduce((s, o) => s + o.priceIDR, 0) };
+  };
+  const s7 = windowStats(7);
+  const s30 = windowStats(30);
+  const s90 = windowStats(90);
+
+  // Daily revenue for last 14 days sparkline
+  const buckets: { label: string; revenue: number }[] = [];
+  for (let i = 13; i >= 0; i--) {
+    const start = new Date(now - i * DAY);
+    start.setHours(0, 0, 0, 0);
+    const end = start.getTime() + DAY;
+    const rev = paidOrders
+      .filter((o) => {
+        const t = o.paidAt ?? o.createdAt;
+        return t >= start.getTime() && t < end;
+      })
+      .reduce((s, o) => s + o.priceIDR, 0);
+    buckets.push({ label: `${start.getDate()}/${start.getMonth() + 1}`, revenue: rev });
+  }
+  const maxDay = Math.max(1, ...buckets.map((b) => b.revenue));
+
+  const conversion = orders.length ? Math.round((paidOrders.length / orders.length) * 100) : 0;
+  const avgTicket = paidOrders.length ? Math.round(paidOrders.reduce((s, o) => s + o.priceIDR, 0) / paidOrders.length) : 0;
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Stat label="Revenue · 7d" value={formatIDR(s7.revenue)} />
+        <Stat label="Revenue · 30d" value={formatIDR(s30.revenue)} />
+        <Stat label="Revenue · 90d" value={formatIDR(s90.revenue)} />
+        <Stat label="Avg. Order" value={formatIDR(avgTicket)} />
+      </div>
+
+      <div className="rounded-2xl bg-card border border-border p-4">
+        <div className="flex items-center gap-2 mb-4">
+          <TrendingUp size={16} className="text-primary" />
+          <h3 className="font-semibold">Daily revenue · last 14 days</h3>
+        </div>
+        <div className="flex items-end gap-1.5 h-32">
+          {buckets.map((b, i) => (
+            <div key={i} className="flex-1 flex flex-col items-center gap-1">
+              <div
+                className="w-full rounded-t bg-primary/70 hover:bg-primary transition-colors"
+                style={{ height: `${(b.revenue / maxDay) * 100}%`, minHeight: b.revenue > 0 ? 2 : 0 }}
+                title={formatIDR(b.revenue)}
+              />
+              <span className="text-[9px] text-muted-foreground">{b.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-2xl bg-card border border-border p-4">
+        <h3 className="font-semibold mb-3">Revenue by plan</h3>
+        <div className="space-y-2">
+          {byPlan.map((b) => (
+            <div key={b.plan.id}>
+              <div className="flex items-center justify-between text-xs mb-1">
+                <span className="font-medium">{b.plan.name}</span>
+                <span className="text-muted-foreground">
+                  {b.count} × · <span className="text-primary font-semibold">{formatIDR(b.revenue)}</span>
+                </span>
+              </div>
+              <div className="h-2 rounded-full bg-secondary overflow-hidden">
+                <div
+                  className="h-full bg-primary"
+                  style={{ width: `${(b.revenue / maxRev) * 100}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <Stat label="Conversion" value={`${conversion}%`} />
+        <Stat label="Paid Customers" value={String(paidOrders.length)} />
+      </div>
+    </div>
+  );
+}
+
+interface CustomerAgg {
+  key: string;
+  name: string;
+  email: string;
+  whatsapp: string;
+  orders: number;
+  spent: number;
+  lastAt: number;
+  lastStatus: OrderStatus;
+}
+
+function CustomersTab() {
+  const orders = useOrders();
+  const [q, setQ] = useState("");
+
+  const customers = useMemo(() => {
+    const map = new Map<string, CustomerAgg>();
+    for (const o of orders) {
+      const key = (o.buyer.email || o.buyer.whatsapp || o.buyer.name).toLowerCase();
+      const spent = o.status === "paid" || o.status === "delivered" ? o.priceIDR : 0;
+      const prev = map.get(key);
+      if (prev) {
+        prev.orders += 1;
+        prev.spent += spent;
+        if (o.createdAt > prev.lastAt) {
+          prev.lastAt = o.createdAt;
+          prev.lastStatus = o.status;
+        }
+      } else {
+        map.set(key, {
+          key,
+          name: o.buyer.name,
+          email: o.buyer.email,
+          whatsapp: o.buyer.whatsapp,
+          orders: 1,
+          spent,
+          lastAt: o.createdAt,
+          lastStatus: o.status,
+        });
+      }
+    }
+    const all = Array.from(map.values()).sort((a, b) => b.spent - a.spent || b.lastAt - a.lastAt);
+    const qs = q.trim().toLowerCase();
+    if (!qs) return all;
+    return all.filter(
+      (c) =>
+        c.name.toLowerCase().includes(qs) ||
+        c.email.toLowerCase().includes(qs) ||
+        c.whatsapp.toLowerCase().includes(qs),
+    );
+  }, [orders, q]);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2 rounded-xl bg-card border border-border px-3">
+        <Search size={14} className="text-muted-foreground" />
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search customers…"
+          className="flex-1 bg-transparent py-2 text-sm outline-none"
+        />
+      </div>
+
+      {customers.length === 0 ? (
+        <div className="rounded-2xl bg-card border border-border p-8 text-center text-sm text-muted-foreground">
+          No customers yet.
+        </div>
+      ) : (
+        <div className="rounded-2xl bg-card border border-border overflow-hidden">
+          <div className="grid grid-cols-[1fr_auto_auto] gap-3 px-4 py-2 text-[10px] uppercase tracking-widest text-muted-foreground border-b border-border">
+            <span>Customer</span>
+            <span className="text-right">Orders</span>
+            <span className="text-right">Spent</span>
+          </div>
+          {customers.map((c) => (
+            <div
+              key={c.key}
+              className="grid grid-cols-[1fr_auto_auto] gap-3 px-4 py-3 border-b border-border last:border-0 items-center"
+            >
+              <div className="min-w-0">
+                <div className="text-sm font-semibold truncate">{c.name}</div>
+                <div className="text-xs text-muted-foreground truncate">
+                  {c.email || "—"} {c.whatsapp && `· ${c.whatsapp}`}
+                </div>
+              </div>
+              <div className="text-sm text-right">{c.orders}</div>
+              <div className="text-sm font-bold text-primary text-right">{formatIDR(c.spent)}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SettingsTab() {
   const [newPw, setNewPw] = useState("");
   const [saved, setSaved] = useState(false);
