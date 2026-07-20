@@ -54,7 +54,7 @@ export function PhotoCaptureFlow({ presetType }: { presetType?: ItemType } = {})
           if (!base64 || base64.length < 100) {
             throw new Error(`Captured image data looks invalid (length ${base64?.length ?? 0})`);
           }
-          const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("AI caption timed out after 20s")), 20000));
+          const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("AI caption timed out after 30s")), 30000));
           const res = await Promise.race([captionPhoto({ data: { imageBase64: base64, mimeType, category: picked } }), timeout]);
           if (res.ok) {
             setCaption(res.text);

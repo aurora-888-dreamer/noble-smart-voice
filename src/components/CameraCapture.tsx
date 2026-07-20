@@ -11,6 +11,38 @@ function isMobileDevice(): boolean {
   return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
 
+const MAX_PHOTO_DIM = 1280;
+
+function resizeImageFile(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const rawDataUrl = reader.result as string;
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, MAX_PHOTO_DIM / Math.max(img.width, img.height));
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(rawDataUrl); // fall back to the original if canvas isn't available
+          return;
+        }
+        ctx.drawImage(img, 0, 0, w, h);
+        console.log("[Noble] Uploaded photo resized. source w/h:", img.width, img.height, "-> resized to:", w, h);
+        resolve(canvas.toDataURL("image/jpeg", 0.85));
+      };
+      img.onerror = () => resolve(rawDataUrl); // fall back rather than blocking the whole capture
+      img.src = rawDataUrl;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 // Mobile: two plain file inputs — "Unggah" opens the gallery/file picker
 // (photos AND videos), "Jepret" has capture="environment" which tells
 // mobile browsers to open the native camera app for a photo. This is the
@@ -37,11 +69,7 @@ export function CameraCapture({ onCapture }: { onCapture: (media: CapturedMedia)
     if (file.type.startsWith("video/")) {
       onCapture({ kind: "video", blob: file, mimeType: file.type, previewUrl: URL.createObjectURL(file) });
     } else {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === "string") onCapture({ kind: "image", dataUrl: reader.result });
-      };
-      reader.readAsDataURL(file);
+      resizeImageFile(file).then((dataUrl) => onCapture({ kind: "image", dataUrl }));
     }
     e.target.value = "";
   }
@@ -49,11 +77,7 @@ export function CameraCapture({ onCapture }: { onCapture: (media: CapturedMedia)
   function handleCameraFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") onCapture({ kind: "image", dataUrl: reader.result });
-    };
-    reader.readAsDataURL(file);
+    resizeImageFile(file).then((dataUrl) => onCapture({ kind: "image", dataUrl }));
     e.target.value = "";
   }
 
@@ -154,12 +178,19 @@ function WebcamCapture({
   function takeSnapshot() {
     const video = videoRef.current;
     if (!video) return;
-    const w = video.videoWidth;
-    const h = video.videoHeight;
-    if (!w || !h) {
+    const srcW = video.videoWidth;
+    const srcH = video.videoHeight;
+    if (!srcW || !srcH) {
       setCaptureError(lang === "id" ? "Video belum siap, tunggu sebentar lalu coba lagi." : "Video isn't ready yet — wait a moment and try again.");
       return;
     }
+    // Cap the longest side at MAX_DIM — full webcam resolution (often
+    // 1080p+, 1-2MB+ as JPEG) makes the AI caption request slow/prone to
+    // timing out for no real benefit at documentation-photo scale.
+    const MAX_DIM = 1280;
+    const scale = Math.min(1, MAX_DIM / Math.max(srcW, srcH));
+    const w = Math.round(srcW * scale);
+    const h = Math.round(srcH * scale);
     try {
       const canvas = document.createElement("canvas");
       canvas.width = w;
@@ -176,9 +207,9 @@ function WebcamCapture({
       } else {
         ctx.drawImage(video, 0, 0, w, h);
       }
-      const url = canvas.toDataURL("image/jpeg", 0.9);
+      const url = canvas.toDataURL("image/jpeg", 0.85);
       if (!url || url === "data:,") throw new Error("empty data url");
-      console.log("[Noble] Snapshot captured OK. w/h:", w, h, "url length:", url.length);
+      console.log("[Noble] Snapshot captured OK. source w/h:", srcW, srcH, "-> resized to:", w, h, "url length:", url.length);
       setCaptureError(null);
       setSnapshot(url);
     } catch (err) {
