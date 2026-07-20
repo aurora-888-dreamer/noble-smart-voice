@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { X, Check, Loader2 } from "lucide-react";
-import { CameraCapture } from "./CameraCapture";
+import { CameraCapture, type CapturedMedia } from "./CameraCapture";
 import { getDb, type ItemType } from "@/lib/db";
 import { useLang } from "@/lib/settings-store";
 import { t } from "@/lib/i18n";
@@ -19,58 +19,100 @@ function stripDataUrlPrefix(dataUrl: string): { base64: string; mimeType: string
 export function PhotoCaptureFlow({ presetType }: { presetType?: ItemType } = {}) {
   const [lang] = useLang();
   const [phase, setPhase] = useState<Phase>("capture");
-  const [pendingImage, setPendingImage] = useState<string | null>(null);
+  const [pending, setPending] = useState<CapturedMedia | null>(null);
   const [category, setCategory] = useState<ItemType>(presetType ?? "note");
   const [caption, setCaption] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
 
-  function onCaptured(dataUrl: string) {
-    setPendingImage(dataUrl);
+  function onCaptured(media: CapturedMedia) {
+    setPending(media);
     if (presetType) {
-      pickCategory(presetType, dataUrl);
+      pickCategory(presetType, media);
     } else {
       setPhase("category");
     }
   }
 
-  function pickCategory(picked: ItemType, imageOverride?: string) {
-    const image = imageOverride ?? pendingImage;
+  function pickCategory(picked: ItemType, mediaOverride?: CapturedMedia) {
+    const media = mediaOverride ?? pending;
     setCategory(picked);
     setPhase("caption");
     setCaption("");
-    if (isPremium() && image && typeof navigator !== "undefined" && navigator.onLine) {
+    setAiError(null);
+    // AI captioning only works on images — videos just get a manual caption.
+    if (media?.kind === "image" && isPremium() && typeof navigator !== "undefined" && navigator.onLine) {
       setAiBusy(true);
-      const { base64, mimeType } = stripDataUrlPrefix(image);
-      captionPhoto({ data: { imageBase64: base64, mimeType, category: picked } })
-        .then((res) => {
-          if (res.ok) setCaption(res.text);
-        })
-        .catch(() => {})
-        .finally(() => setAiBusy(false));
+      // Wrapped in an async IIFE so ANY failure — sync or async, including a
+      // bad dataUrl — is guaranteed to reset aiBusy instead of leaving the
+      // spinner stuck forever (which is what a synchronous throw before the
+      // promise chain attaches would otherwise cause).
+      (async () => {
+        try {
+          console.log("[Noble] Captured image dataUrl length:", media.dataUrl?.length, "prefix:", media.dataUrl?.slice(0, 30));
+          const { base64, mimeType } = stripDataUrlPrefix(media.dataUrl);
+          if (!base64 || base64.length < 100) {
+            throw new Error(`Captured image data looks invalid (length ${base64?.length ?? 0})`);
+          }
+          const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("AI caption timed out after 20s")), 20000));
+          const res = await Promise.race([captionPhoto({ data: { imageBase64: base64, mimeType, category: picked } }), timeout]);
+          if (res.ok) {
+            setCaption(res.text);
+          } else {
+            console.error("[Noble] captionPhoto failed:", res.error);
+            setAiError(res.error);
+          }
+        } catch (err) {
+          console.error("[Noble] AI captioning threw:", err);
+          setAiError(err instanceof Error ? err.message : String(err));
+        } finally {
+          setAiBusy(false);
+        }
+      })();
     }
   }
 
   function cancel() {
-    setPendingImage(null);
+    if (pending?.kind === "video") URL.revokeObjectURL(pending.previewUrl);
+    setPending(null);
     setCaption("");
     setCategory(presetType ?? "note");
     setPhase("capture");
   }
 
   async function save() {
-    if (!pendingImage) return;
-    await getDb().photos.add({
-      dataUrl: pendingImage,
-      caption: caption.trim() || undefined,
-      category,
-      createdAt: Date.now(),
-    });
-    cancel();
+    if (!pending) return;
+    if (pending.kind === "video") {
+      await getDb().photos.add({
+        kind: "video",
+        dataUrl: "",
+        videoBlob: pending.blob,
+        videoMimeType: pending.mimeType,
+        caption: caption.trim() || undefined,
+        category,
+        createdAt: Date.now(),
+      });
+      URL.revokeObjectURL(pending.previewUrl);
+    } else {
+      await getDb().photos.add({
+        kind: "image",
+        dataUrl: pending.dataUrl,
+        caption: caption.trim() || undefined,
+        category,
+        createdAt: Date.now(),
+      });
+    }
+    setPending(null);
+    setCaption("");
+    setCategory(presetType ?? "note");
+    setPhase("capture");
   }
 
   if (phase === "capture") {
     return <CameraCapture onCapture={onCaptured} />;
   }
+
+  const previewSrc = pending?.kind === "video" ? pending.previewUrl : pending?.kind === "image" ? pending.dataUrl : undefined;
 
   if (phase === "category") {
     return (
@@ -81,7 +123,18 @@ export function PhotoCaptureFlow({ presetType }: { presetType?: ItemType } = {})
             <X size={16} />
           </button>
         </div>
-        {pendingImage && <img src={pendingImage} alt="Captured" className="w-full max-w-sm rounded-2xl border border-border mb-3" />}
+        {pending?.kind === "video" ? (
+          <video src={previewSrc} controls className="w-full max-w-sm rounded-2xl border border-border mb-3" />
+        ) : (
+          previewSrc && (
+            <img
+              src={previewSrc}
+              alt="Captured"
+              onError={() => console.error("[Noble] Category-phase preview <img> failed to load. Length:", previewSrc?.length)}
+              className="w-full max-w-sm rounded-2xl border border-border mb-3"
+            />
+          )
+        )}
         <div className="grid grid-cols-3 gap-2">
           {TYPES.map((tp) => (
             <button
@@ -106,12 +159,24 @@ export function PhotoCaptureFlow({ presetType }: { presetType?: ItemType } = {})
           <X size={16} />
         </button>
       </div>
-      {pendingImage && <img src={pendingImage} alt="Captured" className="w-full max-w-sm rounded-2xl border border-border mb-3" />}
+      {pending?.kind === "video" ? (
+        <video src={previewSrc} controls className="w-full max-w-sm rounded-2xl border border-border mb-3" />
+      ) : (
+        previewSrc && (
+          <img
+            src={previewSrc}
+            alt="Captured"
+            onError={() => console.error("[Noble] Preview <img> failed to load — dataUrl is invalid. Length:", previewSrc?.length, "First 50 chars:", previewSrc?.slice(0, 50))}
+            className="w-full max-w-sm rounded-2xl border border-border mb-3"
+          />
+        )
+      )}
       {aiBusy && (
         <p className="text-xs text-primary animate-pulse mb-2 flex items-center gap-1.5">
           <Loader2 size={12} className="animate-spin" /> {t(lang, "recAiRefining")}
         </p>
       )}
+      {aiError && <p className="text-xs text-destructive mb-2">{lang === "id" ? "AI gagal: " : "AI failed: "}{aiError}</p>}
       <label className="text-xs text-muted-foreground mb-1 block">
         {lang === "id" ? "Keterangan (caption)" : "Caption"}
       </label>

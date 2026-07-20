@@ -34,6 +34,7 @@ export function Sidebar() {
   const hasTranslator = usePlugin("translator");
   const hasCamera = usePlugin("camera");
 
+  // Primary categories — same set/order on every page (Home included), two columns.
   const items = [
     { to: "/", label: t(lang, "home"), Icon: Home },
     { to: "/calendar", label: t(lang, "calendar"), Icon: CalendarIcon },
@@ -49,128 +50,62 @@ export function Sidebar() {
     { to: "/projects", label: t(lang, "projects"), Icon: GanttChart },
   ] as const;
 
-  const bottomItems = [
+  // Tools + utility links — same list/positions on every page, including Home
+  // (no special inline cards on Home anymore; Sidebar is the one consistent
+  // entry point everywhere).
+  const toolItems = [
+    ...(hasCamera ? [{ to: "/camera", label: lang === "id" ? "Kamera & Foto" : "Camera & Photos", Icon: Camera }] : []),
+    ...(hasCalculator ? [{ to: "/calculator", label: lang === "id" ? "Kalkulator" : "Calculator", Icon: Calculator }] : []),
+    ...(hasTranslator ? [{ to: "/translate", label: lang === "id" ? "Penerjemah" : "Translator", Icon: Languages }] : []),
+    { to: "/sync", label: lang === "id" ? "Sinkronisasi" : "Sync", Icon: Wifi },
+    { to: "/backup", label: lang === "id" ? "Cadangan Data" : "Backup", Icon: Download },
     { to: "/guide", label: t(lang, "guide"), Icon: BookOpen },
     { to: "/settings", label: t(lang, "settings"), Icon: SettingsIcon },
+    { to: "/terms", label: "Terms & Conditions", Icon: FileText },
+    { to: "/privacy", label: "Privacy Policy", Icon: ShieldCheck },
   ] as const;
 
+  function NavGrid({ list }: { list: readonly { to: string; label: string; Icon: typeof Home }[] }) {
+    return (
+      <ul className="grid grid-cols-2 gap-0.5">
+        {list.map(({ to, label, Icon }) => {
+          const active = to === "/" ? pathname === "/" : pathname.startsWith(to);
+          return (
+            <li key={to} className="min-w-0">
+              <Link
+                to={to}
+                className={`flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] transition-colors truncate ${
+                  active ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                }`}
+              >
+                <Icon size={15} strokeWidth={active ? 2.4 : 1.8} className="shrink-0" />
+                <span className="truncate">{label}</span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    );
+  }
+
   return (
-    <nav className="hidden lg:flex flex-col w-60 shrink-0 h-dvh sticky top-0 border-r border-border bg-card/40 px-3 py-5">
+    <nav className="hidden lg:flex flex-col w-72 shrink-0 h-dvh sticky top-0 border-r border-border bg-card/40 px-3 py-5">
       <div className="px-2 mb-6">
         <span className="text-xs font-semibold uppercase tracking-widest text-primary">Noble</span>
       </div>
 
       <Link
         to="/record"
-        className="mb-4 flex items-center gap-2 rounded-xl bg-primary text-primary-foreground px-3 py-2.5 text-sm font-semibold active:scale-[0.98] transition-transform"
+        className="mb-4 flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground px-3 py-2.5 text-sm font-semibold active:scale-[0.98] transition-transform"
       >
         <Mic size={16} /> {lang === "id" ? "Rekam" : "Record"}
       </Link>
 
-      <ul className="flex-1 space-y-0.5 overflow-y-auto">
-        {items.map(({ to, label, Icon }) => {
-          const active = to === "/" ? pathname === "/" : pathname.startsWith(to);
-          return (
-            <li key={to}>
-              <Link
-                to={to}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
-                  active ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                }`}
-              >
-                <Icon size={16} strokeWidth={active ? 2.4 : 1.8} />
-                {label}
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-
-      <div className="pt-2 mt-2 border-t border-border space-y-0.5">
-        {hasCamera && (
-          <Link
-            to="/camera"
-            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
-              pathname === "/camera" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-            }`}
-          >
-            <Camera size={16} strokeWidth={pathname === "/camera" ? 2.4 : 1.8} />
-            {lang === "id" ? "Kamera & Foto" : "Camera & Photos"}
-          </Link>
-        )}
-        {hasTranslator && (
-          <Link
-            to="/translate"
-            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
-              pathname === "/translate" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-            }`}
-          >
-            <Languages size={16} strokeWidth={pathname === "/translate" ? 2.4 : 1.8} />
-            {lang === "id" ? "Penerjemah" : "Translator"}
-          </Link>
-        )}
-        {hasCalculator && (
-          <Link
-            to="/calculator"
-            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
-              pathname === "/calculator" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-            }`}
-          >
-            <Calculator size={16} strokeWidth={pathname === "/calculator" ? 2.4 : 1.8} />
-            {lang === "id" ? "Kalkulator" : "Calculator"}
-          </Link>
-        )}
-        <Link
-          to="/sync"
-          className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
-            pathname === "/sync" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-          }`}
-        >
-          <Wifi size={16} strokeWidth={pathname === "/sync" ? 2.4 : 1.8} />
-          {lang === "id" ? "Sinkronisasi" : "Sync"}
-        </Link>
-        <Link
-          to="/backup"
-          className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
-            pathname === "/backup" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-          }`}
-        >
-          <Download size={16} strokeWidth={pathname === "/backup" ? 2.4 : 1.8} />
-          {lang === "id" ? "Cadangan Data" : "Backup"}
-        </Link>
-        {bottomItems.map(({ to, label, Icon }) => {
-          const active = pathname.startsWith(to);
-          return (
-            <Link
-              key={to}
-              to={to}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
-                active ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-              }`}
-            >
-              <Icon size={16} strokeWidth={active ? 2.4 : 1.8} />
-              {label}
-            </Link>
-          );
-        })}
-        <Link
-          to="/terms"
-          className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
-            pathname === "/terms" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-          }`}
-        >
-          <FileText size={16} strokeWidth={pathname === "/terms" ? 2.4 : 1.8} />
-          Terms &amp; Conditions
-        </Link>
-        <Link
-          to="/privacy"
-          className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
-            pathname === "/privacy" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-          }`}
-        >
-          <ShieldCheck size={16} strokeWidth={pathname === "/privacy" ? 2.4 : 1.8} />
-          Privacy Policy
-        </Link>
+      <div className="flex-1 overflow-y-auto">
+        <NavGrid list={items} />
+        <div className="pt-2 mt-2 border-t border-border">
+          <NavGrid list={toolItems} />
+        </div>
       </div>
     </nav>
   );

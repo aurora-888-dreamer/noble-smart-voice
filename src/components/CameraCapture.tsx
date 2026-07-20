@@ -178,6 +178,7 @@ function WebcamCapture({
       }
       const url = canvas.toDataURL("image/jpeg", 0.9);
       if (!url || url === "data:,") throw new Error("empty data url");
+      console.log("[Noble] Snapshot captured OK. w/h:", w, h, "url length:", url.length);
       setCaptureError(null);
       setSnapshot(url);
     } catch (err) {
@@ -187,7 +188,10 @@ function WebcamCapture({
   }
 
   function confirm() {
-    if (snapshot) onCapture({ kind: "image", dataUrl: snapshot });
+    if (snapshot) {
+      console.log("[Noble] Webcam snapshot confirmed. Length:", snapshot.length, "Prefix:", snapshot.slice(0, 30));
+      onCapture({ kind: "image", dataUrl: snapshot });
+    }
     onClose();
   }
 
