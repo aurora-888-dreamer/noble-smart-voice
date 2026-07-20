@@ -354,8 +354,6 @@ const dict = {
     recMinutes: "menit",
     recNothingCaptured: "Tidak ada yang tertangkap.",
     diary: "Diary",
-    trip: "Trip",
-    project: "Proyek",
     openProject: "Buka Proyek",
     activityLog: "Aktivitas & Rencana",
     addActivity: "Tambah catatan",
