@@ -1,9 +1,10 @@
 import { useNavigate, useRouterState, Link } from "@tanstack/react-router";
-import { Mic, Download } from "lucide-react";
+import { Mic, Download, Camera, Calculator, Languages, Settings as SettingsIcon } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { BottomNav } from "./BottomNav";
 import { Sidebar } from "./Sidebar";
 import { useVoice } from "@/lib/voice-controller";
+import { usePlugin } from "@/lib/plugins-store";
 
 // Left-right swipe order across primary menus. Sliding right (→) goes back,
 // sliding left (←) goes forward, matching native mobile paging.
@@ -44,6 +45,9 @@ export function AppShell({
   const [dir, setDir] = useState<"in" | "left" | "right">("in");
   const { mode, toast, supported, startActive } = useVoice();
   const [installEvt, setInstallEvt] = useState<BIP | null>(null);
+  const hasCamera = usePlugin("camera");
+  const hasCalculator = usePlugin("calculator");
+  const hasTranslator = usePlugin("translator");
 
   useEffect(() => {
     const prev = sessionStorage.getItem("noble:swipeDir") as "left" | "right" | null;
@@ -123,6 +127,42 @@ export function AppShell({
               </button>
             )}
             {headerExtra}
+            <div className="flex items-center gap-1.5 lg:hidden">
+              {hasCamera && (
+                <Link
+                  to="/camera"
+                  aria-label="Camera"
+                  className="grid place-items-center w-10 h-10 rounded-full border border-border text-muted-foreground active:scale-95"
+                >
+                  <Camera size={19} />
+                </Link>
+              )}
+              {hasCalculator && (
+                <Link
+                  to="/calculator"
+                  aria-label="Calculator"
+                  className="grid place-items-center w-10 h-10 rounded-full border border-border text-muted-foreground active:scale-95"
+                >
+                  <Calculator size={19} />
+                </Link>
+              )}
+              {hasTranslator && (
+                <Link
+                  to="/translate"
+                  aria-label="Translator"
+                  className="grid place-items-center w-10 h-10 rounded-full border border-border text-muted-foreground active:scale-95"
+                >
+                  <Languages size={19} />
+                </Link>
+              )}
+              <Link
+                to="/settings"
+                aria-label="Settings"
+                className="grid place-items-center w-10 h-10 rounded-full border border-border text-muted-foreground active:scale-95"
+              >
+                <SettingsIcon size={19} />
+              </Link>
+            </div>
             <button
               onClick={handleMicTap}
               disabled={!supported}

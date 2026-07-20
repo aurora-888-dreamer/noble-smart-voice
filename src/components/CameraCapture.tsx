@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera, Upload, RotateCcw, Check, Video } from "lucide-react";
+import { Camera, Upload, RotateCcw, RotateCw, Check, Video } from "lucide-react";
 import { useLang } from "@/lib/settings-store";
 
 export type CapturedMedia =
@@ -110,6 +110,8 @@ function WebcamCapture({
   const [stage, setStage] = useState<"requesting" | "streaming" | "error">("requesting");
   const [error, setError] = useState<string | null>(null);
   const [snapshot, setSnapshot] = useState<string | null>(null);
+  const [rotated, setRotated] = useState(false);
+  const [captureError, setCaptureError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -152,13 +154,36 @@ function WebcamCapture({
   function takeSnapshot() {
     const video = videoRef.current;
     if (!video) return;
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.drawImage(video, 0, 0);
-    setSnapshot(canvas.toDataURL("image/jpeg", 0.85));
+    const w = video.videoWidth;
+    const h = video.videoHeight;
+    if (!w || !h) {
+      setCaptureError(lang === "id" ? "Video belum siap, tunggu sebentar lalu coba lagi." : "Video isn't ready yet — wait a moment and try again.");
+      return;
+    }
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("no 2d context");
+      if (rotated) {
+        // Bake the same 180° correction into the saved photo — the CSS
+        // transform on the live <video> is display-only and canvas capture
+        // always reads the raw, un-rotated source frame.
+        ctx.translate(w / 2, h / 2);
+        ctx.rotate(Math.PI);
+        ctx.drawImage(video, -w / 2, -h / 2, w, h);
+      } else {
+        ctx.drawImage(video, 0, 0, w, h);
+      }
+      const url = canvas.toDataURL("image/jpeg", 0.9);
+      if (!url || url === "data:,") throw new Error("empty data url");
+      setCaptureError(null);
+      setSnapshot(url);
+    } catch (err) {
+      console.error("[Noble] Snapshot capture failed:", err);
+      setCaptureError(lang === "id" ? "Gagal mengambil foto — coba lagi." : "Failed to capture the photo — please try again.");
+    }
   }
 
   function confirm() {
@@ -185,13 +210,31 @@ function WebcamCapture({
   return (
     <div className="flex flex-col items-center gap-3">
       {stage === "streaming" ? (
-        <video ref={videoRef} autoPlay playsInline muted className="w-full max-w-sm rounded-2xl border border-border bg-black aspect-video object-cover" />
+        <div className="relative w-full max-w-sm">
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            style={rotated ? { transform: "rotate(180deg)" } : undefined}
+            className="w-full rounded-2xl border border-border bg-black aspect-video object-cover"
+          />
+          <button
+            onClick={() => setRotated((r) => !r)}
+            aria-label={lang === "id" ? "Putar 180°" : "Rotate 180°"}
+            title={lang === "id" ? "Kalau gambar terbalik, ketuk ini" : "If the image looks upside down, tap this"}
+            className="absolute top-2 right-2 grid place-items-center w-9 h-9 rounded-full bg-background/80 backdrop-blur border border-border text-foreground"
+          >
+            <RotateCw size={16} />
+          </button>
+        </div>
       ) : (
         <div className="w-full max-w-sm rounded-2xl border border-dashed border-border grid place-items-center aspect-video text-muted-foreground text-xs text-center p-4 gap-2">
           <Video size={28} />
           {stage === "error" ? error : lang === "id" ? "Menyiapkan webcam…" : "Setting up webcam…"}
         </div>
       )}
+      {captureError && <p className="text-xs text-destructive text-center">{captureError}</p>}
       <div className="flex gap-3 w-full max-w-sm">
         <button onClick={onClose} className="flex-1 rounded-xl border border-border py-2.5 text-sm font-semibold">
           {lang === "id" ? "Batal" : "Cancel"}
