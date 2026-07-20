@@ -1,14 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { QrCode, Copy, Check, Crown, Loader2 } from "lucide-react";
+import { QrCode, Copy, Check, Crown, Loader2, Tag } from "lucide-react";
 import qrisAsset from "@/assets/qris.png.asset.json";
 import {
   PLANS, formatIDR, createOrder, type PlanId, type OrderRecord,
 } from "@/lib/aurora-store";
+import { getDiscount, isDiscountValid, discountAppliesToPlan, discountAppliesToGroup, applyDiscount, setUserGroupId } from "@/lib/discounts-store";
 
 export const Route = createFileRoute("/store/order")({
   validateSearch: (s: Record<string, unknown>) => ({
     plan: (s.plan as PlanId) ?? "quarterly",
+    discount: typeof s.discount === "string" ? (s.discount as string) : undefined,
+    group: typeof s.group === "string" ? (s.group as string) : undefined,
   }),
   component: OrderPage,
 });
