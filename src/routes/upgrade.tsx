@@ -1,10 +1,10 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Crown, Check, Tag, Users, ArrowRight } from "lucide-react";
 import { PLANS, formatIDR, type PlanId } from "@/lib/aurora-store";
 import {
-  useUserGroupId, setUserGroupId, findGroupByCode, bestDiscountFor,
-  useGroups, useDiscounts,
+  useUserGroupId, setUserGroupId, findGroupByCode, findGroupById, bestDiscountFor,
+  useDiscounts, type CustomerGroup,
 } from "@/lib/discounts-store";
 
 export const Route = createFileRoute("/upgrade")({
@@ -20,22 +20,26 @@ export const Route = createFileRoute("/upgrade")({
 function UpgradePage() {
   const navigate = useNavigate();
   const userGroupId = useUserGroupId();
-  const groups = useGroups();
-  // Re-render when discounts change (validity/toggle from admin)
-  useDiscounts();
+  const discounts = useDiscounts();
 
   const [code, setCode] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [currentGroup, setCurrentGroup] = useState<CustomerGroup | null>(null);
 
-  const currentGroup = useMemo(
-    () => groups.find((g) => g.id === userGroupId) || null,
-    [groups, userGroupId],
-  );
+  useEffect(() => {
+    if (userGroupId && !currentGroup) {
+      findGroupById(userGroupId).then((g) => g && setCurrentGroup(g));
+    }
+  }, [userGroupId, currentGroup]);
 
-  function redeem() {
-    const g = findGroupByCode(code);
+  async function redeem() {
+    setChecking(true);
+    const g = await findGroupByCode(code);
+    setChecking(false);
     if (!g) { setMsg("Invalid group code."); return; }
     setUserGroupId(g.id);
+    setCurrentGroup(g);
     setCode("");
     setMsg(`Group applied: ${g.name}`);
     setTimeout(() => setMsg(null), 2000);
@@ -43,12 +47,13 @@ function UpgradePage() {
 
   function clearGroup() {
     setUserGroupId(null);
+    setCurrentGroup(null);
     setMsg("Group cleared.");
     setTimeout(() => setMsg(null), 1500);
   }
 
   function choosePlan(planId: PlanId) {
-    const best = bestDiscountFor(planId, userGroupId);
+    const best = bestDiscountFor(planId, userGroupId, discounts);
     navigate({
       to: "/store/order",
       search: {
@@ -111,10 +116,10 @@ function UpgradePage() {
               />
               <button
                 onClick={redeem}
-                disabled={!code.trim()}
+                disabled={!code.trim() || checking}
                 className="rounded-full bg-primary text-primary-foreground px-4 text-xs font-semibold disabled:opacity-40"
               >
-                Apply
+                {checking ? "…" : "Apply"}
               </button>
             </div>
           )}
@@ -124,7 +129,7 @@ function UpgradePage() {
         {/* Plans */}
         <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {PLANS.map((p) => {
-            const best = bestDiscountFor(p.id, userGroupId);
+            const best = bestDiscountFor(p.id, userGroupId, discounts);
             const finalPrice = best ? best.finalPrice : p.priceIDR;
             const discounted = !!best;
             return (

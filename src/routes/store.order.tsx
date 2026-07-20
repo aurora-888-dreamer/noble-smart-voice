@@ -5,7 +5,7 @@ import qrisAsset from "@/assets/qris.png.asset.json";
 import {
   PLANS, formatIDR, createOrder, type PlanId, type OrderRecord,
 } from "@/lib/aurora-store";
-import { getDiscount, isDiscountValid, discountAppliesToPlan, discountAppliesToGroup, applyDiscount, setUserGroupId } from "@/lib/discounts-store";
+import { getDiscount, isDiscountValid, discountAppliesToPlan, discountAppliesToGroup, applyDiscount, setUserGroupId, useDiscounts } from "@/lib/discounts-store";
 
 export const Route = createFileRoute("/store/order")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -29,18 +29,19 @@ function OrderPage() {
   const [copied, setCopied] = useState(false);
 
   const plan = useMemo(() => PLANS.find((p) => p.id === planId)!, [planId]);
+  const discounts = useDiscounts();
 
   // Validate the discount against the current plan/group. If the user swaps
   // to a plan the discount doesn't cover, we quietly drop it.
   const activeDiscount = useMemo(() => {
     if (!discountId) return null;
-    const d = getDiscount(discountId);
+    const d = getDiscount(discountId, discounts);
     if (!d) return null;
     if (!isDiscountValid(d)) return null;
     if (!discountAppliesToPlan(d, planId)) return null;
     if (!discountAppliesToGroup(d, groupId ?? null)) return null;
     return d;
-  }, [discountId, planId, groupId]);
+  }, [discountId, planId, groupId, discounts]);
 
   const finalPrice = activeDiscount ? applyDiscount(plan, activeDiscount) : plan.priceIDR;
 

@@ -11,7 +11,7 @@ import {
   wipeAllOrders, formatIDR, statusLabel, type OrderRecord, type OrderStatus, PLANS, type PlanId,
 } from "@/lib/aurora-store";
 import {
-  useDiscounts, useGroups, upsertDiscount, deleteDiscount, upsertGroup, deleteGroup,
+  useAdminDiscounts, useAdminGroups, upsertDiscount, deleteDiscount, upsertGroup, deleteGroup,
   type Discount, type DiscountKind, type CustomerGroup,
 } from "@/lib/discounts-store";
 import { PLUGIN_REGISTRY } from "@/lib/plugins";
@@ -193,7 +193,7 @@ function AdminDashboard({ adminPassword }: { adminPassword: string }) {
 
       {tab === "analytics" && <AnalyticsTab orders={orders} />}
       {tab === "customers" && <CustomersTab orders={orders} />}
-      {tab === "discounts" && <DiscountsTab />}
+      {tab === "discounts" && <DiscountsTab adminPassword={adminPassword} />}
       {tab === "tools" && <ToolsTab orders={orders} adminPassword={adminPassword} />}
       {tab === "settings" && <SettingsTab orders={orders} adminPassword={adminPassword} />}
     </div>
@@ -878,19 +878,14 @@ function DangerZone({ orders, adminPassword }: { orders: OrderRecord[]; adminPas
 }
 
 // ————————— Discounts & Groups (still local-only — flagged separately) —————————
-function DiscountsTab() {
-  const discounts = useDiscounts();
-  const groups = useGroups();
+function DiscountsTab({ adminPassword }: { adminPassword: string }) {
+  const discounts = useAdminDiscounts(adminPassword);
+  const groups = useAdminGroups(adminPassword);
   const [editing, setEditing] = useState<Discount | null>(null);
   const [showNew, setShowNew] = useState(false);
 
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-accent/40 bg-accent/10 p-3 text-xs text-accent-foreground">
-        Note: Discounts and Groups are still stored per-device for now (not yet moved to Supabase like
-        Orders were) — they won't be visible/usable from a customer's own device until that's migrated too.
-      </div>
-
       {/* Groups */}
       <section className="rounded-2xl bg-card border border-border p-4">
         <div className="flex items-center justify-between mb-3">
@@ -903,7 +898,7 @@ function DiscountsTab() {
           Groups let you target discounts to specific customer segments (e.g. Early Bird, Reseller, VIP).
           Users type the <b>code</b> on the Upgrade page to join.
         </p>
-        <GroupEditor />
+        <GroupEditor adminPassword={adminPassword} />
         {groups.length > 0 && (
           <ul className="mt-3 divide-y divide-border border border-border rounded-xl">
             {groups.map((g) => (
@@ -913,7 +908,7 @@ function DiscountsTab() {
                   <div className="text-xs text-muted-foreground font-mono">{g.code}</div>
                 </div>
                 <button
-                  onClick={() => confirm(`Delete group "${g.name}"?`) && deleteGroup(g.id)}
+                  onClick={() => confirm(`Delete group "${g.name}"?`) && deleteGroup(g.id, adminPassword)}
                   className="text-destructive p-1"
                   aria-label="Delete group"
                 >
@@ -951,6 +946,7 @@ function DiscountsTab() {
                 key={d.id}
                 discount={d}
                 groups={groups}
+                adminPassword={adminPassword}
                 onEdit={() => { setEditing(d); setShowNew(true); }}
               />
             ))}
@@ -961,6 +957,7 @@ function DiscountsTab() {
           <DiscountEditor
             initial={editing}
             groups={groups}
+            adminPassword={adminPassword}
             onClose={() => { setShowNew(false); setEditing(null); }}
           />
         )}
@@ -969,12 +966,15 @@ function DiscountsTab() {
   );
 }
 
-function GroupEditor() {
+function GroupEditor({ adminPassword }: { adminPassword: string }) {
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
-  function save() {
+  const [saving, setSaving] = useState(false);
+  async function save() {
     if (!name.trim() || !code.trim()) return;
-    upsertGroup({ name: name.trim(), code: code.trim() });
+    setSaving(true);
+    await upsertGroup({ name: name.trim(), code: code.trim() }, adminPassword);
+    setSaving(false);
     setName(""); setCode("");
   }
   return (
@@ -993,18 +993,18 @@ function GroupEditor() {
       />
       <button
         onClick={save}
-        disabled={!name.trim() || !code.trim()}
+        disabled={!name.trim() || !code.trim() || saving}
         className="rounded-full bg-primary text-primary-foreground px-4 text-xs font-semibold disabled:opacity-40"
       >
-        Add
+        {saving ? "…" : "Add"}
       </button>
     </div>
   );
 }
 
 function DiscountRow({
-  discount, groups, onEdit,
-}: { discount: Discount; groups: CustomerGroup[]; onEdit: () => void }) {
+  discount, groups, adminPassword, onEdit,
+}: { discount: Discount; groups: CustomerGroup[]; adminPassword: string; onEdit: () => void }) {
   const planNames = discount.planIds.length === 0
     ? "All plans"
     : discount.planIds.map((id) => PLANS.find((p) => p.id === id)?.name ?? id).join(", ");
@@ -1046,7 +1046,7 @@ function DiscountRow({
             <Pencil size={14} />
           </button>
           <button
-            onClick={() => confirm(`Delete discount "${discount.name}"?`) && deleteDiscount(discount.id)}
+            onClick={() => confirm(`Delete discount "${discount.name}"?`) && deleteDiscount(discount.id, adminPassword)}
             className="p-1.5 rounded hover:bg-destructive/20 text-destructive"
             aria-label="Delete"
           >
@@ -1059,8 +1059,8 @@ function DiscountRow({
 }
 
 function DiscountEditor({
-  initial, groups, onClose,
-}: { initial: Discount | null; groups: CustomerGroup[]; onClose: () => void }) {
+  initial, groups, adminPassword, onClose,
+}: { initial: Discount | null; groups: CustomerGroup[]; adminPassword: string; onClose: () => void }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [kind, setKind] = useState<DiscountKind>(initial?.kind ?? "percent");
   const [value, setValue] = useState<number>(initial?.value ?? 10);
@@ -1074,6 +1074,8 @@ function DiscountEditor({
     initial?.validUntil ? new Date(initial.validUntil).toISOString().slice(0, 10) : "",
   );
   const [active, setActive] = useState<boolean>(initial?.active ?? true);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
   function togglePlan(id: PlanId) {
     setPlanIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
@@ -1082,20 +1084,27 @@ function DiscountEditor({
     setGroupIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
   }
 
-  function save() {
+  async function save() {
     if (!name.trim()) return;
-    upsertDiscount({
-      id: initial?.id,
-      name: name.trim(),
-      kind,
-      value: Number(value) || 0,
-      planIds,
-      groupIds,
-      upgradeGroupId: upgradeGroupId || undefined,
-      validFrom: validFrom ? new Date(validFrom).getTime() : null,
-      validUntil: validUntil ? new Date(validUntil + "T23:59:59").getTime() : null,
-      active,
-    });
+    setSaving(true);
+    setErr(null);
+    const res = await upsertDiscount(
+      {
+        id: initial?.id,
+        name: name.trim(),
+        kind,
+        value: Number(value) || 0,
+        planIds,
+        groupIds,
+        upgradeGroupId: upgradeGroupId || undefined,
+        validFrom: validFrom ? new Date(validFrom).getTime() : null,
+        validUntil: validUntil ? new Date(validUntil + "T23:59:59").getTime() : null,
+        active,
+      },
+      adminPassword,
+    );
+    setSaving(false);
+    if (!res.ok) { setErr(res.error); return; }
     onClose();
   }
 
@@ -1235,6 +1244,8 @@ function DiscountEditor({
             <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
             Active
           </label>
+
+          {err && <p className="text-xs text-destructive">{err}</p>}
         </div>
 
         <div className="mt-5 flex justify-end gap-2">
@@ -1243,10 +1254,10 @@ function DiscountEditor({
           </button>
           <button
             onClick={save}
-            disabled={!name.trim()}
+            disabled={!name.trim() || saving}
             className="rounded-full bg-primary text-primary-foreground px-4 py-2 text-xs font-semibold disabled:opacity-40"
           >
-            {initial ? "Save changes" : "Create discount"}
+            {saving ? "Saving…" : initial ? "Save changes" : "Create discount"}
           </button>
         </div>
       </div>
