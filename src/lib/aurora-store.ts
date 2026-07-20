@@ -43,6 +43,10 @@ export interface OrderRecord {
   tier: PlanTier;
   durationDays: number | null;
   priceIDR: number;
+  originalPriceIDR?: number; // list price before discount, if any
+  discountId?: string;
+  discountLabel?: string;
+  groupId?: string; // customer group at time of order
   buyer: {
     name: string;
     email: string;
