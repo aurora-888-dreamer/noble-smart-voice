@@ -171,8 +171,6 @@ const dict = {
     recMinutes: "minutes",
     recNothingCaptured: "Nothing was captured.",
     diary: "Diary",
-    trip: "Trip",
-    project: "Project",
     openProject: "Open project",
     activityLog: "Activity & Plans",
     addActivity: "Add entry",
