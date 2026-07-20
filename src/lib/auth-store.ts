@@ -264,6 +264,7 @@ export function activatePremium(code: string): boolean {
     // paid plans exist (30/90/365-day, standard/premium), issue those
     // through a separate flow that sets a real durationDays here instead.
     durationDays: null,
+    activatedAt: Date.now(),
   });
   setPremiumTestOverride(false);
   return true;
