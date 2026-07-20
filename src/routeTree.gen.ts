@@ -10,49 +10,45 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TripsRouteImport } from './routes/trips'
-import { Route as TermsRouteImport } from './routes/terms'
-import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as TranslateRouteImport } from './routes/translate'
-import { Route as RecordRouteImport } from './routes/record'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as TasksRouteImport } from './routes/tasks'
-import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SyncRouteImport } from './routes/sync'
+import { Route as StoreRouteImport } from './routes/store'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as RemindersRouteImport } from './routes/reminders'
 import { Route as RegisterRouteImport } from './routes/register'
+import { Route as RecordRouteImport } from './routes/record'
 import { Route as ReceiveRouteImport } from './routes/receive'
 import { Route as ProjectsRouteImport } from './routes/projects'
-import { Route as ProjectsIdRouteImport } from './routes/projects.$id'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as NotesRouteImport } from './routes/notes'
-import { Route as MeetingsRouteImport } from './routes/meetings'
 import { Route as MessagesRouteImport } from './routes/messages'
+import { Route as MeetingsRouteImport } from './routes/meetings'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as GuideRouteImport } from './routes/guide'
-import { Route as AdminRouteImport } from './routes/admin'
-import { Route as BackupRouteImport } from './routes/backup'
-import { Route as ContactsRouteImport } from './routes/contacts'
 import { Route as DiaryRouteImport } from './routes/diary'
-import { Route as CalculatorRouteImport } from './routes/calculator'
+import { Route as ContactsRouteImport } from './routes/contacts'
 import { Route as CameraRouteImport } from './routes/camera'
 import { Route as CalendarRouteImport } from './routes/calendar'
+import { Route as CalculatorRouteImport } from './routes/calculator'
+import { Route as BackupRouteImport } from './routes/backup'
 import { Route as AppointmentsRouteImport } from './routes/appointments'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as ActivateRouteImport } from './routes/activate'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as StoreIndexRouteImport } from './routes/store.index'
+import { Route as StoreTermsRouteImport } from './routes/store.terms'
+import { Route as StorePrivacyRouteImport } from './routes/store.privacy'
+import { Route as StoreOrderRouteImport } from './routes/store.order'
+import { Route as StoreAdminRouteImport } from './routes/store.admin'
+import { Route as ProjectsIdRouteImport } from './routes/projects.$id'
 
 const TripsRoute = TripsRouteImport.update({
   id: '/trips',
   path: '/trips',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TermsRoute = TermsRouteImport.update({
-  id: '/terms',
-  path: '/terms',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PrivacyRoute = PrivacyRouteImport.update({
-  id: '/privacy',
-  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TranslateRoute = TranslateRouteImport.update({
@@ -60,9 +56,9 @@ const TranslateRoute = TranslateRouteImport.update({
   path: '/translate',
   getParentRoute: () => rootRouteImport,
 } as any)
-const RecordRoute = RecordRouteImport.update({
-  id: '/record',
-  path: '/record',
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TasksRoute = TasksRouteImport.update({
@@ -70,14 +66,19 @@ const TasksRoute = TasksRouteImport.update({
   path: '/tasks',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const SyncRoute = SyncRouteImport.update({
   id: '/sync',
   path: '/sync',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StoreRoute = StoreRouteImport.update({
+  id: '/store',
+  path: '/store',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RemindersRoute = RemindersRouteImport.update({
@@ -90,6 +91,11 @@ const RegisterRoute = RegisterRouteImport.update({
   path: '/register',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RecordRoute = RecordRouteImport.update({
+  id: '/record',
+  path: '/record',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReceiveRoute = ReceiveRouteImport.update({
   id: '/receive',
   path: '/receive',
@@ -100,9 +106,9 @@ const ProjectsRoute = ProjectsRouteImport.update({
   path: '/projects',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProjectsIdRoute = ProjectsIdRouteImport.update({
-  id: '/projects/$id',
-  path: '/projects/$id',
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OnboardingRoute = OnboardingRouteImport.update({
@@ -115,14 +121,14 @@ const NotesRoute = NotesRouteImport.update({
   path: '/notes',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MeetingsRoute = MeetingsRouteImport.update({
-  id: '/meetings',
-  path: '/meetings',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const MessagesRoute = MessagesRouteImport.update({
   id: '/messages',
   path: '/messages',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MeetingsRoute = MeetingsRouteImport.update({
+  id: '/meetings',
+  path: '/meetings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -135,29 +141,14 @@ const GuideRoute = GuideRouteImport.update({
   path: '/guide',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminRoute = AdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const BackupRoute = BackupRouteImport.update({
-  id: '/backup',
-  path: '/backup',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ContactsRoute = ContactsRouteImport.update({
-  id: '/contacts',
-  path: '/contacts',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const DiaryRoute = DiaryRouteImport.update({
   id: '/diary',
   path: '/diary',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CalculatorRoute = CalculatorRouteImport.update({
-  id: '/calculator',
-  path: '/calculator',
+const ContactsRoute = ContactsRouteImport.update({
+  id: '/contacts',
+  path: '/contacts',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CameraRoute = CameraRouteImport.update({
@@ -170,9 +161,24 @@ const CalendarRoute = CalendarRouteImport.update({
   path: '/calendar',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CalculatorRoute = CalculatorRouteImport.update({
+  id: '/calculator',
+  path: '/calculator',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BackupRoute = BackupRouteImport.update({
+  id: '/backup',
+  path: '/backup',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppointmentsRoute = AppointmentsRouteImport.update({
   id: '/appointments',
   path: '/appointments',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ActivateRoute = ActivateRouteImport.update({
@@ -190,17 +196,47 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StoreIndexRoute = StoreIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => StoreRoute,
+} as any)
+const StoreTermsRoute = StoreTermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => StoreRoute,
+} as any)
+const StorePrivacyRoute = StorePrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => StoreRoute,
+} as any)
+const StoreOrderRoute = StoreOrderRouteImport.update({
+  id: '/order',
+  path: '/order',
+  getParentRoute: () => StoreRoute,
+} as any)
+const StoreAdminRoute = StoreAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => StoreRoute,
+} as any)
+const ProjectsIdRoute = ProjectsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ProjectsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/activate': typeof ActivateRoute
-  '/appointments': typeof AppointmentsRoute
-  '/calculator': typeof CalculatorRoute
-  '/camera': typeof CameraRoute
-  '/calendar': typeof CalendarRoute
   '/admin': typeof AdminRoute
+  '/appointments': typeof AppointmentsRoute
   '/backup': typeof BackupRoute
+  '/calculator': typeof CalculatorRoute
+  '/calendar': typeof CalendarRoute
+  '/camera': typeof CameraRoute
   '/contacts': typeof ContactsRoute
   '/diary': typeof DiaryRoute
   '/guide': typeof GuideRoute
@@ -209,30 +245,36 @@ export interface FileRoutesByFullPath {
   '/messages': typeof MessagesRoute
   '/notes': typeof NotesRoute
   '/onboarding': typeof OnboardingRoute
-  '/projects': typeof ProjectsRoute
-  '/projects/$id': typeof ProjectsIdRoute
+  '/privacy': typeof PrivacyRoute
+  '/projects': typeof ProjectsRouteWithChildren
   '/receive': typeof ReceiveRoute
   '/record': typeof RecordRoute
   '/register': typeof RegisterRoute
   '/reminders': typeof RemindersRoute
   '/settings': typeof SettingsRoute
+  '/store': typeof StoreRouteWithChildren
   '/sync': typeof SyncRoute
   '/tasks': typeof TasksRoute
-  '/trips': typeof TripsRoute
   '/terms': typeof TermsRoute
-  '/privacy': typeof PrivacyRoute
   '/translate': typeof TranslateRoute
+  '/trips': typeof TripsRoute
+  '/projects/$id': typeof ProjectsIdRoute
+  '/store/admin': typeof StoreAdminRoute
+  '/store/order': typeof StoreOrderRoute
+  '/store/privacy': typeof StorePrivacyRoute
+  '/store/terms': typeof StoreTermsRoute
+  '/store/': typeof StoreIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/activate': typeof ActivateRoute
-  '/appointments': typeof AppointmentsRoute
-  '/calculator': typeof CalculatorRoute
-  '/camera': typeof CameraRoute
-  '/calendar': typeof CalendarRoute
   '/admin': typeof AdminRoute
+  '/appointments': typeof AppointmentsRoute
   '/backup': typeof BackupRoute
+  '/calculator': typeof CalculatorRoute
+  '/calendar': typeof CalendarRoute
+  '/camera': typeof CameraRoute
   '/contacts': typeof ContactsRoute
   '/diary': typeof DiaryRoute
   '/guide': typeof GuideRoute
@@ -241,8 +283,8 @@ export interface FileRoutesByTo {
   '/messages': typeof MessagesRoute
   '/notes': typeof NotesRoute
   '/onboarding': typeof OnboardingRoute
-  '/projects': typeof ProjectsRoute
-  '/projects/$id': typeof ProjectsIdRoute
+  '/privacy': typeof PrivacyRoute
+  '/projects': typeof ProjectsRouteWithChildren
   '/receive': typeof ReceiveRoute
   '/record': typeof RecordRoute
   '/register': typeof RegisterRoute
@@ -250,22 +292,27 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/sync': typeof SyncRoute
   '/tasks': typeof TasksRoute
-  '/trips': typeof TripsRoute
   '/terms': typeof TermsRoute
-  '/privacy': typeof PrivacyRoute
   '/translate': typeof TranslateRoute
+  '/trips': typeof TripsRoute
+  '/projects/$id': typeof ProjectsIdRoute
+  '/store/admin': typeof StoreAdminRoute
+  '/store/order': typeof StoreOrderRoute
+  '/store/privacy': typeof StorePrivacyRoute
+  '/store/terms': typeof StoreTermsRoute
+  '/store': typeof StoreIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/activate': typeof ActivateRoute
-  '/appointments': typeof AppointmentsRoute
-  '/calculator': typeof CalculatorRoute
-  '/camera': typeof CameraRoute
-  '/calendar': typeof CalendarRoute
   '/admin': typeof AdminRoute
+  '/appointments': typeof AppointmentsRoute
   '/backup': typeof BackupRoute
+  '/calculator': typeof CalculatorRoute
+  '/calendar': typeof CalendarRoute
+  '/camera': typeof CameraRoute
   '/contacts': typeof ContactsRoute
   '/diary': typeof DiaryRoute
   '/guide': typeof GuideRoute
@@ -274,19 +321,25 @@ export interface FileRoutesById {
   '/messages': typeof MessagesRoute
   '/notes': typeof NotesRoute
   '/onboarding': typeof OnboardingRoute
-  '/projects': typeof ProjectsRoute
-  '/projects/$id': typeof ProjectsIdRoute
+  '/privacy': typeof PrivacyRoute
+  '/projects': typeof ProjectsRouteWithChildren
   '/receive': typeof ReceiveRoute
   '/record': typeof RecordRoute
   '/register': typeof RegisterRoute
   '/reminders': typeof RemindersRoute
   '/settings': typeof SettingsRoute
+  '/store': typeof StoreRouteWithChildren
   '/sync': typeof SyncRoute
   '/tasks': typeof TasksRoute
-  '/trips': typeof TripsRoute
   '/terms': typeof TermsRoute
-  '/privacy': typeof PrivacyRoute
   '/translate': typeof TranslateRoute
+  '/trips': typeof TripsRoute
+  '/projects/$id': typeof ProjectsIdRoute
+  '/store/admin': typeof StoreAdminRoute
+  '/store/order': typeof StoreOrderRoute
+  '/store/privacy': typeof StorePrivacyRoute
+  '/store/terms': typeof StoreTermsRoute
+  '/store/': typeof StoreIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -294,12 +347,12 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/activate'
-    | '/appointments'
-    | '/calculator'
-    | '/camera'
-    | '/calendar'
     | '/admin'
+    | '/appointments'
     | '/backup'
+    | '/calculator'
+    | '/calendar'
+    | '/camera'
     | '/contacts'
     | '/diary'
     | '/guide'
@@ -308,30 +361,36 @@ export interface FileRouteTypes {
     | '/messages'
     | '/notes'
     | '/onboarding'
+    | '/privacy'
     | '/projects'
-    | '/projects/$id'
     | '/receive'
     | '/record'
     | '/register'
     | '/reminders'
     | '/settings'
+    | '/store'
     | '/sync'
     | '/tasks'
-    | '/trips'
     | '/terms'
-    | '/privacy'
     | '/translate'
+    | '/trips'
+    | '/projects/$id'
+    | '/store/admin'
+    | '/store/order'
+    | '/store/privacy'
+    | '/store/terms'
+    | '/store/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/about'
     | '/activate'
-    | '/appointments'
-    | '/calculator'
-    | '/camera'
-    | '/calendar'
     | '/admin'
+    | '/appointments'
     | '/backup'
+    | '/calculator'
+    | '/calendar'
+    | '/camera'
     | '/contacts'
     | '/diary'
     | '/guide'
@@ -340,8 +399,8 @@ export interface FileRouteTypes {
     | '/messages'
     | '/notes'
     | '/onboarding'
+    | '/privacy'
     | '/projects'
-    | '/projects/$id'
     | '/receive'
     | '/record'
     | '/register'
@@ -349,21 +408,26 @@ export interface FileRouteTypes {
     | '/settings'
     | '/sync'
     | '/tasks'
-    | '/trips'
     | '/terms'
-    | '/privacy'
     | '/translate'
+    | '/trips'
+    | '/projects/$id'
+    | '/store/admin'
+    | '/store/order'
+    | '/store/privacy'
+    | '/store/terms'
+    | '/store'
   id:
     | '__root__'
     | '/'
     | '/about'
     | '/activate'
-    | '/appointments'
-    | '/calculator'
-    | '/camera'
-    | '/calendar'
     | '/admin'
+    | '/appointments'
     | '/backup'
+    | '/calculator'
+    | '/calendar'
+    | '/camera'
     | '/contacts'
     | '/diary'
     | '/guide'
@@ -372,39 +436,57 @@ export interface FileRouteTypes {
     | '/messages'
     | '/notes'
     | '/onboarding'
+    | '/privacy'
     | '/projects'
-    | '/projects/$id'
     | '/receive'
     | '/record'
     | '/register'
     | '/reminders'
     | '/settings'
+    | '/store'
     | '/sync'
     | '/tasks'
-    | '/trips'
     | '/terms'
-    | '/privacy'
     | '/translate'
+    | '/trips'
+    | '/projects/$id'
+    | '/store/admin'
+    | '/store/order'
+    | '/store/privacy'
+    | '/store/terms'
+    | '/store/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
   ActivateRoute: typeof ActivateRoute
+  AdminRoute: typeof AdminRoute
   AppointmentsRoute: typeof AppointmentsRoute
+  BackupRoute: typeof BackupRoute
+  CalculatorRoute: typeof CalculatorRoute
   CalendarRoute: typeof CalendarRoute
+  CameraRoute: typeof CameraRoute
   ContactsRoute: typeof ContactsRoute
+  DiaryRoute: typeof DiaryRoute
   GuideRoute: typeof GuideRoute
   LoginRoute: typeof LoginRoute
   MeetingsRoute: typeof MeetingsRoute
+  MessagesRoute: typeof MessagesRoute
   NotesRoute: typeof NotesRoute
   OnboardingRoute: typeof OnboardingRoute
-  ProjectsRoute: typeof ProjectsRoute
+  PrivacyRoute: typeof PrivacyRoute
+  ProjectsRoute: typeof ProjectsRouteWithChildren
   ReceiveRoute: typeof ReceiveRoute
+  RecordRoute: typeof RecordRoute
   RegisterRoute: typeof RegisterRoute
   RemindersRoute: typeof RemindersRoute
   SettingsRoute: typeof SettingsRoute
+  StoreRoute: typeof StoreRouteWithChildren
+  SyncRoute: typeof SyncRoute
   TasksRoute: typeof TasksRoute
+  TermsRoute: typeof TermsRoute
+  TranslateRoute: typeof TranslateRoute
   TripsRoute: typeof TripsRoute
 }
 
@@ -417,25 +499,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TripsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/terms': {
-      id: '/terms'
-      path: '/terms'
-      fullPath: '/terms'
-      preLoaderRoute: typeof TermsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/privacy': {
-      id: '/privacy'
-      path: '/privacy'
-      fullPath: '/privacy'
-      preLoaderRoute: typeof PrivacyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/translate': {
       id: '/translate'
       path: '/translate'
       fullPath: '/translate'
       preLoaderRoute: typeof TranslateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/tasks': {
@@ -445,18 +520,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TasksRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/sync': {
       id: '/sync'
       path: '/sync'
       fullPath: '/sync'
       preLoaderRoute: typeof SyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/store': {
+      id: '/store'
+      path: '/store'
+      fullPath: '/store'
+      preLoaderRoute: typeof StoreRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reminders': {
@@ -473,18 +555,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RegisterRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/receive': {
-      id: '/receive'
-      path: '/receive'
-      fullPath: '/receive'
-      preLoaderRoute: typeof ReceiveRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/record': {
       id: '/record'
       path: '/record'
       fullPath: '/record'
       preLoaderRoute: typeof RecordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/receive': {
+      id: '/receive'
+      path: '/receive'
+      fullPath: '/receive'
+      preLoaderRoute: typeof ReceiveRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/projects': {
@@ -494,11 +576,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/projects/$id': {
-      id: '/projects/$id'
-      path: '/projects/$id'
-      fullPath: '/projects/$id'
-      preLoaderRoute: typeof ProjectsIdRouteImport
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/onboarding': {
@@ -515,18 +597,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NotesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/meetings': {
-      id: '/meetings'
-      path: '/meetings'
-      fullPath: '/meetings'
-      preLoaderRoute: typeof MeetingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/messages': {
       id: '/messages'
       path: '/messages'
       fullPath: '/messages'
       preLoaderRoute: typeof MessagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/meetings': {
+      id: '/meetings'
+      path: '/meetings'
+      fullPath: '/meetings'
+      preLoaderRoute: typeof MeetingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -543,27 +625,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GuideRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin': {
-      id: '/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AdminRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/backup': {
-      id: '/backup'
-      path: '/backup'
-      fullPath: '/backup'
-      preLoaderRoute: typeof BackupRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/contacts': {
-      id: '/contacts'
-      path: '/contacts'
-      fullPath: '/contacts'
-      preLoaderRoute: typeof ContactsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/diary': {
       id: '/diary'
       path: '/diary'
@@ -571,11 +632,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DiaryRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/calculator': {
-      id: '/calculator'
-      path: '/calculator'
-      fullPath: '/calculator'
-      preLoaderRoute: typeof CalculatorRouteImport
+    '/contacts': {
+      id: '/contacts'
+      path: '/contacts'
+      fullPath: '/contacts'
+      preLoaderRoute: typeof ContactsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/camera': {
@@ -592,11 +653,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CalendarRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/calculator': {
+      id: '/calculator'
+      path: '/calculator'
+      fullPath: '/calculator'
+      preLoaderRoute: typeof CalculatorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/backup': {
+      id: '/backup'
+      path: '/backup'
+      fullPath: '/backup'
+      preLoaderRoute: typeof BackupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/appointments': {
       id: '/appointments'
       path: '/appointments'
       fullPath: '/appointments'
       preLoaderRoute: typeof AppointmentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/activate': {
@@ -620,19 +702,91 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/store/': {
+      id: '/store/'
+      path: '/'
+      fullPath: '/store/'
+      preLoaderRoute: typeof StoreIndexRouteImport
+      parentRoute: typeof StoreRoute
+    }
+    '/store/terms': {
+      id: '/store/terms'
+      path: '/terms'
+      fullPath: '/store/terms'
+      preLoaderRoute: typeof StoreTermsRouteImport
+      parentRoute: typeof StoreRoute
+    }
+    '/store/privacy': {
+      id: '/store/privacy'
+      path: '/privacy'
+      fullPath: '/store/privacy'
+      preLoaderRoute: typeof StorePrivacyRouteImport
+      parentRoute: typeof StoreRoute
+    }
+    '/store/order': {
+      id: '/store/order'
+      path: '/order'
+      fullPath: '/store/order'
+      preLoaderRoute: typeof StoreOrderRouteImport
+      parentRoute: typeof StoreRoute
+    }
+    '/store/admin': {
+      id: '/store/admin'
+      path: '/admin'
+      fullPath: '/store/admin'
+      preLoaderRoute: typeof StoreAdminRouteImport
+      parentRoute: typeof StoreRoute
+    }
+    '/projects/$id': {
+      id: '/projects/$id'
+      path: '/$id'
+      fullPath: '/projects/$id'
+      preLoaderRoute: typeof ProjectsIdRouteImport
+      parentRoute: typeof ProjectsRoute
+    }
   }
 }
+
+interface ProjectsRouteChildren {
+  ProjectsIdRoute: typeof ProjectsIdRoute
+}
+
+const ProjectsRouteChildren: ProjectsRouteChildren = {
+  ProjectsIdRoute: ProjectsIdRoute,
+}
+
+const ProjectsRouteWithChildren = ProjectsRoute._addFileChildren(
+  ProjectsRouteChildren,
+)
+
+interface StoreRouteChildren {
+  StoreAdminRoute: typeof StoreAdminRoute
+  StoreOrderRoute: typeof StoreOrderRoute
+  StorePrivacyRoute: typeof StorePrivacyRoute
+  StoreTermsRoute: typeof StoreTermsRoute
+  StoreIndexRoute: typeof StoreIndexRoute
+}
+
+const StoreRouteChildren: StoreRouteChildren = {
+  StoreAdminRoute: StoreAdminRoute,
+  StoreOrderRoute: StoreOrderRoute,
+  StorePrivacyRoute: StorePrivacyRoute,
+  StoreTermsRoute: StoreTermsRoute,
+  StoreIndexRoute: StoreIndexRoute,
+}
+
+const StoreRouteWithChildren = StoreRoute._addFileChildren(StoreRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   ActivateRoute: ActivateRoute,
-  AppointmentsRoute: AppointmentsRoute,
-  CalculatorRoute: CalculatorRoute,
-  CameraRoute: CameraRoute,
-  CalendarRoute: CalendarRoute,
   AdminRoute: AdminRoute,
+  AppointmentsRoute: AppointmentsRoute,
   BackupRoute: BackupRoute,
+  CalculatorRoute: CalculatorRoute,
+  CalendarRoute: CalendarRoute,
+  CameraRoute: CameraRoute,
   ContactsRoute: ContactsRoute,
   DiaryRoute: DiaryRoute,
   GuideRoute: GuideRoute,
@@ -641,19 +795,19 @@ const rootRouteChildren: RootRouteChildren = {
   MessagesRoute: MessagesRoute,
   NotesRoute: NotesRoute,
   OnboardingRoute: OnboardingRoute,
-  ProjectsRoute: ProjectsRoute,
-  ProjectsIdRoute: ProjectsIdRoute,
+  PrivacyRoute: PrivacyRoute,
+  ProjectsRoute: ProjectsRouteWithChildren,
   ReceiveRoute: ReceiveRoute,
   RecordRoute: RecordRoute,
   RegisterRoute: RegisterRoute,
   RemindersRoute: RemindersRoute,
   SettingsRoute: SettingsRoute,
+  StoreRoute: StoreRouteWithChildren,
   SyncRoute: SyncRoute,
   TasksRoute: TasksRoute,
-  TripsRoute: TripsRoute,
   TermsRoute: TermsRoute,
-  PrivacyRoute: PrivacyRoute,
   TranslateRoute: TranslateRoute,
+  TripsRoute: TripsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

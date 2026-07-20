@@ -2,12 +2,13 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
   Lock, LogOut, ShieldCheck, Search, Trash2, CheckCircle2, Send,
-  KeyRound, Download, Copy, Check, RefreshCw,
+  KeyRound, Download, Copy, Check, RefreshCw, TrendingUp, Users, Megaphone,
+  AlertTriangle, Mail,
 } from "lucide-react";
 import {
   useOrders, useAdmin, adminLogin, adminLogout, setAdminPassword, getAdminPassword,
   markPaid, markDelivered, cancelOrder, deleteOrder, generateSerial, verifySerial,
-  formatIDR, statusLabel, type OrderRecord, type OrderStatus, PLANS,
+  formatIDR, statusLabel, type OrderRecord, type OrderStatus, PLANS, type PlanId,
 } from "@/lib/aurora-store";
 import { PLUGIN_REGISTRY } from "@/lib/plugins";
 
@@ -62,7 +63,7 @@ function AdminDashboard() {
   const orders = useOrders();
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | OrderStatus>("all");
-  const [tab, setTab] = useState<"orders" | "tools" | "settings">("orders");
+  const [tab, setTab] = useState<"orders" | "analytics" | "customers" | "tools" | "settings">("orders");
 
   const filtered = useMemo(() => {
     const qs = q.trim().toLowerCase();
@@ -116,7 +117,7 @@ function AdminDashboard() {
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-border mb-4">
-        {(["orders", "tools", "settings"] as const).map((t) => (
+        {(["orders", "analytics", "customers", "tools", "settings"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -170,6 +171,8 @@ function AdminDashboard() {
         </>
       )}
 
+      {tab === "analytics" && <AnalyticsTab />}
+      {tab === "customers" && <CustomersTab />}
       {tab === "tools" && <ToolsTab />}
       {tab === "settings" && <SettingsTab />}
     </div>
@@ -437,6 +440,201 @@ function ToolsTab() {
   );
 }
 
+function AnalyticsTab() {
+  const orders = useOrders();
+  const now = Date.now();
+  const DAY = 86400_000;
+
+  const paidOrders = orders.filter((o) => o.status === "paid" || o.status === "delivered");
+
+  const byPlan = PLANS.map((p) => {
+    const os = paidOrders.filter((o) => o.planId === p.id);
+    return { plan: p, count: os.length, revenue: os.reduce((s, o) => s + o.priceIDR, 0) };
+  });
+  const maxRev = Math.max(1, ...byPlan.map((b) => b.revenue));
+
+  const windowStats = (days: number) => {
+    const cutoff = now - days * DAY;
+    const os = paidOrders.filter((o) => (o.paidAt ?? o.createdAt) >= cutoff);
+    return { count: os.length, revenue: os.reduce((s, o) => s + o.priceIDR, 0) };
+  };
+  const s7 = windowStats(7);
+  const s30 = windowStats(30);
+  const s90 = windowStats(90);
+
+  // Daily revenue for last 14 days sparkline
+  const buckets: { label: string; revenue: number }[] = [];
+  for (let i = 13; i >= 0; i--) {
+    const start = new Date(now - i * DAY);
+    start.setHours(0, 0, 0, 0);
+    const end = start.getTime() + DAY;
+    const rev = paidOrders
+      .filter((o) => {
+        const t = o.paidAt ?? o.createdAt;
+        return t >= start.getTime() && t < end;
+      })
+      .reduce((s, o) => s + o.priceIDR, 0);
+    buckets.push({ label: `${start.getDate()}/${start.getMonth() + 1}`, revenue: rev });
+  }
+  const maxDay = Math.max(1, ...buckets.map((b) => b.revenue));
+
+  const conversion = orders.length ? Math.round((paidOrders.length / orders.length) * 100) : 0;
+  const avgTicket = paidOrders.length ? Math.round(paidOrders.reduce((s, o) => s + o.priceIDR, 0) / paidOrders.length) : 0;
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Stat label="Revenue · 7d" value={formatIDR(s7.revenue)} />
+        <Stat label="Revenue · 30d" value={formatIDR(s30.revenue)} />
+        <Stat label="Revenue · 90d" value={formatIDR(s90.revenue)} />
+        <Stat label="Avg. Order" value={formatIDR(avgTicket)} />
+      </div>
+
+      <div className="rounded-2xl bg-card border border-border p-4">
+        <div className="flex items-center gap-2 mb-4">
+          <TrendingUp size={16} className="text-primary" />
+          <h3 className="font-semibold">Daily revenue · last 14 days</h3>
+        </div>
+        <div className="flex items-end gap-1.5 h-32">
+          {buckets.map((b, i) => (
+            <div key={i} className="flex-1 flex flex-col items-center gap-1">
+              <div
+                className="w-full rounded-t bg-primary/70 hover:bg-primary transition-colors"
+                style={{ height: `${(b.revenue / maxDay) * 100}%`, minHeight: b.revenue > 0 ? 2 : 0 }}
+                title={formatIDR(b.revenue)}
+              />
+              <span className="text-[9px] text-muted-foreground">{b.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-2xl bg-card border border-border p-4">
+        <h3 className="font-semibold mb-3">Revenue by plan</h3>
+        <div className="space-y-2">
+          {byPlan.map((b) => (
+            <div key={b.plan.id}>
+              <div className="flex items-center justify-between text-xs mb-1">
+                <span className="font-medium">{b.plan.name}</span>
+                <span className="text-muted-foreground">
+                  {b.count} × · <span className="text-primary font-semibold">{formatIDR(b.revenue)}</span>
+                </span>
+              </div>
+              <div className="h-2 rounded-full bg-secondary overflow-hidden">
+                <div
+                  className="h-full bg-primary"
+                  style={{ width: `${(b.revenue / maxRev) * 100}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <Stat label="Conversion" value={`${conversion}%`} />
+        <Stat label="Paid Customers" value={String(paidOrders.length)} />
+      </div>
+    </div>
+  );
+}
+
+interface CustomerAgg {
+  key: string;
+  name: string;
+  email: string;
+  whatsapp: string;
+  orders: number;
+  spent: number;
+  lastAt: number;
+  lastStatus: OrderStatus;
+}
+
+function CustomersTab() {
+  const orders = useOrders();
+  const [q, setQ] = useState("");
+
+  const customers = useMemo(() => {
+    const map = new Map<string, CustomerAgg>();
+    for (const o of orders) {
+      const key = (o.buyer.email || o.buyer.whatsapp || o.buyer.name).toLowerCase();
+      const spent = o.status === "paid" || o.status === "delivered" ? o.priceIDR : 0;
+      const prev = map.get(key);
+      if (prev) {
+        prev.orders += 1;
+        prev.spent += spent;
+        if (o.createdAt > prev.lastAt) {
+          prev.lastAt = o.createdAt;
+          prev.lastStatus = o.status;
+        }
+      } else {
+        map.set(key, {
+          key,
+          name: o.buyer.name,
+          email: o.buyer.email,
+          whatsapp: o.buyer.whatsapp,
+          orders: 1,
+          spent,
+          lastAt: o.createdAt,
+          lastStatus: o.status,
+        });
+      }
+    }
+    const all = Array.from(map.values()).sort((a, b) => b.spent - a.spent || b.lastAt - a.lastAt);
+    const qs = q.trim().toLowerCase();
+    if (!qs) return all;
+    return all.filter(
+      (c) =>
+        c.name.toLowerCase().includes(qs) ||
+        c.email.toLowerCase().includes(qs) ||
+        c.whatsapp.toLowerCase().includes(qs),
+    );
+  }, [orders, q]);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2 rounded-xl bg-card border border-border px-3">
+        <Search size={14} className="text-muted-foreground" />
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search customers…"
+          className="flex-1 bg-transparent py-2 text-sm outline-none"
+        />
+      </div>
+
+      {customers.length === 0 ? (
+        <div className="rounded-2xl bg-card border border-border p-8 text-center text-sm text-muted-foreground">
+          No customers yet.
+        </div>
+      ) : (
+        <div className="rounded-2xl bg-card border border-border overflow-hidden">
+          <div className="grid grid-cols-[1fr_auto_auto] gap-3 px-4 py-2 text-[10px] uppercase tracking-widest text-muted-foreground border-b border-border">
+            <span>Customer</span>
+            <span className="text-right">Orders</span>
+            <span className="text-right">Spent</span>
+          </div>
+          {customers.map((c) => (
+            <div
+              key={c.key}
+              className="grid grid-cols-[1fr_auto_auto] gap-3 px-4 py-3 border-b border-border last:border-0 items-center"
+            >
+              <div className="min-w-0">
+                <div className="text-sm font-semibold truncate">{c.name}</div>
+                <div className="text-xs text-muted-foreground truncate">
+                  {c.email || "—"} {c.whatsapp && `· ${c.whatsapp}`}
+                </div>
+              </div>
+              <div className="text-sm text-right">{c.orders}</div>
+              <div className="text-sm font-bold text-primary text-right">{formatIDR(c.spent)}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SettingsTab() {
   const [newPw, setNewPw] = useState("");
   const [saved, setSaved] = useState(false);
@@ -475,6 +673,10 @@ function SettingsTab() {
         {saved && <p className="text-xs text-primary mt-2">Updated.</p>}
       </div>
 
+      <BroadcastCard />
+
+      <DangerZone />
+
       <div className="rounded-2xl bg-card border border-border p-4 text-xs text-muted-foreground">
         <p className="font-semibold text-foreground mb-1">Note on storage</p>
         <p>
@@ -482,6 +684,146 @@ function SettingsTab() {
           To share the dashboard across devices, plug in Lovable Cloud (Supabase) and migrate
           <code className="font-mono"> aurora-store.ts</code> to server-backed reads.
         </p>
+      </div>
+    </div>
+  );
+}
+
+function BroadcastCard() {
+  const orders = useOrders();
+  const [audience, setAudience] = useState<"all" | OrderStatus | PlanId>("all");
+  const [msg, setMsg] = useState(
+    "Halo {name} 👋\n\nSalam dari AURORA MASTER — kami ingin memberi info terbaru tentang Noble Smart Voice.\n\nTerima kasih!",
+  );
+
+  const recipients = useMemo(() => {
+    const seen = new Set<string>();
+    const list: OrderRecord[] = [];
+    for (const o of orders) {
+      if (!o.buyer.whatsapp) continue;
+      const key = o.buyer.whatsapp.replace(/\D/g, "");
+      if (seen.has(key)) continue;
+      if (audience === "all") {
+        // ok
+      } else if (["pending", "paid", "delivered", "cancelled"].includes(audience)) {
+        if (o.status !== audience) continue;
+      } else {
+        if (o.planId !== audience) continue;
+      }
+      seen.add(key);
+      list.push(o);
+    }
+    return list;
+  }, [orders, audience]);
+
+  function openFirst() {
+    if (recipients.length === 0) return;
+    for (const r of recipients) {
+      const text = encodeURIComponent(msg.replace(/\{name\}/g, r.buyer.name).replace(/\{serial\}/g, r.serial));
+      const url = `https://wa.me/${r.buyer.whatsapp.replace(/\D/g, "")}?text=${text}`;
+      window.open(url, "_blank", "noopener");
+    }
+  }
+
+  function mailtoAll() {
+    const emails = Array.from(
+      new Set(orders.filter((o) => o.buyer.email).map((o) => o.buyer.email)),
+    ).join(",");
+    if (!emails) return;
+    const subject = encodeURIComponent("Update from AURORA MASTER — Noble Smart Voice");
+    const body = encodeURIComponent(msg.replace(/\{name\}/g, "").replace(/\{serial\}/g, ""));
+    window.location.href = `mailto:?bcc=${emails}&subject=${subject}&body=${body}`;
+  }
+
+  return (
+    <div className="rounded-2xl bg-card border border-border p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <Megaphone size={16} className="text-primary" />
+        <h3 className="font-semibold">Broadcast to customers</h3>
+      </div>
+      <p className="text-xs text-muted-foreground mb-3">
+        Use tokens <code className="font-mono">{"{name}"}</code> and{" "}
+        <code className="font-mono">{"{serial}"}</code>. WhatsApp opens one tab per recipient — allow popups.
+      </p>
+      <div className="space-y-2">
+        <select
+          value={audience}
+          onChange={(e) => setAudience(e.target.value as typeof audience)}
+          className="w-full rounded-lg bg-secondary px-3 py-2 text-sm"
+        >
+          <option value="all">All customers ({new Set(orders.map((o) => o.buyer.whatsapp)).size})</option>
+          <option value="pending">Pending payment</option>
+          <option value="paid">Paid</option>
+          <option value="delivered">Delivered</option>
+          {PLANS.map((p) => (
+            <option key={p.id} value={p.id}>Plan · {p.name}</option>
+          ))}
+        </select>
+        <textarea
+          value={msg}
+          onChange={(e) => setMsg(e.target.value)}
+          rows={5}
+          className="w-full rounded-lg bg-secondary px-3 py-2 text-sm outline-none font-mono"
+        />
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-xs text-muted-foreground flex items-center gap-1">
+            <Users size={12} /> {recipients.length} WA recipients
+          </span>
+          <div className="flex gap-2">
+            <button
+              onClick={mailtoAll}
+              className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-xs font-semibold"
+            >
+              <Mail size={12} /> Email all
+            </button>
+            <button
+              onClick={openFirst}
+              disabled={recipients.length === 0}
+              className="inline-flex items-center gap-1 rounded-full bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
+            >
+              <Send size={12} /> Send via WA
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DangerZone() {
+  const orders = useOrders();
+  const [confirmText, setConfirmText] = useState("");
+
+  function wipeAll() {
+    if (confirmText !== "DELETE") return;
+    if (!confirm(`Permanently delete all ${orders.length} orders? This cannot be undone.`)) return;
+    for (const o of orders) deleteOrder(o.id);
+    setConfirmText("");
+  }
+
+  return (
+    <div className="rounded-2xl border border-destructive/40 bg-destructive/5 p-4">
+      <div className="flex items-center gap-2 mb-2">
+        <AlertTriangle size={16} className="text-destructive" />
+        <h3 className="font-semibold text-destructive">Danger zone</h3>
+      </div>
+      <p className="text-xs text-muted-foreground mb-3">
+        Wipe every order on this device. Type <code className="font-mono">DELETE</code> to enable.
+      </p>
+      <div className="flex gap-2">
+        <input
+          value={confirmText}
+          onChange={(e) => setConfirmText(e.target.value)}
+          placeholder="Type DELETE"
+          className="flex-1 rounded-lg bg-secondary px-3 py-2 text-sm outline-none"
+        />
+        <button
+          onClick={wipeAll}
+          disabled={confirmText !== "DELETE"}
+          className="rounded-full bg-destructive text-destructive-foreground px-4 text-xs font-semibold disabled:opacity-40"
+        >
+          Wipe all
+        </button>
       </div>
     </div>
   );
