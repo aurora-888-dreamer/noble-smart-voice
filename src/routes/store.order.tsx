@@ -17,7 +17,7 @@ export const Route = createFileRoute("/store/order")({
 });
 
 function OrderPage() {
-  const { plan: initial } = Route.useSearch();
+  const { plan: initial, discount: discountId, group: groupId } = Route.useSearch();
   const [planId, setPlanId] = useState<PlanId>(initial);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -29,6 +29,20 @@ function OrderPage() {
 
   const plan = useMemo(() => PLANS.find((p) => p.id === planId)!, [planId]);
 
+  // Validate the discount against the current plan/group. If the user swaps
+  // to a plan the discount doesn't cover, we quietly drop it.
+  const activeDiscount = useMemo(() => {
+    if (!discountId) return null;
+    const d = getDiscount(discountId);
+    if (!d) return null;
+    if (!isDiscountValid(d)) return null;
+    if (!discountAppliesToPlan(d, planId)) return null;
+    if (!discountAppliesToGroup(d, groupId ?? null)) return null;
+    return d;
+  }, [discountId, planId, groupId]);
+
+  const finalPrice = activeDiscount ? applyDiscount(plan, activeDiscount) : plan.priceIDR;
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim() || (!email.trim() && !whatsapp.trim())) return;
@@ -37,7 +51,14 @@ function OrderPage() {
       const o = createOrder({
         planId,
         buyer: { name: name.trim(), email: email.trim(), whatsapp: whatsapp.trim(), note: note.trim() || undefined },
+        priceIDR: finalPrice,
+        originalPriceIDR: activeDiscount ? plan.priceIDR : undefined,
+        discountId: activeDiscount?.id,
+        discountLabel: activeDiscount?.name,
+        groupId: groupId,
       });
+      // If the discount promotes to an upgrade group, remember it locally.
+      if (activeDiscount?.upgradeGroupId) setUserGroupId(activeDiscount.upgradeGroupId);
       setOrder(o);
       setSubmitting(false);
     }, 300);
