@@ -67,7 +67,7 @@ function AdminDashboard() {
   const orders = useOrders();
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | OrderStatus>("all");
-  const [tab, setTab] = useState<"orders" | "analytics" | "customers" | "tools" | "settings">("orders");
+  const [tab, setTab] = useState<"orders" | "analytics" | "customers" | "discounts" | "tools" | "settings">("orders");
 
   const filtered = useMemo(() => {
     const qs = q.trim().toLowerCase();
