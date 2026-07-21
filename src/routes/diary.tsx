@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { AppShell } from "@/components/AppShell";
+import { PinGate } from "@/components/PinGate";
 import { CategoryToolbar } from "@/components/CategoryToolbar";
 import { DateRangeFilter, inRange } from "@/components/DateRangeFilter";
 import { SelectionBar } from "@/components/SelectionBar";
@@ -23,6 +24,15 @@ export const Route = createFileRoute("/diary")({
 });
 
 function DiaryPage() {
+  const [lang] = useLang();
+  return (
+    <PinGate storageKey="noble.diaryUnlocked" title={lang === "id" ? "Diary Terkunci" : "Diary Locked"}>
+      <DiaryPageContent />
+    </PinGate>
+  );
+}
+
+function DiaryPageContent() {
   const [lang] = useLang();
   const hasTranslator = usePlugin("translator");
   const [q, setQ] = useState("");
