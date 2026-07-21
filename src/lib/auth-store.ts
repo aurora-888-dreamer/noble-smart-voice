@@ -260,6 +260,7 @@ export function activatePremium(code: string): boolean {
     source: "code",
     code: c,
     tier: "premium",
+    activatedAt: Date.now(),
     // Owner/admin codes and today's promo codes never expire. Once real
     // paid plans exist (30/90/365-day, standard/premium), issue those
     // through a separate flow that sets a real durationDays here instead.

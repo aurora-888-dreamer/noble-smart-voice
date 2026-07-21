@@ -177,6 +177,7 @@ export async function importPacket(
     project: "/projects",
     reminder: "/reminders",
     diary: "/diary",
+    event: "/calendar",
   };
 
   const rows = withStamp(items as Record<string, unknown>[]);

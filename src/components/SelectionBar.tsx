@@ -59,6 +59,7 @@ export function SelectionBar({
     diary: t(lang, "diary"),
     trip: t(lang, "trip"),
     project: t(lang, "project"),
+    event: t(lang, "event"),
   };
 
   return (

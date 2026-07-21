@@ -49,6 +49,10 @@ const TRIGGERS: Record<ItemType, { en: RegExp; id: RegExp }> = {
     en: /^(save (a )?project|new project|project)[\s:,-]+/i,
     id: /^(simpan proyek|proyek baru|proyek)[\s:,-]+/i,
   },
+  event: {
+    en: /^(event|birthday|anniversary)[\s:,-]+/i,
+    id: /^(acara|ulang tahun|hari jadi)[\s:,-]+/i,
+  },
 };
 
 function detectType(text: string, lang: Lang): { type: ItemType; rest: string } {
