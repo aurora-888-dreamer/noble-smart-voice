@@ -72,7 +72,7 @@ async function mergeTable<T extends Syncable>(table: Table<T, number>, remoteRow
       await table.add(rest as T);
       changed++;
     } else if (local.id != null && (remote.updatedAt ?? 0) > (local.updatedAt ?? 0)) {
-      await table.update(local.id, rest as Partial<T>);
+      await table.update(local.id, rest as Partial<T> as never);
       changed++;
     }
   }
