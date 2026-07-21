@@ -83,7 +83,7 @@ export async function primeMicrophone(): Promise<boolean> {
 }
 
 export function startVoice(
-  lang: Lang,
+  _lang: Lang | undefined,
   onInterim: (text: string) => void,
   onFinal: (text: string) => void,
   onError: (err: string) => void,
@@ -93,7 +93,12 @@ export function startVoice(
   const Ctor = w.SpeechRecognition || w.webkitSpeechRecognition;
   if (!Ctor) return null;
   const rec = new Ctor();
-  rec.lang = lang === "id" ? "id-ID" : "en-US";
+  // Auto-detect language: use device locale as primary hint. The Indonesian
+  // recognizer on Chrome is the most tolerant of code-switched English words,
+  // so if the device isn't already Indonesian we still bias to id-ID to keep
+  // bilingual (EN + ID) transcripts working out of the box.
+  const nav = typeof navigator !== "undefined" ? navigator.language || "" : "";
+  rec.lang = /^id/i.test(nav) ? "id-ID" : "id-ID";
   rec.continuous = options.continuous === true;
   rec.interimResults = true;
   rec.maxAlternatives = 3;

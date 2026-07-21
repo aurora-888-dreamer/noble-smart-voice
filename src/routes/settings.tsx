@@ -60,7 +60,7 @@ export const Route = createFileRoute("/settings")({
 });
 
 function SettingsPage() {
-  const [lang, setLang] = useLang();
+  const [lang] = useLang();
   const [wake, setWake] = useWakePhrase();
   const [autoRaw, setAutoRaw] = useAutoSaveRaw();
   const [recordTimeout, setRecordTimeout] = useRecordTimeoutMin();
@@ -153,24 +153,6 @@ function SettingsPage() {
         </div>
       )}
 
-      <Card>
-        <Label icon={<Mic size={14} />}>{t(lang, "language")}</Label>
-        <div className="grid grid-cols-2 gap-2 mt-2">
-          {(["en", "id"] as const).map((L: Lang) => (
-            <button
-              key={L}
-              onClick={() => setLang(L)}
-              className={`rounded-xl border p-2.5 text-sm font-medium ${
-                lang === L
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border bg-background"
-              }`}
-            >
-              {L === "en" ? "English" : "Bahasa Indonesia"}
-            </button>
-          ))}
-        </div>
-      </Card>
 
       <Card>
         <Label icon={<Fingerprint size={14} />}>{t(lang, "biometric")}</Label>
