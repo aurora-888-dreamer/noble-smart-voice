@@ -8,31 +8,17 @@ const AUTOSAVE_KEY = "voicetag.autosaveRaw";
 const RECORD_TIMEOUT_KEY = "voicetag.recordTimeoutMin";
 
 export function getStoredLang(): Lang {
-  if (typeof window === "undefined") return "en";
-  const v = localStorage.getItem(LANG_KEY);
-  return v === "id" ? "id" : "en";
+  // Language selection is removed — UI labels are always English while voice
+  // input / transcripts stay bilingual (auto-mixed EN + ID).
+  return "en";
 }
 
-export function setStoredLang(lang: Lang) {
-  localStorage.setItem(LANG_KEY, lang);
-  window.dispatchEvent(new Event("voicetag:lang"));
+export function setStoredLang(_lang: Lang) {
+  // no-op: language switching is disabled.
 }
 
 export function useLang(): [Lang, (l: Lang) => void] {
-  const [lang, setLang] = useState<Lang>("en");
-  useEffect(() => {
-    setLang(getStoredLang());
-    const h = () => setLang(getStoredLang());
-    window.addEventListener("voicetag:lang", h);
-    return () => window.removeEventListener("voicetag:lang", h);
-  }, []);
-  return [
-    lang,
-    (l: Lang) => {
-      setStoredLang(l);
-      setLang(l);
-    },
-  ];
+  return ["en", () => {}];
 }
 
 export function isOnboarded(): boolean {
