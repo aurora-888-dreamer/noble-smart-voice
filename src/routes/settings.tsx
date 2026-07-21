@@ -60,7 +60,7 @@ export const Route = createFileRoute("/settings")({
 });
 
 function SettingsPage() {
-  const [lang, setLang] = useLang();
+  const [lang] = useLang();
   const [wake, setWake] = useWakePhrase();
   const [autoRaw, setAutoRaw] = useAutoSaveRaw();
   const [recordTimeout, setRecordTimeout] = useRecordTimeoutMin();
