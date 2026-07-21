@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-void useEffect; void useState;
 import type { Lang } from "./i18n";
 
 const LANG_KEY = "voicetag.lang";
