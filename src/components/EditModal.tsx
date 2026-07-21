@@ -31,19 +31,18 @@ export function EditModal({
   }, []);
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 backdrop-blur p-4">
-      <div className="w-full max-w-md rounded-2xl bg-card border border-primary/30 p-4 shadow-2xl">
-        <p className="text-sm font-semibold text-primary mb-3">{title}</p>
-        <div className="space-y-2">
+    <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 backdrop-blur p-2 sm:p-4">
+      <div className="w-full max-w-3xl h-[92vh] sm:h-[88vh] rounded-2xl bg-card border border-primary/30 p-4 shadow-2xl flex flex-col">
+        <p className="text-sm font-semibold text-primary mb-3 shrink-0">{title}</p>
+        <div className="space-y-2 flex-1 overflow-y-auto flex flex-col">
           {fields.map((f) => (
-            <label key={f.key} className="block text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+            <label key={f.key} className={`block text-[11px] font-semibold text-muted-foreground uppercase tracking-wider ${f.type === "textarea" ? "flex-1 flex flex-col min-h-0" : ""}`}>
               {f.label}
               {f.type === "textarea" ? (
                 <textarea
                   value={values[f.key] ?? ""}
                   onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))}
-                  rows={3}
-                  className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground font-normal normal-case tracking-normal"
+                  className="mt-1 w-full flex-1 min-h-[240px] rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground font-normal normal-case tracking-normal resize-none"
                 />
               ) : (
                 <input
@@ -56,7 +55,8 @@ export function EditModal({
             </label>
           ))}
         </div>
-        <div className="flex gap-2 mt-4">
+        <div className="flex gap-2 mt-4 shrink-0">
+
           <button onClick={onClose} className="flex-1 py-2 rounded-full bg-secondary text-secondary-foreground text-sm font-semibold">
             {t(lang, "cancel")}
           </button>
