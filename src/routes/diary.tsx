@@ -135,6 +135,8 @@ function DiaryPageContent() {
               onLongPress={() => n.id && !sel.selectMode && sel.enter(n.id)}
               onOpen={() => !sel.selectMode && setEditing(n)}
               hasTranslator={hasTranslator}
+              onEdit={() => setEditing(n)}
+              onDelete={async () => { if (n.id) await getDb().diaries.delete(n.id); }}
             />
           ))}
         </ul>
