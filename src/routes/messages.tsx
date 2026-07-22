@@ -197,6 +197,8 @@ function MessageRow({
   onLongPress,
   onOpen,
   onCycleStatus,
+  onEdit,
+  onDelete,
 }: {
   m: Message;
   lang: "en" | "id";
@@ -207,13 +209,15 @@ function MessageRow({
   onLongPress: () => void;
   onOpen: () => void;
   onCycleStatus: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
 }) {
   const lp = useLongPress(onLongPress);
   return (
     <li
       {...lp}
       onClick={() => (selectMode ? onToggle() : onOpen())}
-      className={`rounded-2xl border p-4 transition-colors select-none ${
+      className={`relative rounded-2xl border p-4 transition-colors select-none ${
         selected ? "border-primary bg-primary/10" : "bg-card border-border"
       }`}
     >
@@ -239,6 +243,9 @@ function MessageRow({
             >
               {statusLabel(lang, m.status)}
             </button>
+            {!selectMode && (
+              <ItemActions title={contactName ?? "Message"} body={m.content} onEdit={onEdit} onDelete={onDelete} />
+            )}
           </div>
           <p className="text-sm text-foreground mt-1.5 line-clamp-4 whitespace-pre-wrap">{m.content}</p>
           <p className="text-[10px] uppercase tracking-widest text-muted-foreground mt-2">
