@@ -3,7 +3,6 @@ import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Circle, CheckCircle2 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
-import { CategoryToolbar } from "@/components/CategoryToolbar";
 import { DateRangeFilter, inRange } from "@/components/DateRangeFilter";
 import { SelectionBar, type MoveTarget } from "@/components/SelectionBar";
 import { EditModal } from "@/components/EditModal";
@@ -14,6 +13,7 @@ import { useLang } from "@/lib/settings-store";
 import { t } from "@/lib/i18n";
 import { sendViaBluetooth } from "@/lib/bluetooth-share";
 import { shareManyEmail, shareManyWA, printMany } from "@/lib/bulk-share";
+import { ItemActions } from "@/components/ItemActions";
 
 export const Route = createFileRoute("/tasks")({
   head: () => ({ meta: [{ title: "Tasks — Noble" }] }),
@@ -165,7 +165,6 @@ function TasksPage() {
 
   return (
     <AppShell title={t(lang, "tasks")}>
-      <CategoryToolbar type="task" />
       <div className="flex gap-2 mb-3">
         {tabs.map((tab) => (
           <button
@@ -229,13 +228,23 @@ function TasksPage() {
                   </button>
                 )}
                 <div className="flex-1">
-                  <p
-                    className={`text-sm font-medium ${
-                      task.status === "done" ? "line-through text-muted-foreground" : ""
-                    }`}
-                  >
-                    {task.title}
-                  </p>
+                  <div className="flex items-start justify-between gap-2">
+                    <p
+                      className={`text-sm font-medium flex-1 ${
+                        task.status === "done" ? "line-through text-muted-foreground" : ""
+                      }`}
+                    >
+                      {task.title}
+                    </p>
+                    {!sel.selectMode && (
+                      <ItemActions
+                        title={task.title}
+                        body={task.description ?? ""}
+                        onEdit={() => setEditing(task)}
+                        onDelete={async () => { if (task.id) await getDb().tasks.delete(task.id); }}
+                      />
+                    )}
+                  </div>
                   {task.dueAt && (
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {new Date(task.dueAt).toLocaleString()}

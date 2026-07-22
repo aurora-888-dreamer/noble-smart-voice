@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { AppShell } from "@/components/AppShell";
-import { CategoryToolbar } from "@/components/CategoryToolbar";
 import { DateRangeFilter, inRange } from "@/components/DateRangeFilter";
 import { SelectionBar, type MoveTarget } from "@/components/SelectionBar";
 import { EditModal } from "@/components/EditModal";
@@ -16,6 +15,7 @@ import { sendViaBluetooth } from "@/lib/bluetooth-share";
 import { shareManyEmail, shareManyWA, printMany } from "@/lib/bulk-share";
 import { usePlugin } from "@/lib/plugins-store";
 import { TranslateInline } from "@/components/TranslateInline";
+import { ItemActions } from "@/components/ItemActions";
 
 export const Route = createFileRoute("/notes")({
   head: () => ({ meta: [{ title: "Notes — Noble" }] }),
@@ -137,7 +137,6 @@ function NotesPage() {
 
   return (
     <AppShell title={t(lang, "notes")}>
-      <CategoryToolbar type="note" />
       <input
         value={q}
         onChange={(e) => setQ(e.target.value)}
@@ -171,6 +170,8 @@ function NotesPage() {
               onToggle={() => n.id && sel.toggle(n.id)}
               onLongPress={() => n.id && !sel.selectMode && sel.enter(n.id)}
               hasTranslator={hasTranslator}
+              onEdit={() => setEditing(n)}
+              onDelete={async () => { if (n.id) await getDb().notes.delete(n.id); }}
             />
           ))}
         </ul>
@@ -231,6 +232,8 @@ function NoteRow({
   onToggle,
   onLongPress,
   hasTranslator,
+  onEdit,
+  onDelete,
 }: {
   n: Note;
   selectMode: boolean;
@@ -238,13 +241,15 @@ function NoteRow({
   onToggle: () => void;
   onLongPress: () => void;
   hasTranslator: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
 }) {
   const lp = useLongPress(onLongPress);
   return (
     <li
       {...lp}
       onClick={() => selectMode && onToggle()}
-      className={`rounded-2xl border p-4 transition-colors select-none ${
+      className={`relative rounded-2xl border p-4 transition-colors select-none ${
         selected ? "border-primary bg-primary/10" : "bg-card border-border"
       }`}
     >
@@ -258,7 +263,12 @@ function NoteRow({
           />
         )}
         <div className="flex-1">
-          <p className="text-sm font-semibold">{n.title}</p>
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-sm font-semibold flex-1">{n.title}</p>
+            {!selectMode && (
+              <ItemActions title={n.title} body={n.transcript} onEdit={onEdit} onDelete={onDelete} />
+            )}
+          </div>
           <p className="text-sm text-muted-foreground mt-1">{n.transcript}</p>
           <p className="text-[10px] uppercase tracking-widest text-muted-foreground mt-2">
             {new Date(n.createdAt).toLocaleString()} · {n.language.toUpperCase()}

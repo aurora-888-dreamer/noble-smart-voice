@@ -3,7 +3,6 @@ import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { AppShell } from "@/components/AppShell";
 import { PinGate } from "@/components/PinGate";
-import { CategoryToolbar } from "@/components/CategoryToolbar";
 import { DateRangeFilter, inRange } from "@/components/DateRangeFilter";
 import { SelectionBar } from "@/components/SelectionBar";
 import { EditModal } from "@/components/EditModal";
@@ -17,6 +16,7 @@ import { sendViaBluetooth } from "@/lib/bluetooth-share";
 import { shareManyEmail, shareManyWA, printMany } from "@/lib/bulk-share";
 import { usePlugin } from "@/lib/plugins-store";
 import { TranslateInline } from "@/components/TranslateInline";
+import { ItemActions } from "@/components/ItemActions";
 
 export const Route = createFileRoute("/diary")({
   head: () => ({ meta: [{ title: "Diary — Noble" }] }),
@@ -101,7 +101,6 @@ function DiaryPageContent() {
 
   return (
     <AppShell title={t(lang, "diary")}>
-      <CategoryToolbar type="diary" />
       <input
         value={q}
         onChange={(e) => setQ(e.target.value)}
@@ -136,6 +135,8 @@ function DiaryPageContent() {
               onLongPress={() => n.id && !sel.selectMode && sel.enter(n.id)}
               onOpen={() => !sel.selectMode && setEditing(n)}
               hasTranslator={hasTranslator}
+              onEdit={() => setEditing(n)}
+              onDelete={async () => { if (n.id) await getDb().diaries.delete(n.id); }}
             />
           ))}
         </ul>
@@ -195,6 +196,8 @@ function DiaryRow({
   onLongPress,
   onOpen,
   hasTranslator,
+  onEdit,
+  onDelete,
 }: {
   n: DiaryEntry;
   selectMode: boolean;
@@ -203,13 +206,15 @@ function DiaryRow({
   onLongPress: () => void;
   onOpen: () => void;
   hasTranslator: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
 }) {
   const lp = useLongPress(onLongPress);
   return (
     <li
       {...lp}
       onClick={() => (selectMode ? onToggle() : onOpen())}
-      className={`rounded-2xl border p-4 transition-colors select-none ${
+      className={`relative rounded-2xl border p-4 transition-colors select-none ${
         selected ? "border-primary bg-primary/10" : "bg-card border-border"
       }`}
     >
@@ -223,7 +228,12 @@ function DiaryRow({
           />
         )}
         <div className="flex-1">
-          <p className="text-sm font-semibold">{n.title}</p>
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-sm font-semibold flex-1">{n.title}</p>
+            {!selectMode && (
+              <ItemActions title={n.title} body={n.entry} onEdit={onEdit} onDelete={onDelete} />
+            )}
+          </div>
           <p className="text-sm text-muted-foreground mt-1 line-clamp-3">{n.entry}</p>
           <p className="text-[10px] uppercase tracking-widest text-muted-foreground mt-2">
             {new Date(n.createdAt).toLocaleString()}

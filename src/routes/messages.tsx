@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { AppShell } from "@/components/AppShell";
-import { CategoryToolbar } from "@/components/CategoryToolbar";
 import { DateRangeFilter, inRange } from "@/components/DateRangeFilter";
 import { SelectionBar } from "@/components/SelectionBar";
 import { EditModal } from "@/components/EditModal";
@@ -14,6 +13,7 @@ import { useLang } from "@/lib/settings-store";
 import { t } from "@/lib/i18n";
 import { sendViaBluetooth } from "@/lib/bluetooth-share";
 import { shareManyEmail, shareManyWA, printMany } from "@/lib/bulk-share";
+import { ItemActions } from "@/components/ItemActions";
 
 export const Route = createFileRoute("/messages")({
   head: () => ({ meta: [{ title: "Messages — Noble" }] }),
@@ -104,7 +104,6 @@ function MessagesPage() {
 
   return (
     <AppShell title={t(lang, "messages")}>
-      <CategoryToolbar type="message" />
       <input
         value={q}
         onChange={(e) => setQ(e.target.value)}
@@ -141,6 +140,8 @@ function MessagesPage() {
               onLongPress={() => m.id && !sel.selectMode && sel.enter(m.id)}
               onOpen={() => !sel.selectMode && setEditing(m)}
               onCycleStatus={() => cycleStatus(m)}
+              onEdit={() => setEditing(m)}
+              onDelete={async () => { if (m.id) await getDb().messages.delete(m.id); }}
             />
           ))}
         </ul>
@@ -196,6 +197,8 @@ function MessageRow({
   onLongPress,
   onOpen,
   onCycleStatus,
+  onEdit,
+  onDelete,
 }: {
   m: Message;
   lang: "en" | "id";
@@ -206,13 +209,15 @@ function MessageRow({
   onLongPress: () => void;
   onOpen: () => void;
   onCycleStatus: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
 }) {
   const lp = useLongPress(onLongPress);
   return (
     <li
       {...lp}
       onClick={() => (selectMode ? onToggle() : onOpen())}
-      className={`rounded-2xl border p-4 transition-colors select-none ${
+      className={`relative rounded-2xl border p-4 transition-colors select-none ${
         selected ? "border-primary bg-primary/10" : "bg-card border-border"
       }`}
     >
@@ -238,6 +243,9 @@ function MessageRow({
             >
               {statusLabel(lang, m.status)}
             </button>
+            {!selectMode && (
+              <ItemActions title={contactName ?? "Message"} body={m.content} onEdit={onEdit} onDelete={onDelete} />
+            )}
           </div>
           <p className="text-sm text-foreground mt-1.5 line-clamp-4 whitespace-pre-wrap">{m.content}</p>
           <p className="text-[10px] uppercase tracking-widest text-muted-foreground mt-2">
