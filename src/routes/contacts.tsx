@@ -167,7 +167,7 @@ function ContactsPage() {
               <li
                 key={c.id}
                 onClick={() => sel.selectMode && c.id && sel.toggle(c.id)}
-                className={`rounded-2xl border p-4 transition-colors ${
+                className={`relative rounded-2xl border p-4 transition-colors ${
                   selected ? "border-primary bg-primary/10" : "bg-card border-border"
                 }`}
               >
@@ -181,7 +181,17 @@ function ContactsPage() {
                     />
                   )}
                   <div className="flex-1">
-                    <p className="text-sm font-semibold">{c.fullName}</p>
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-semibold flex-1">{c.fullName}</p>
+                      {!sel.selectMode && (
+                        <ItemActions
+                          title={c.fullName}
+                          body={[c.email, c.phone, c.notes].filter(Boolean).join("\n")}
+                          onEdit={() => setEditing(c)}
+                          onDelete={async () => { if (c.id) await getDb().contacts.delete(c.id); }}
+                        />
+                      )}
+                    </div>
                     {c.email && (
                       <a href={`mailto:${c.email}`} onClick={(e) => e.stopPropagation()} className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                         <Mail size={12} /> {c.email}
