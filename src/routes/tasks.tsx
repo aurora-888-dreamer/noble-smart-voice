@@ -13,6 +13,7 @@ import { useLang } from "@/lib/settings-store";
 import { t } from "@/lib/i18n";
 import { sendViaBluetooth } from "@/lib/bluetooth-share";
 import { shareManyEmail, shareManyWA, printMany } from "@/lib/bulk-share";
+import { ItemActions } from "@/components/ItemActions";
 
 export const Route = createFileRoute("/tasks")({
   head: () => ({ meta: [{ title: "Tasks — Noble" }] }),
