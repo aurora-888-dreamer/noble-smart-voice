@@ -140,6 +140,8 @@ function MessagesPage() {
               onLongPress={() => m.id && !sel.selectMode && sel.enter(m.id)}
               onOpen={() => !sel.selectMode && setEditing(m)}
               onCycleStatus={() => cycleStatus(m)}
+              onEdit={() => setEditing(m)}
+              onDelete={async () => { if (m.id) await getDb().messages.delete(m.id); }}
             />
           ))}
         </ul>
