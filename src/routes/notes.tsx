@@ -15,6 +15,7 @@ import { sendViaBluetooth } from "@/lib/bluetooth-share";
 import { shareManyEmail, shareManyWA, printMany } from "@/lib/bulk-share";
 import { usePlugin } from "@/lib/plugins-store";
 import { TranslateInline } from "@/components/TranslateInline";
+import { ItemActions } from "@/components/ItemActions";
 
 export const Route = createFileRoute("/notes")({
   head: () => ({ meta: [{ title: "Notes — Noble" }] }),
