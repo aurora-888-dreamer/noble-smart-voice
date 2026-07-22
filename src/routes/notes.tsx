@@ -170,6 +170,8 @@ function NotesPage() {
               onToggle={() => n.id && sel.toggle(n.id)}
               onLongPress={() => n.id && !sel.selectMode && sel.enter(n.id)}
               hasTranslator={hasTranslator}
+              onEdit={() => setEditing(n)}
+              onDelete={async () => { if (n.id) await getDb().notes.delete(n.id); }}
             />
           ))}
         </ul>
