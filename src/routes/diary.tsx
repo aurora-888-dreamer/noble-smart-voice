@@ -196,6 +196,8 @@ function DiaryRow({
   onLongPress,
   onOpen,
   hasTranslator,
+  onEdit,
+  onDelete,
 }: {
   n: DiaryEntry;
   selectMode: boolean;
@@ -204,13 +206,15 @@ function DiaryRow({
   onLongPress: () => void;
   onOpen: () => void;
   hasTranslator: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
 }) {
   const lp = useLongPress(onLongPress);
   return (
     <li
       {...lp}
       onClick={() => (selectMode ? onToggle() : onOpen())}
-      className={`rounded-2xl border p-4 transition-colors select-none ${
+      className={`relative rounded-2xl border p-4 transition-colors select-none ${
         selected ? "border-primary bg-primary/10" : "bg-card border-border"
       }`}
     >
@@ -224,7 +228,12 @@ function DiaryRow({
           />
         )}
         <div className="flex-1">
-          <p className="text-sm font-semibold">{n.title}</p>
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-sm font-semibold flex-1">{n.title}</p>
+            {!selectMode && (
+              <ItemActions title={n.title} body={n.entry} onEdit={onEdit} onDelete={onDelete} />
+            )}
+          </div>
           <p className="text-sm text-muted-foreground mt-1 line-clamp-3">{n.entry}</p>
           <p className="text-[10px] uppercase tracking-widest text-muted-foreground mt-2">
             {new Date(n.createdAt).toLocaleString()}
