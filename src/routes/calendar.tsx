@@ -80,96 +80,104 @@ function CalendarPage() {
     .filter((e) => e.when >= Date.now())
     .slice(0, 10);
 
+  const isDesktop = useIsDesktop();
+
   return (
     <AppShell title={t(lang, "calendar")}>
-      <button
-        onClick={() => setNewEventDate(new Date())}
-        className="w-full mb-4 rounded-2xl bg-primary text-primary-foreground py-3 font-semibold flex items-center justify-center gap-2"
-      >
-        <Plus size={18} /> {t(lang, "newEvent")}
-      </button>
+      <div className={isDesktop ? "flex gap-4 items-start" : undefined}>
+        <div className={isDesktop ? "w-1/2" : undefined}>
+          <button
+            onClick={() => setNewEventDate(new Date())}
+            className="w-full mb-4 rounded-2xl bg-primary text-primary-foreground py-3 font-semibold flex items-center justify-center gap-2"
+          >
+            <Plus size={18} /> {t(lang, "newEvent")}
+          </button>
 
-      <div className="rounded-2xl bg-card border border-border p-4 mb-4">
-        <div className="flex items-center justify-between mb-3">
-          <button
-            onClick={() => setCursor(new Date(year, month - 1, 1))}
-            className="p-2 rounded-full hover:bg-secondary"
-          >
-            <ChevronLeft size={18} />
-          </button>
-          <p className="text-sm font-semibold capitalize">{monthName}</p>
-          <button
-            onClick={() => setCursor(new Date(year, month + 1, 1))}
-            className="p-2 rounded-full hover:bg-secondary"
-          >
-            <ChevronRight size={18} />
-          </button>
-        </div>
-        <div className="grid grid-cols-7 gap-1 text-center text-[10px] uppercase tracking-widest text-muted-foreground mb-2">
-          {weekDays.map((d) => (
-            <div key={d}>{d}</div>
-          ))}
-        </div>
-        <div className="grid grid-cols-7 gap-1">
-          {Array.from({ length: offset }).map((_, i) => (
-            <div key={"e" + i} />
-          ))}
-          {Array.from({ length: daysInMonth }).map((_, i) => {
-            const d = i + 1;
-            const evs = byDay.get(d) ?? [];
-            return (
+          <div className="rounded-2xl bg-card border border-border p-4 mb-4">
+            <div className="flex items-center justify-between mb-3">
               <button
-                key={d}
-                onClick={() => setNewEventDate(new Date(year, month, d, 9, 0))}
-                className={`aspect-square rounded-lg flex flex-col items-center justify-start pt-1 text-xs ${
-                  isToday(d)
-                    ? "bg-primary text-primary-foreground font-semibold"
-                    : evs.length > 0
-                      ? "bg-accent/15 border border-accent/30"
-                      : "hover:bg-secondary/50"
-                }`}
+                onClick={() => setCursor(new Date(year, month - 1, 1))}
+                className="p-2 rounded-full hover:bg-secondary"
               >
-                <span>{d}</span>
-                {evs.length > 0 && (
-                  <span
-                    className={`mt-0.5 w-1 h-1 rounded-full ${
-                      isToday(d) ? "bg-primary-foreground" : "bg-primary"
-                    }`}
-                  />
-                )}
+                <ChevronLeft size={18} />
               </button>
-            );
-          })}
+              <p className="text-sm font-semibold capitalize">{monthName}</p>
+              <button
+                onClick={() => setCursor(new Date(year, month + 1, 1))}
+                className="p-2 rounded-full hover:bg-secondary"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+            <div className="grid grid-cols-7 gap-1 text-center text-[10px] uppercase tracking-widest text-muted-foreground mb-2">
+              {weekDays.map((d) => (
+                <div key={d}>{d}</div>
+              ))}
+            </div>
+            <div className="grid grid-cols-7 gap-1">
+              {Array.from({ length: offset }).map((_, i) => (
+                <div key={"e" + i} />
+              ))}
+              {Array.from({ length: daysInMonth }).map((_, i) => {
+                const d = i + 1;
+                const evs = byDay.get(d) ?? [];
+                return (
+                  <button
+                    key={d}
+                    onClick={() => setNewEventDate(new Date(year, month, d, 9, 0))}
+                    className={`aspect-square rounded-lg flex flex-col items-center justify-start pt-1 text-xs ${
+                      isToday(d)
+                        ? "bg-primary text-primary-foreground font-semibold"
+                        : evs.length > 0
+                          ? "bg-accent/15 border border-accent/30"
+                          : "hover:bg-secondary/50"
+                    }`}
+                  >
+                    <span>{d}</span>
+                    {evs.length > 0 && (
+                      <span
+                        className={`mt-0.5 w-1 h-1 rounded-full ${
+                          isToday(d) ? "bg-primary-foreground" : "bg-primary"
+                        }`}
+                      />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        <div className={isDesktop ? "w-1/2" : undefined}>
+          {newEventDate && (
+            <NewEventForm lang={lang} defaultDate={newEventDate} onClose={() => setNewEventDate(null)} />
+          )}
+
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-2">
+            {lang === "id" ? "Akan datang" : "Upcoming"}
+          </h3>
+          {upcomingSelected.length === 0 ? (
+            <p className="text-center text-sm text-muted-foreground py-6">{t(lang, "empty")}</p>
+          ) : (
+            <ul className="space-y-2">
+              {upcomingSelected.map((e, i) => (
+                <li
+                  key={i}
+                  className="rounded-2xl bg-card border border-border p-3 flex items-center gap-3"
+                >
+                  <div className="w-1 self-stretch rounded-full bg-primary" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">{e.title}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {new Date(e.when).toLocaleString()} · {e.kind}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
-
-      {newEventDate && (
-        <NewEventForm lang={lang} defaultDate={newEventDate} onClose={() => setNewEventDate(null)} />
-      )}
-
-      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-2">
-        {lang === "id" ? "Akan datang" : "Upcoming"}
-      </h3>
-      {upcomingSelected.length === 0 ? (
-        <p className="text-center text-sm text-muted-foreground py-6">{t(lang, "empty")}</p>
-      ) : (
-        <ul className="space-y-2">
-          {upcomingSelected.map((e, i) => (
-            <li
-              key={i}
-              className="rounded-2xl bg-card border border-border p-3 flex items-center gap-3"
-            >
-              <div className="w-1 self-stretch rounded-full bg-primary" />
-              <div className="flex-1">
-                <p className="text-sm font-medium">{e.title}</p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  {new Date(e.when).toLocaleString()} · {e.kind}
-                </p>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
     </AppShell>
   );
 }
