@@ -228,13 +228,23 @@ function TasksPage() {
                   </button>
                 )}
                 <div className="flex-1">
-                  <p
-                    className={`text-sm font-medium ${
-                      task.status === "done" ? "line-through text-muted-foreground" : ""
-                    }`}
-                  >
-                    {task.title}
-                  </p>
+                  <div className="flex items-start justify-between gap-2">
+                    <p
+                      className={`text-sm font-medium flex-1 ${
+                        task.status === "done" ? "line-through text-muted-foreground" : ""
+                      }`}
+                    >
+                      {task.title}
+                    </p>
+                    {!sel.selectMode && (
+                      <ItemActions
+                        title={task.title}
+                        body={task.description ?? ""}
+                        onEdit={() => setEditing(task)}
+                        onDelete={async () => { if (task.id) await getDb().tasks.delete(task.id); }}
+                      />
+                    )}
+                  </div>
                   {task.dueAt && (
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {new Date(task.dueAt).toLocaleString()}
