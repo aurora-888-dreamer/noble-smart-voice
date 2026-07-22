@@ -7,6 +7,7 @@ import { getDb, nextOccurrence, type ItemType } from "@/lib/db";
 import { saveCapturedEntry } from "@/lib/capture";
 import { useLang } from "@/lib/settings-store";
 import { t } from "@/lib/i18n";
+import { useIsDesktop } from "@/hooks/use-desktop";
 
 export const Route = createFileRoute("/calendar")({
   head: () => ({ meta: [{ title: "Calendar — Noble" }] }),
