@@ -191,7 +191,17 @@ function MeetingsPage() {
                     />
                   )}
                   <div className="flex-1">
-                    <p className="text-sm font-semibold">{m.title}</p>
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-semibold flex-1">{m.title}</p>
+                      {!sel.selectMode && (
+                        <ItemActions
+                          title={m.title}
+                          body={m.summary ?? ""}
+                          onEdit={() => setEditing(m)}
+                          onDelete={async () => { if (m.id) await getDb().meetings.delete(m.id); }}
+                        />
+                      )}
+                    </div>
                     {m.meetingAt && (
                       <p className="text-xs text-muted-foreground mt-1">
                         {new Date(m.meetingAt).toLocaleString()}
