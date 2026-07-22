@@ -3,7 +3,6 @@ import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { AppShell } from "@/components/AppShell";
 import { PinGate } from "@/components/PinGate";
-import { CategoryToolbar } from "@/components/CategoryToolbar";
 import { DateRangeFilter, inRange } from "@/components/DateRangeFilter";
 import { SelectionBar } from "@/components/SelectionBar";
 import { EditModal } from "@/components/EditModal";
@@ -101,7 +100,6 @@ function DiaryPageContent() {
 
   return (
     <AppShell title={t(lang, "diary")}>
-      <CategoryToolbar type="diary" />
       <input
         value={q}
         onChange={(e) => setQ(e.target.value)}
