@@ -176,7 +176,7 @@ function AppointmentsPage() {
                 key={a.id}
                 onClick={() => sel.selectMode && a.id && sel.toggle(a.id)}
                 onContextMenu={(e) => { e.preventDefault(); if (!sel.selectMode && a.id) sel.enter(a.id); }}
-                className={`rounded-2xl border p-4 transition-colors select-none ${
+                className={`relative rounded-2xl border p-4 transition-colors select-none ${
                   selected ? "border-primary bg-primary/10" : "bg-card border-border"
                 }`}
               >
@@ -190,7 +190,17 @@ function AppointmentsPage() {
                     />
                   )}
                   <div className="flex-1">
-                    <p className="text-sm font-semibold">{a.title}</p>
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-semibold flex-1">{a.title}</p>
+                      {!sel.selectMode && (
+                        <ItemActions
+                          title={a.title}
+                          body={a.notes ?? ""}
+                          onEdit={() => setEditing(a)}
+                          onDelete={async () => { if (a.id) await getDb().appointments.delete(a.id); }}
+                        />
+                      )}
+                    </div>
                     <p className="text-xs text-primary font-medium mt-1">
                       {new Date(a.appointmentAt).toLocaleString()}
                     </p>
