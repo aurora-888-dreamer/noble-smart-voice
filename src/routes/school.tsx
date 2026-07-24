@@ -14,7 +14,7 @@ import {
   getSchoolDb, ROLE_LABEL, DIVISION_LABEL, KG_LEVELS, startOfDay, startOfWeek,
   type SchoolRole, type Division, type KgLevel, type AttendanceStatus, type AssessmentPeriod,
 } from "@/lib/school-db";
-import { useSchoolRole, setSchoolRole, getActorId, setActorId, getParentStudentIds, setParentStudentIds } from "@/lib/school-store";
+import { useSchoolRole, setSchoolRole, setActorId, getParentStudentIds, setParentStudentIds } from "@/lib/school-store";
 
 export const Route = createFileRoute("/school")({
   head: () => ({ meta: [

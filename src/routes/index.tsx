@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Plane, GanttChart, NotebookPen, MessageSquare, Calculator, Languages, Camera, MessageCircle, Mail, Music2, Instagram, Facebook, Globe, ExternalLink, StickyNote, CheckSquare, Calendar as CalendarIcon, Video, CalendarClock, Users, BellRing, Crown } from "lucide-react";
+import { Plane, GanttChart, NotebookPen, MessageSquare, Calculator, Languages, Camera, MessageCircle, Mail, Music2, Instagram, Facebook, Globe, ExternalLink, StickyNote, CheckSquare, Calendar as CalendarIcon, Video, CalendarClock, Users, BellRing, Crown, GraduationCap } from "lucide-react";
 import { useEnabledShortcuts } from "@/lib/app-shortcuts-store";
 import { AppShell } from "@/components/AppShell";
 import { getDb } from "@/lib/db";
@@ -9,6 +9,7 @@ import { useLang } from "@/lib/settings-store";
 import { t } from "@/lib/i18n";
 import { isOnboarded } from "@/lib/settings-store";
 import { isRegistered, isSignedIn, ensureTrialStarted, useLicenseInfo } from "@/lib/auth-store";
+import { usePlugin } from "@/lib/plugins-store";
 import { rehydrateReminders } from "@/lib/reminders";
 
 export const Route = createFileRoute("/")({
