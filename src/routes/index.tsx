@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Plane, GanttChart, NotebookPen, MessageSquare, Calculator, Languages, Camera, MessageCircle, Mail, Music2, Instagram, Facebook, Globe, ExternalLink, StickyNote, CheckSquare, Calendar as CalendarIcon, Video, CalendarClock, Users, BellRing, Crown } from "lucide-react";
+import { Plane, GanttChart, NotebookPen, MessageSquare, Calculator, Languages, Camera, MessageCircle, Mail, Music2, Instagram, Facebook, Globe, ExternalLink, StickyNote, CheckSquare, Calendar as CalendarIcon, Video, CalendarClock, Users, BellRing, Crown, GraduationCap } from "lucide-react";
 import { useEnabledShortcuts } from "@/lib/app-shortcuts-store";
 import { AppShell } from "@/components/AppShell";
 import { getDb } from "@/lib/db";
@@ -9,6 +9,7 @@ import { useLang } from "@/lib/settings-store";
 import { t } from "@/lib/i18n";
 import { isOnboarded } from "@/lib/settings-store";
 import { isRegistered, isSignedIn, ensureTrialStarted, useLicenseInfo } from "@/lib/auth-store";
+import { usePlugin } from "@/lib/plugins-store";
 import { rehydrateReminders } from "@/lib/reminders";
 
 export const Route = createFileRoute("/")({
@@ -21,6 +22,8 @@ function Home() {
   const [ready, setReady] = useState(false);
   const license = useLicenseInfo();
   const shortcuts = useEnabledShortcuts();
+  const hasSchool = usePlugin("school");
+  const isAdmin = license.code === "NOBLE440077";
 
   useEffect(() => {
     if (!isOnboarded()) {
@@ -112,6 +115,24 @@ function Home() {
           <span className="text-xs text-primary font-semibold shrink-0">
             {lang === "id" ? "Buka →" : "Open →"}
           </span>
+        </Link>
+      )}
+
+      {(hasSchool || isAdmin) && (
+        <Link
+          to="/school"
+          className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 hover:opacity-90"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <GraduationCap size={20} className="text-primary shrink-0" />
+            <div className="min-w-0">
+              <div className="text-sm font-semibold truncate">School Dashboard</div>
+              <div className="text-xs text-muted-foreground truncate">
+                Kindergarten · Teacher / Parent / Principal
+              </div>
+            </div>
+          </div>
+          <span className="text-xs text-primary font-semibold shrink-0">Open →</span>
         </Link>
       )}
 
