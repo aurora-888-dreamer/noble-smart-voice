@@ -22,6 +22,8 @@ function Home() {
   const [ready, setReady] = useState(false);
   const license = useLicenseInfo();
   const shortcuts = useEnabledShortcuts();
+  const hasSchool = usePlugin("school");
+  const isAdmin = license.code === "NOBLE440077";
 
   useEffect(() => {
     if (!isOnboarded()) {
