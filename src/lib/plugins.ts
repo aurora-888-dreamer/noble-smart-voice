@@ -1,7 +1,7 @@
 // Central plugin registry. Add a new entry here whenever a new plugin is
 // built — it automatically shows up in the hidden admin toggle page, and
 // is the same id future plugin voucher codes will unlock.
-export type PluginId = "translator" | "calculator" | "camera";
+export type PluginId = "translator" | "calculator" | "camera" | "school";
 
 export interface PluginMeta {
   id: PluginId;
@@ -32,6 +32,13 @@ export const PLUGIN_REGISTRY: PluginMeta[] = [
     nameId: "Kamera & Foto",
     description: "Take photos with the camera and browse a gallery, saved right into Noble.",
     descriptionId: "Ambil foto pakai kamera dan lihat galerinya, tersimpan langsung di Noble.",
+  },
+  {
+    id: "school",
+    name: "School Dashboard",
+    nameId: "Dashboard Sekolah",
+    description: "Kindergarten management: teacher/parent/principal dashboards, attendance, lesson plans, timetable, projects, assessments and announcements. Sample: Stella Maris International School.",
+    descriptionId: "Manajemen kindergarten: dashboard guru/orang tua/principal, absensi, RPP, jadwal, proyek, asesmen, dan pengumuman. Contoh: Stella Maris International School.",
   },
   // Next plugin ideas go here, e.g.:
   // { id: "ocr", name: "Photo to Text (OCR)", ... }
