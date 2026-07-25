@@ -760,27 +760,42 @@ function StaffPanel() {
 function ClassManager() {
   const db = getSchoolDb();
   const classes = useLiveQuery(async () => db.classes.toArray(), []);
+  const studentCount = useLiveQuery(async () => db.students.count(), []);
   const [seeding, setSeeding] = useState(false);
   const [seedMsg, setSeedMsg] = useState<string | null>(null);
-  async function runSeed() {
+
+  const runSeed = React.useCallback(async () => {
     setSeeding(true); setSeedMsg(null);
     try {
       const { seedStellaMaris } = await import("@/lib/school-seed");
       const r = await seedStellaMaris();
-      setSeedMsg(`Added ${r.classesAdded} classes, ${r.studentsAdded} students, ${r.teachersAdded} teachers. (Total roster: ${r.totalStudents})`);
+      setSeedMsg(`Loaded ${r.studentsAdded} new students across ${r.classesAdded} new classes (+${r.teachersAdded} teachers). Roster total: ${r.totalStudents}.`);
     } catch (e) {
       setSeedMsg(`Seed failed: ${(e as Error).message}`);
+      console.error("[school-seed]", e);
     } finally { setSeeding(false); }
-  }
+  }, []);
+
+  // Auto-import once when the roster is clearly incomplete.
+  const autoRan = React.useRef(false);
+  React.useEffect(() => {
+    if (autoRan.current) return;
+    if (studentCount === undefined) return;
+    if (studentCount < 140) {
+      autoRan.current = true;
+      runSeed();
+    }
+  }, [studentCount, runSeed]);
+
   return (
     <div>
       <div className="rounded-2xl bg-card border border-border p-3 mb-3 flex items-center justify-between gap-2">
         <div>
           <p className="text-sm font-semibold">Stella Maris — Preschool AY 2026/2027</p>
-          <p className="text-[10px] text-muted-foreground">Loads all 9 classes and student rosters. Safe to re-run.</p>
+          <p className="text-[10px] text-muted-foreground">Students loaded: {studentCount ?? "…"} / 143. Auto-imports on open.</p>
         </div>
         <button onClick={runSeed} disabled={seeding} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold disabled:opacity-50">
-          {seeding ? "Seeding…" : "Import roster"}
+          {seeding ? "Loading…" : "Reload roster"}
         </button>
       </div>
       {seedMsg && <p className="text-xs text-muted-foreground mb-3">{seedMsg}</p>}
