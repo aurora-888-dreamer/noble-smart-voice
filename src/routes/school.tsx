@@ -764,7 +764,7 @@ function ClassManager() {
   const [seeding, setSeeding] = useState(false);
   const [seedMsg, setSeedMsg] = useState<string | null>(null);
 
-  const runSeed = React.useCallback(async () => {
+  const runSeed = useCallback(async () => {
     setSeeding(true); setSeedMsg(null);
     try {
       const { seedStellaMaris } = await import("@/lib/school-seed");
@@ -777,8 +777,8 @@ function ClassManager() {
   }, []);
 
   // Auto-import once when the roster is clearly incomplete.
-  const autoRan = React.useRef(false);
-  React.useEffect(() => {
+  const autoRan = useRef(false);
+  useEffect(() => {
     if (autoRan.current) return;
     if (studentCount === undefined) return;
     if (studentCount < 140) {
