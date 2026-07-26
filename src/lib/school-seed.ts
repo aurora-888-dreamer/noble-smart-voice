@@ -236,14 +236,16 @@ export async function seedStellaMaris(): Promise<SeedResult> {
       totalStudents++;
       const dupe = await db.students
         .where("classId").equals(classId!)
-        .filter(x => x.fullName === s.name || x.nickname === s.sid)
+        .filter(x => x.fullName === s.name || x.studentNumber === s.sid || x.nickname === s.sid)
         .first();
       if (dupe) continue;
       await db.students.add({
         fullName: s.name,
-        nickname: s.sid, // student number ID stored in nickname field
+        studentNumber: s.sid,
         gender: s.sex,
         classId,
+        status: "active",
+        joinedAt: now,
         createdAt: now,
       });
       studentsAdded++;

@@ -34,16 +34,26 @@ export interface SchoolClass {
   createdAt: number;
 }
 
+export type StudentStatus = "active" | "inactive" | "graduated" | "transferred";
+
 export interface SchoolStudent {
   id?: number;
+  studentNumber?: string;       // e.g. "26.27.K1.014"
   fullName: string;
   nickname?: string;
   dob?: number;
+  pob?: string;                 // place of birth
+  address?: string;
+  religion?: string;
+  joinedAt?: number;            // date student joined school
   classId?: number;
   gender?: "M" | "F";
   allergies?: string;
   notes?: string;
   photoDataUrl?: string;
+  certificates?: string[];      // certificates / achievements
+  extracurriculars?: string[];  // extracurricular activities
+  status?: StudentStatus;
   createdAt: number;
 }
 
@@ -196,6 +206,20 @@ class SchoolDB extends Dexie {
       assessments: "++id, studentId, classId, period, periodStart",
       calendar: "++id, scope, classId, eventAt",
     });
+    // v2 — richer student profile; migrate legacy nickname-as-studentId rows.
+    this.version(2)
+      .stores({
+        students: "++id, classId, fullName, studentNumber, status",
+      })
+      .upgrade(async (tx) => {
+        await tx.table("students").toCollection().modify((s: SchoolStudent) => {
+          if (!s.studentNumber && s.nickname && /^\d{2}\.\d{2}\.[A-Z0-9]+\.\d+/i.test(s.nickname)) {
+            s.studentNumber = s.nickname;
+            s.nickname = undefined;
+          }
+          if (!s.status) s.status = "active";
+        });
+      });
   }
 }
 

@@ -289,36 +289,150 @@ function StudentsPanel({ canEdit }: { canEdit: boolean }) {
 
 function StudentDetails({ studentId, canEdit }: { studentId: number; canEdit: boolean }) {
   const db = getSchoolDb();
+  const student = useLiveQuery(async () => db.students.get(studentId), [studentId]);
   const guardians = useLiveQuery(async () => db.guardians.where("studentId").equals(studentId).toArray(), [studentId]);
   const [gName, setGName] = useState(""); const [gRel, setGRel] = useState<"father" | "mother" | "guardian">("mother");
   const [gEmail, setGEmail] = useState(""); const [gWA, setGWA] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (student) {
+      setForm({
+        studentNumber: student.studentNumber ?? "",
+        fullName: student.fullName ?? "",
+        nickname: student.nickname ?? "",
+        pob: student.pob ?? "",
+        dob: student.dob ? new Date(student.dob).toISOString().slice(0, 10) : "",
+        gender: student.gender ?? "",
+        religion: student.religion ?? "",
+        address: student.address ?? "",
+        joinedAt: student.joinedAt ? new Date(student.joinedAt).toISOString().slice(0, 10) : "",
+        status: student.status ?? "active",
+        allergies: student.allergies ?? "",
+        certificates: (student.certificates ?? []).join(", "),
+        extracurriculars: (student.extracurriculars ?? []).join(", "),
+        notes: student.notes ?? "",
+      });
+    }
+  }, [student]);
+
+  async function saveProfile() {
+    await db.students.update(studentId, {
+      studentNumber: form.studentNumber || undefined,
+      fullName: form.fullName.trim() || student!.fullName,
+      nickname: form.nickname || undefined,
+      pob: form.pob || undefined,
+      dob: form.dob ? new Date(form.dob).getTime() : undefined,
+      gender: (form.gender as "M" | "F") || undefined,
+      religion: form.religion || undefined,
+      address: form.address || undefined,
+      joinedAt: form.joinedAt ? new Date(form.joinedAt).getTime() : undefined,
+      status: (form.status as "active" | "inactive" | "graduated" | "transferred") || "active",
+      allergies: form.allergies || undefined,
+      certificates: form.certificates ? form.certificates.split(",").map(s => s.trim()).filter(Boolean) : undefined,
+      extracurriculars: form.extracurriculars ? form.extracurriculars.split(",").map(s => s.trim()).filter(Boolean) : undefined,
+      notes: form.notes || undefined,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any);
+    setEditing(false);
+  }
+  function set(k: string, v: string) { setForm(f => ({ ...f, [k]: v })); }
+
   async function addGuardian() {
     if (!gName.trim()) return;
     await db.guardians.add({ studentId, fullName: gName.trim(), relation: gRel, email: gEmail || undefined, whatsapp: gWA || undefined, isPrimary: (guardians?.length ?? 0) === 0 });
     setGName(""); setGEmail(""); setGWA("");
   }
+
+  const inp = "rounded-lg bg-background border border-border px-2 py-1 text-xs";
   return (
-    <div className="mt-3 pt-3 border-t border-border">
-      <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Guardians</p>
-      <ul className="space-y-1 mb-3">
-        {(guardians ?? []).map(g => (
-          <li key={g.id} className="text-xs flex items-center justify-between">
-            <span>{g.fullName} · <span className="text-muted-foreground">{g.relation}</span>{g.email && ` · ${g.email}`}{g.whatsapp && ` · ${g.whatsapp}`}</span>
-            {canEdit && <button onClick={() => db.guardians.delete(g.id!)} className="text-destructive"><Trash2 size={12} /></button>}
-          </li>
-        ))}
-      </ul>
-      {canEdit && (
-        <div className="grid grid-cols-2 gap-2">
-          <input value={gName} onChange={e => setGName(e.target.value)} placeholder="Guardian name" className="rounded-lg bg-background border border-border px-2 py-1 text-xs" />
-          <select value={gRel} onChange={e => setGRel(e.target.value as "father" | "mother" | "guardian")} className="rounded-lg bg-background border border-border px-2 py-1 text-xs">
-            <option value="mother">Mother</option><option value="father">Father</option><option value="guardian">Guardian</option>
-          </select>
-          <input value={gEmail} onChange={e => setGEmail(e.target.value)} placeholder="Email" className="rounded-lg bg-background border border-border px-2 py-1 text-xs" />
-          <input value={gWA} onChange={e => setGWA(e.target.value)} placeholder="WhatsApp" className="rounded-lg bg-background border border-border px-2 py-1 text-xs" />
-          <button onClick={addGuardian} className="col-span-2 rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold">Add guardian</button>
+    <div className="mt-3 pt-3 border-t border-border space-y-4">
+      {/* Profile */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Profile</p>
+          {canEdit && (
+            <button onClick={() => editing ? saveProfile() : setEditing(true)} className="text-xs rounded-full border border-border px-2.5 py-0.5">
+              {editing ? "Save" : "Edit"}
+            </button>
+          )}
         </div>
-      )}
+        {!editing ? (
+          <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+            <ProfileRow label="Student ID" value={student?.studentNumber} />
+            <ProfileRow label="Nickname" value={student?.nickname} />
+            <ProfileRow label="Gender" value={student?.gender === "M" ? "Male" : student?.gender === "F" ? "Female" : undefined} />
+            <ProfileRow label="Religion" value={student?.religion} />
+            <ProfileRow label="Place of birth" value={student?.pob} />
+            <ProfileRow label="Date of birth" value={student?.dob ? new Date(student.dob).toLocaleDateString() : undefined} />
+            <ProfileRow label="Joined" value={student?.joinedAt ? new Date(student.joinedAt).toLocaleDateString() : undefined} />
+            <ProfileRow label="Status" value={student?.status} />
+            <ProfileRow label="Address" value={student?.address} full />
+            <ProfileRow label="Allergies" value={student?.allergies} full />
+            <ProfileRow label="Certificates" value={student?.certificates?.join(", ")} full />
+            <ProfileRow label="Extracurriculars" value={student?.extracurriculars?.join(", ")} full />
+            <ProfileRow label="Notes" value={student?.notes} full />
+          </dl>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            <input className={inp} placeholder="Student ID" value={form.studentNumber} onChange={e => set("studentNumber", e.target.value)} />
+            <input className={inp} placeholder="Full name" value={form.fullName} onChange={e => set("fullName", e.target.value)} />
+            <input className={inp} placeholder="Nickname" value={form.nickname} onChange={e => set("nickname", e.target.value)} />
+            <select className={inp} value={form.gender} onChange={e => set("gender", e.target.value)}>
+              <option value="">Gender…</option><option value="M">Male</option><option value="F">Female</option>
+            </select>
+            <input className={inp} placeholder="Place of birth" value={form.pob} onChange={e => set("pob", e.target.value)} />
+            <input type="date" className={inp} value={form.dob} onChange={e => set("dob", e.target.value)} />
+            <input className={inp} placeholder="Religion" value={form.religion} onChange={e => set("religion", e.target.value)} />
+            <input type="date" className={inp} value={form.joinedAt} onChange={e => set("joinedAt", e.target.value)} />
+            <select className={inp} value={form.status} onChange={e => set("status", e.target.value)}>
+              <option value="active">Active</option><option value="inactive">Inactive</option>
+              <option value="graduated">Graduated</option><option value="transferred">Transferred</option>
+            </select>
+            <input className={`${inp} col-span-2`} placeholder="Address" value={form.address} onChange={e => set("address", e.target.value)} />
+            <input className={`${inp} col-span-2`} placeholder="Allergies" value={form.allergies} onChange={e => set("allergies", e.target.value)} />
+            <input className={`${inp} col-span-2`} placeholder="Certificates (comma separated)" value={form.certificates} onChange={e => set("certificates", e.target.value)} />
+            <input className={`${inp} col-span-2`} placeholder="Extracurriculars (comma separated)" value={form.extracurriculars} onChange={e => set("extracurriculars", e.target.value)} />
+            <textarea className={`${inp} col-span-2`} rows={2} placeholder="Notes" value={form.notes} onChange={e => set("notes", e.target.value)} />
+          </div>
+        )}
+      </div>
+
+      {/* Guardians (WA & email live here for kindergarten) */}
+      <div>
+        <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Guardians · WhatsApp & Email</p>
+        <ul className="space-y-1 mb-3">
+          {(guardians ?? []).map(g => (
+            <li key={g.id} className="text-xs flex items-center justify-between">
+              <span>{g.fullName} · <span className="text-muted-foreground">{g.relation}</span>{g.email && ` · ${g.email}`}{g.whatsapp && ` · ${g.whatsapp}`}</span>
+              {canEdit && <button onClick={() => db.guardians.delete(g.id!)} className="text-destructive"><Trash2 size={12} /></button>}
+            </li>
+          ))}
+          {(guardians ?? []).length === 0 && <li className="text-xs text-muted-foreground">No guardian contacts yet.</li>}
+        </ul>
+        {canEdit && (
+          <div className="grid grid-cols-2 gap-2">
+            <input value={gName} onChange={e => setGName(e.target.value)} placeholder="Guardian name" className={inp} />
+            <select value={gRel} onChange={e => setGRel(e.target.value as "father" | "mother" | "guardian")} className={inp}>
+              <option value="mother">Mother</option><option value="father">Father</option><option value="guardian">Guardian</option>
+            </select>
+            <input value={gEmail} onChange={e => setGEmail(e.target.value)} placeholder="Email" className={inp} />
+            <input value={gWA} onChange={e => setGWA(e.target.value)} placeholder="WhatsApp" className={inp} />
+            <button onClick={addGuardian} className="col-span-2 rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold">Add guardian</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ProfileRow({ label, value, full }: { label: string; value?: string; full?: boolean }) {
+  if (!value) return null;
+  return (
+    <div className={full ? "col-span-2" : ""}>
+      <dt className="text-[10px] uppercase text-muted-foreground">{label}</dt>
+      <dd className="text-xs">{value}</dd>
     </div>
   );
 }
