@@ -761,19 +761,27 @@ function ClassManager() {
   const db = getSchoolDb();
   const classes = useLiveQuery(async () => db.classes.toArray(), []);
   const studentCount = useLiveQuery(async () => db.students.count(), []);
-  const [seeding, setSeeding] = useState(false);
+  const [status, setStatus] = useState<"idle" | "importing" | "success" | "error">("idle");
   const [seedMsg, setSeedMsg] = useState<string | null>(null);
+  const [errorDetail, setErrorDetail] = useState<string | null>(null);
 
   const runSeed = useCallback(async () => {
-    setSeeding(true); setSeedMsg(null);
+    setStatus("importing");
+    setSeedMsg("Importing roster from Stella Maris source data…");
+    setErrorDetail(null);
     try {
+      if (typeof indexedDB === "undefined") throw new Error("IndexedDB unavailable in this browser context.");
       const { seedStellaMaris } = await import("@/lib/school-seed");
       const r = await seedStellaMaris();
-      setSeedMsg(`Loaded ${r.studentsAdded} new students across ${r.classesAdded} new classes (+${r.teachersAdded} teachers). Roster total: ${r.totalStudents}.`);
+      setStatus("success");
+      setSeedMsg(`Imported ${r.studentsAdded} new students · ${r.classesAdded} new classes · +${r.teachersAdded} teachers. Roster total: ${r.totalStudents}.`);
     } catch (e) {
-      setSeedMsg(`Seed failed: ${(e as Error).message}`);
+      const err = e as Error;
+      setStatus("error");
+      setSeedMsg("Auto-import failed. Tap Retry to try again.");
+      setErrorDetail(`${err.name ?? "Error"}: ${err.message}${err.stack ? `\n${err.stack.split("\n").slice(0, 3).join("\n")}` : ""}`);
       console.error("[school-seed]", e);
-    } finally { setSeeding(false); }
+    }
   }, []);
 
   // Auto-import once when the roster is clearly incomplete.
@@ -787,18 +795,44 @@ function ClassManager() {
     }
   }, [studentCount, runSeed]);
 
+  const seeding = status === "importing";
+  const dotColor =
+    status === "importing" ? "bg-amber-500 animate-pulse"
+    : status === "success" ? "bg-emerald-500"
+    : status === "error" ? "bg-destructive"
+    : (studentCount ?? 0) >= 140 ? "bg-emerald-500" : "bg-muted-foreground/40";
+  const statusLabel =
+    status === "importing" ? "Importing…"
+    : status === "success" ? "Imported"
+    : status === "error" ? "Failed"
+    : (studentCount ?? 0) >= 140 ? "Ready" : "Idle";
+
   return (
     <div>
       <div className="rounded-2xl bg-card border border-border p-3 mb-3 flex items-center justify-between gap-2">
-        <div>
+        <div className="min-w-0">
           <p className="text-sm font-semibold">Stella Maris — Preschool AY 2026/2027</p>
-          <p className="text-[10px] text-muted-foreground">Students loaded: {studentCount ?? "…"} / 143. Auto-imports on open.</p>
+          <p className="text-[10px] text-muted-foreground flex items-center gap-1.5 mt-0.5">
+            <span className={`inline-block w-2 h-2 rounded-full ${dotColor}`} />
+            <span>{statusLabel} · {studentCount ?? "…"} / 143 students</span>
+          </p>
         </div>
-        <button onClick={runSeed} disabled={seeding} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold disabled:opacity-50">
-          {seeding ? "Loading…" : "Reload roster"}
+        <button onClick={runSeed} disabled={seeding} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold disabled:opacity-50 shrink-0">
+          {seeding ? "Loading…" : status === "error" ? "Retry" : "Reload roster"}
         </button>
       </div>
-      {seedMsg && <p className="text-xs text-muted-foreground mb-3">{seedMsg}</p>}
+      {seedMsg && (
+        <div className={`rounded-xl border p-2.5 mb-3 text-xs ${
+          status === "error" ? "border-destructive/40 bg-destructive/10 text-destructive"
+          : status === "success" ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+          : "border-border bg-muted/30 text-muted-foreground"
+        }`}>
+          <p className="font-medium">{seedMsg}</p>
+          {errorDetail && (
+            <pre className="mt-1.5 text-[10px] whitespace-pre-wrap break-words opacity-80 font-mono">{errorDetail}</pre>
+          )}
+        </div>
+      )}
       <ClassSelector />
       <ul className="space-y-2">
         {(classes ?? []).map(c => (
