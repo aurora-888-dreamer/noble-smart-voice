@@ -34,16 +34,26 @@ export interface SchoolClass {
   createdAt: number;
 }
 
+export type StudentStatus = "active" | "inactive" | "graduated" | "transferred";
+
 export interface SchoolStudent {
   id?: number;
+  studentNumber?: string;       // e.g. "26.27.K1.014"
   fullName: string;
   nickname?: string;
   dob?: number;
+  pob?: string;                 // place of birth
+  address?: string;
+  religion?: string;
+  joinedAt?: number;            // date student joined school
   classId?: number;
   gender?: "M" | "F";
   allergies?: string;
   notes?: string;
   photoDataUrl?: string;
+  certificates?: string[];      // certificates / achievements
+  extracurriculars?: string[];  // extracurricular activities
+  status?: StudentStatus;
   createdAt: number;
 }
 
