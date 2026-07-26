@@ -168,6 +168,81 @@ export const upsertSchoolStudent = createServerFn({ method: "POST" })
     return { ok: true as const, student: row };
   });
 
+export const deleteSchoolStudent = createServerFn({ method: "POST" })
+  .inputValidator((input: { password: string; id: string }) => input)
+  .handler(async ({ data }) => {
+    if (checkSchoolPassword(data.password) !== "admin") return { ok: false as const, error: "Admin HoS access required." };
+    const supabase = createNobleSupabase();
+    if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
+    const { error } = await supabase.from("school_students").delete().eq("id", data.id);
+    if (error) return { ok: false as const, error: error.message };
+    return { ok: true as const };
+  });
+
+// Bulk import — Admin HoS only. Rows come pre-parsed from CSV on the
+// client (columns: studentNumber, fullName, nickname, gender, className).
+// Matches an existing class by name (case-insensitive) within the same
+// school; skips rows whose class can't be found rather than guessing.
+export const importSchoolStudents = createServerFn({ method: "POST" })
+  .inputValidator(
+    (input: {
+      password: string;
+      schoolId: string;
+      rows: { studentNumber?: string; fullName: string; nickname?: string; gender?: "M" | "F"; className: string }[];
+    }) => input,
+  )
+  .handler(async ({ data }) => {
+    if (checkSchoolPassword(data.password) !== "admin") return { ok: false as const, error: "Admin HoS access required." };
+    const supabase = createNobleSupabase();
+    if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
+
+    const { data: classes, error: classErr } = await supabase.from("school_classes").select("id, name").eq("school_id", data.schoolId);
+    if (classErr) return { ok: false as const, error: classErr.message };
+    const classByName = new Map((classes ?? []).map((c) => [c.name.trim().toLowerCase(), c.id]));
+
+    let imported = 0;
+    let skipped = 0;
+    const skippedRows: string[] = [];
+    for (const row of data.rows) {
+      const classId = classByName.get(row.className.trim().toLowerCase());
+      if (!classId || !row.fullName?.trim()) {
+        skipped++;
+        skippedRows.push(row.fullName || "(no name)");
+        continue;
+      }
+      // Skip if a student with the same student number already exists in this class.
+      if (row.studentNumber) {
+        const { data: dupe } = await supabase
+          .from("school_students")
+          .select("id")
+          .eq("class_id", classId)
+          .eq("student_number", row.studentNumber)
+          .maybeSingle();
+        if (dupe) {
+          skipped++;
+          skippedRows.push(`${row.fullName} (already exists)`);
+          continue;
+        }
+      }
+      const { error: insertErr } = await supabase.from("school_students").insert({
+        school_id: data.schoolId,
+        class_id: classId,
+        full_name: row.fullName.trim(),
+        student_number: row.studentNumber || null,
+        nickname: row.nickname || null,
+        gender: row.gender || null,
+        status: "active",
+      });
+      if (insertErr) {
+        skipped++;
+        skippedRows.push(`${row.fullName} (${insertErr.message})`);
+        continue;
+      }
+      imported++;
+    }
+    return { ok: true as const, imported, skipped, skippedRows: skippedRows.slice(0, 20) };
+  });
+
 // ————— Guardians + real invite-code linking —————
 export const listGuardians = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string; studentId: string }) => input)
