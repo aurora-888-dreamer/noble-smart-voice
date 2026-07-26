@@ -208,7 +208,9 @@ export async function seedStellaMaris(): Promise<SeedResult> {
   let totalStudents = 0;
 
   for (const c of CLASSES) {
-    let existing = await db.classes.where("name").equals(c.name).first();
+    // `name` is not an indexed field in the classes store, so use filter()
+    // instead of where() to avoid Dexie SchemaError.
+    let existing = await db.classes.filter(x => x.name === c.name).first();
     let classId = existing?.id;
     if (!classId) {
       classId = await db.classes.add({
@@ -218,7 +220,8 @@ export async function seedStellaMaris(): Promise<SeedResult> {
     }
 
     for (const tname of c.teachers) {
-      const exists = await db.staff.where("fullName").equals(tname).first();
+      // `fullName` is not indexed on staff — filter() instead of where().
+      const exists = await db.staff.filter(x => x.fullName === tname).first();
       if (!exists) {
         await db.staff.add({
           fullName: tname, role: "teacher_homeroom", division: "kindergarten",
@@ -226,6 +229,7 @@ export async function seedStellaMaris(): Promise<SeedResult> {
         });
         teachersAdded++;
       }
+
     }
 
     for (const s of c.students) {
