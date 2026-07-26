@@ -206,6 +206,20 @@ class SchoolDB extends Dexie {
       assessments: "++id, studentId, classId, period, periodStart",
       calendar: "++id, scope, classId, eventAt",
     });
+    // v2 — richer student profile; migrate legacy nickname-as-studentId rows.
+    this.version(2)
+      .stores({
+        students: "++id, classId, fullName, studentNumber, status",
+      })
+      .upgrade(async (tx) => {
+        await tx.table("students").toCollection().modify((s: SchoolStudent) => {
+          if (!s.studentNumber && s.nickname && /^\d{2}\.\d{2}\.[A-Z0-9]+\.\d+/i.test(s.nickname)) {
+            s.studentNumber = s.nickname;
+            s.nickname = undefined;
+          }
+          if (!s.status) s.status = "active";
+        });
+      });
   }
 }
 
