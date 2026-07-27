@@ -4,6 +4,29 @@ import { createNobleSupabase } from "./supabase.server";
 export type SchoolRole = "hos" | "principal" | "teacher_homeroom" | "teacher_shadow" | "teacher_subject";
 export type StaffTier = "admin" | "teacher";
 
+export type SchoolError = { ok: false; error: string };
+export type SchoolClass = { id: string; name: string; division?: string; level?: string | null };
+export type SchoolStaff = { id: string; full_name: string; role: SchoolRole; division?: string; class_id?: string | null; email?: string | null };
+export type SchoolStudent = { id: string; full_name: string; student_number?: string | null; nickname?: string | null; class_id?: string; gender?: "M" | "F" | null; dob?: string | null; pob?: string | null; address?: string | null; religion?: string | null; joined_at?: string | null; status?: string; allergies?: string | null; notes?: string | null; certificates?: string[]; extracurriculars?: string[] };
+export type SchoolGuardian = { id: string; student_id: string; full_name: string; relation: string; email?: string | null; whatsapp?: string | null; invite_code: string; invite_used_at?: string | null };
+export type SchoolActivity = { id: string; title: string; body?: string | null; activity_date: string; author_name?: string | null; class_id?: string; school_classes?: { name?: string } };
+export type SchoolAnnouncement = { id: string; title: string; body?: string | null; scope: string; division?: string | null; class_id?: string | null; author_name?: string | null; created_at: string };
+export type SchoolMessage = { id: string; student_id: string; from_side: "teacher" | "parent"; body: string; author_name?: string | null; closed_by_teacher?: boolean; closed_by_parent?: boolean };
+
+export type SchoolClassesResult = SchoolError | { ok: true; classes: SchoolClass[] };
+export type SchoolStaffResult = SchoolError | { ok: true; staff: SchoolStaff[] };
+export type SchoolStudentsResult = SchoolError | { ok: true; students: SchoolStudent[] };
+export type SchoolStudentResult = SchoolError | { ok: true; student: SchoolStudent | null };
+export type SchoolGuardiansResult = SchoolError | { ok: true; guardians: SchoolGuardian[] };
+export type SchoolGuardianResult = SchoolError | { ok: true; guardian: SchoolGuardian | null };
+export type SchoolActivityResult = SchoolError | { ok: true; activity: SchoolActivity };
+export type SchoolActivitiesResult = SchoolError | { ok: true; activities: SchoolActivity[] };
+export type SchoolAnnouncementResult = SchoolError | { ok: true; announcements: SchoolAnnouncement[] };
+export type SchoolMessagesResult = SchoolError | { ok: true; messages: SchoolMessage[] };
+export type SchoolAccessResult = { ok: true; tier: StaffTier } | { ok: false };
+export type SchoolOkResult = SchoolError | { ok: true };
+export type SchoolImportResult = SchoolError | { ok: true; imported: number; skipped: number; skippedRows: string[] };
+
 function checkSchoolPassword(password: string): StaffTier | null {
   if (password && password === (process.env.SCHOOL_ADMIN_PASSWORD || "")) return "admin";
   if (password && password === (process.env.SCHOOL_TEACHER_PASSWORD || "")) return "teacher";
@@ -20,7 +43,7 @@ function randomCode(n = 8): string {
 // ————— Auth check (client calls this once to know which tier a password unlocks) —————
 export const checkSchoolAccess = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string }) => input)
-  .handler(async ({ data }): Promise<{ ok: true; tier: StaffTier } | { ok: false }> => {
+  .handler(async ({ data }): Promise<SchoolAccessResult> => {
     const tier = checkSchoolPassword(data.password);
     return tier ? { ok: true, tier } : { ok: false };
   });
