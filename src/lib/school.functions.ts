@@ -198,8 +198,8 @@ export const deleteSchoolStudent = createServerFn({ method: "POST" })
     const supabase = createNobleSupabase();
     if (!supabase) return { ok: false, error: "Backend School belum dikonfigurasi." };
     const { error } = await supabase.from("school_students").delete().eq("id", data.id);
-    if (error) return { ok: false as const, error: error.message };
-    return { ok: true as const };
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
   });
 
 // Bulk import — Admin HoS only. Rows come pre-parsed from CSV on the
@@ -214,13 +214,13 @@ export const importSchoolStudents = createServerFn({ method: "POST" })
       rows: { studentNumber?: string; fullName: string; nickname?: string; gender?: "M" | "F"; className: string }[];
     }) => input,
   )
-  .handler(async ({ data }) => {
-    if (checkSchoolPassword(data.password) !== "admin") return { ok: false as const, error: "Admin HoS access required." };
+  .handler(async ({ data }): Promise<SchoolImportResult> => {
+    if (checkSchoolPassword(data.password) !== "admin") return { ok: false, error: "Admin HoS access required." };
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Backend School belum dikonfigurasi." };
 
     const { data: classes, error: classErr } = await supabase.from("school_classes").select("id, name").eq("school_id", data.schoolId);
-    if (classErr) return { ok: false as const, error: classErr.message };
+    if (classErr) return { ok: false, error: classErr.message };
     const classByName = new Map((classes ?? []).map((c) => [c.name.trim().toLowerCase(), c.id]));
 
     let imported = 0;
@@ -263,19 +263,19 @@ export const importSchoolStudents = createServerFn({ method: "POST" })
       }
       imported++;
     }
-    return { ok: true as const, imported, skipped, skippedRows: skippedRows.slice(0, 20) };
+    return { ok: true, imported, skipped, skippedRows: skippedRows.slice(0, 20) };
   });
 
 // ————— Guardians + real invite-code linking —————
 export const listGuardians = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string; studentId: string }) => input)
-  .handler(async ({ data }) => {
-    if (!checkSchoolPassword(data.password)) return { ok: false as const, error: "Wrong password." };
+  .handler(async ({ data }): Promise<SchoolGuardiansResult> => {
+    if (!checkSchoolPassword(data.password)) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Backend School belum dikonfigurasi." };
     const { data: rows, error } = await supabase.from("school_guardians").select("*").eq("student_id", data.studentId);
-    if (error) return { ok: false as const, error: error.message };
-    return { ok: true as const, guardians: rows ?? [] };
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, guardians: (rows ?? []) as SchoolGuardian[] };
   });
 
 // Adding a guardian automatically generates their personal invite code —
@@ -287,10 +287,10 @@ export const addGuardian = createServerFn({ method: "POST" })
     (input: { password: string; studentId: string; fullName: string; relation: "father" | "mother" | "guardian"; email?: string; whatsapp?: string }) =>
       input,
   )
-  .handler(async ({ data }) => {
-    if (!checkSchoolPassword(data.password)) return { ok: false as const, error: "Wrong password." };
+  .handler(async ({ data }): Promise<SchoolGuardiansResult> => {
+    if (!checkSchoolPassword(data.password)) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Backend School belum dikonfigurasi." };
     const { data: row, error } = await supabase
       .from("school_guardians")
       .insert({
@@ -303,41 +303,41 @@ export const addGuardian = createServerFn({ method: "POST" })
       })
       .select()
       .single();
-    if (error) return { ok: false as const, error: error.message };
-    return { ok: true as const, guardian: row };
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, guardians: [row as SchoolGuardian] };
   });
 
 export const deleteGuardian = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string; id: string }) => input)
-  .handler(async ({ data }) => {
-    if (!checkSchoolPassword(data.password)) return { ok: false as const, error: "Wrong password." };
+  .handler(async ({ data }): Promise<SchoolOkResult> => {
+    if (!checkSchoolPassword(data.password)) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Backend School belum dikonfigurasi." };
     const { error } = await supabase.from("school_guardians").delete().eq("id", data.id);
-    if (error) return { ok: false as const, error: error.message };
-    return { ok: true as const };
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
   });
 
 // ————— Public: parent redeems their invite code (no password — the code IS the credential) —————
 export const redeemGuardianInvite = createServerFn({ method: "POST" })
   .inputValidator((input: { code: string }) => input)
-  .handler(async ({ data }) => {
+  .handler(async ({ data }): Promise<SchoolError | { ok: true; guardianName: string; student: SchoolStudent | null }> => {
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Backend School belum dikonfigurasi." };
     const { data: guardian, error } = await supabase
       .from("school_guardians")
       .select("*, school_students(*)")
       .eq("invite_code", data.code.trim().toUpperCase())
       .maybeSingle();
-    if (error) return { ok: false as const, error: error.message };
-    if (!guardian) return { ok: false as const, error: "Kode tidak valid." };
+    if (error) return { ok: false, error: error.message };
+    if (!guardian) return { ok: false, error: "Kode tidak valid." };
     if (!guardian.invite_used_at) {
       await supabase.from("school_guardians").update({ invite_used_at: new Date().toISOString() }).eq("id", guardian.id);
     }
     return {
-      ok: true as const,
+      ok: true,
       guardianName: guardian.full_name,
-      student: guardian.school_students,
+      student: guardian.school_students as SchoolStudent | null,
     };
   });
 
@@ -347,49 +347,49 @@ export const redeemGuardianInvite = createServerFn({ method: "POST" })
 // different child than the one their real code unlocks.
 export const getStudentForCode = createServerFn({ method: "POST" })
   .inputValidator((input: { code: string }) => input)
-  .handler(async ({ data }) => {
+  .handler(async ({ data }): Promise<SchoolStudentResult> => {
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Backend School belum dikonfigurasi." };
     const { data: guardian, error } = await supabase
       .from("school_guardians")
       .select("student_id, school_students(*)")
       .eq("invite_code", data.code.trim().toUpperCase())
       .maybeSingle();
-    if (error) return { ok: false as const, error: error.message };
-    if (!guardian) return { ok: false as const, error: "Kode tidak valid." };
-    return { ok: true as const, student: guardian.school_students };
+    if (error) return { ok: false, error: error.message };
+    if (!guardian) return { ok: false, error: "Kode tidak valid." };
+    return { ok: true, student: guardian.school_students as SchoolStudent | null };
   });
 
 // ————— Daily Activity (Phase 1 slice of Phase 2 — see school_phase1.sql note) —————
 export const postSchoolActivity = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string; schoolId: string; classId: string; title: string; body?: string; authorName?: string }) => input)
-  .handler(async ({ data }) => {
-    if (!checkSchoolPassword(data.password)) return { ok: false as const, error: "Wrong password." };
+  .handler(async ({ data }): Promise<SchoolActivityResult> => {
+    if (!checkSchoolPassword(data.password)) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Backend School belum dikonfigurasi." };
     const { data: row, error } = await supabase
       .from("school_activities")
       .insert({ school_id: data.schoolId, class_id: data.classId, title: data.title.trim(), body: data.body || null, author_name: data.authorName || null })
       .select()
       .single();
-    if (error) return { ok: false as const, error: error.message };
-    return { ok: true as const, activity: row };
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, activity: row as SchoolActivity };
   });
 
 export const deleteSchoolActivity = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string; id: string }) => input)
-  .handler(async ({ data }) => {
-    if (!checkSchoolPassword(data.password)) return { ok: false as const, error: "Wrong password." };
+  .handler(async ({ data }): Promise<SchoolOkResult> => {
+    if (!checkSchoolPassword(data.password)) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Backend School belum dikonfigurasi." };
     const { error } = await supabase.from("school_activities").delete().eq("id", data.id);
-    if (error) return { ok: false as const, error: error.message };
-    return { ok: true as const };
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
   });
 
 export const listActivitiesForClass = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string; classId: string }) => input)
-  .handler(async ({ data }) => {
+  .handler(async ({ data }): Promise<SchoolActivitiesResult> => {
     if (!checkSchoolPassword(data.password)) return { ok: false as const, error: "Wrong password." };
     const supabase = createNobleSupabase();
     if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
