@@ -357,7 +357,7 @@ export const getStudentForCode = createServerFn({ method: "POST" })
       .maybeSingle();
     if (error) return { ok: false, error: error.message };
     if (!guardian) return { ok: false, error: "Kode tidak valid." };
-    return { ok: true, student: guardian.school_students as SchoolStudent | null };
+    return { ok: true, student: guardian.school_students as unknown as SchoolStudent | null };
   });
 
 // ————— Daily Activity (Phase 1 slice of Phase 2 — see school_phase1.sql note) —————
