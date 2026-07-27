@@ -128,14 +128,14 @@ export const deleteSchoolStaff = createServerFn({ method: "POST" })
 export const listSchoolStudents = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string; classId?: string }) => input)
   .handler(async ({ data }): Promise<SchoolStudentsResult> => {
-    if (!checkSchoolPassword(data.password)) return { ok: false as const, error: "Wrong password." };
+    if (!checkSchoolPassword(data.password)) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Backend School belum dikonfigurasi." };
     let q = supabase.from("school_students").select("*").order("full_name");
     if (data.classId) q = q.eq("class_id", data.classId);
     const { data: rows, error } = await q;
-    if (error) return { ok: false as const, error: error.message };
-    return { ok: true as const, students: rows ?? [] };
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, students: (rows ?? []) as SchoolStudent[] };
   });
 
 export const upsertSchoolStudent = createServerFn({ method: "POST" })
@@ -161,10 +161,10 @@ export const upsertSchoolStudent = createServerFn({ method: "POST" })
       status?: string;
     }) => input,
   )
-  .handler(async ({ data }) => {
-    if (!checkSchoolPassword(data.password)) return { ok: false as const, error: "Wrong password." };
+  .handler(async ({ data }): Promise<SchoolStudentResult> => {
+    if (!checkSchoolPassword(data.password)) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Backend School belum dikonfigurasi." };
     const payload = {
       school_id: data.schoolId,
       class_id: data.classId,
@@ -187,16 +187,16 @@ export const upsertSchoolStudent = createServerFn({ method: "POST" })
       ? supabase.from("school_students").update(payload).eq("id", data.id).select().single()
       : supabase.from("school_students").insert(payload).select().single();
     const { data: row, error } = await query;
-    if (error) return { ok: false as const, error: error.message };
-    return { ok: true as const, student: row };
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, student: row as SchoolStudent };
   });
 
 export const deleteSchoolStudent = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string; id: string }) => input)
-  .handler(async ({ data }) => {
-    if (checkSchoolPassword(data.password) !== "admin") return { ok: false as const, error: "Admin HoS access required." };
+  .handler(async ({ data }): Promise<SchoolOkResult> => {
+    if (checkSchoolPassword(data.password) !== "admin") return { ok: false, error: "Admin HoS access required." };
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Backend School belum dikonfigurasi." };
     const { error } = await supabase.from("school_students").delete().eq("id", data.id);
     if (error) return { ok: false as const, error: error.message };
     return { ok: true as const };
