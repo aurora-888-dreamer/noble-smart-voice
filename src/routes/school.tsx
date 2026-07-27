@@ -624,10 +624,12 @@ function CsvImportPanel({ classes }: { classes: { id: string; name: string }[] }
   const [seeding, setSeeding] = useState(false);
   const [seedResult, setSeedResult] = useState<string | null>(null);
   const [debugUrl, setDebugUrl] = useState<string | null>(null);
+  const [debugKeyTail, setDebugKeyTail] = useState<string | null>(null);
 
   async function runDebug() {
     const res = await debugSupabaseUrl();
     setDebugUrl(res.url || "(kosong / belum diset)");
+    setDebugKeyTail(res.keyTail || "(kosong / belum diset)");
   }
 
   async function runSeed() {
@@ -671,7 +673,10 @@ function CsvImportPanel({ classes }: { classes: { id: string; name: string }[] }
         <p className="text-sm font-semibold mb-2">Debug: Cek Koneksi Database</p>
         <button onClick={runDebug} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold">Tampilkan URL Supabase yang Dipakai</button>
         {debugUrl && (
-          <p className="text-xs mt-2 font-mono break-all bg-background rounded-lg p-2">{debugUrl}</p>
+          <div className="mt-2 space-y-1">
+            <p className="text-xs font-mono break-all bg-background rounded-lg p-2">URL: {debugUrl}</p>
+            <p className="text-xs font-mono break-all bg-background rounded-lg p-2">Key (6 huruf terakhir): {debugKeyTail}</p>
+          </div>
         )}
         <p className="text-[11px] text-muted-foreground mt-2">Harus mengandung <code className="font-mono">gcszpmmvsutdqqtgswuu</code>. Kalau beda, itu penyebab data tidak muncul di SQL Editor.</p>
       </div>
