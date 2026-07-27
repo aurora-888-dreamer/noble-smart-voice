@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { verifyAdminPassword } from "./store-admin.server";
 import { createNobleSupabase } from "./supabase.server";
 import type { PlanId } from "./store.functions";
 
@@ -26,9 +27,8 @@ export interface Discount {
   createdAt: string;
 }
 
-function checkAdmin(password: string): boolean {
-  const expected = process.env.STORE_ADMIN_PASSWORD || "AURORA-ADMIN";
-  return password === expected;
+async function checkAdmin(password: string): Promise<boolean> {
+  return verifyAdminPassword(password);
 }
 
 function groupRow(row: Record<string, unknown>): CustomerGroup {
@@ -95,7 +95,7 @@ export const findGroupByIdPublic = createServerFn({ method: "POST" })
 export const listAllDiscounts = createServerFn({ method: "POST" })
   .inputValidator((input: { adminPassword: string }) => input)
   .handler(async ({ data }): Promise<{ ok: true; discounts: Discount[] } | { ok: false; error: string }> => {
-    if (!checkAdmin(data.adminPassword)) return { ok: false, error: "Wrong password." };
+    if (!(await checkAdmin(data.adminPassword))) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
     if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
     const { data: rows, error } = await supabase.from("store_discounts").select("*").order("created_at", { ascending: false });
@@ -106,7 +106,7 @@ export const listAllDiscounts = createServerFn({ method: "POST" })
 export const listAllGroups = createServerFn({ method: "POST" })
   .inputValidator((input: { adminPassword: string }) => input)
   .handler(async ({ data }): Promise<{ ok: true; groups: CustomerGroup[] } | { ok: false; error: string }> => {
-    if (!checkAdmin(data.adminPassword)) return { ok: false, error: "Wrong password." };
+    if (!(await checkAdmin(data.adminPassword))) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
     if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
     const { data: rows, error } = await supabase.from("store_groups").select("*").order("name");
@@ -117,7 +117,7 @@ export const listAllGroups = createServerFn({ method: "POST" })
 export const upsertGroupFn = createServerFn({ method: "POST" })
   .inputValidator((input: { adminPassword: string; id?: string; name: string; code: string; note?: string }) => input)
   .handler(async ({ data }): Promise<{ ok: true; group: CustomerGroup } | { ok: false; error: string }> => {
-    if (!checkAdmin(data.adminPassword)) return { ok: false, error: "Wrong password." };
+    if (!(await checkAdmin(data.adminPassword))) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
     if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
     const payload = { name: data.name.trim(), code: data.code.trim().toUpperCase(), note: data.note ?? null };
@@ -132,7 +132,7 @@ export const upsertGroupFn = createServerFn({ method: "POST" })
 export const deleteGroupFn = createServerFn({ method: "POST" })
   .inputValidator((input: { adminPassword: string; id: string }) => input)
   .handler(async ({ data }): Promise<{ ok: true } | { ok: false; error: string }> => {
-    if (!checkAdmin(data.adminPassword)) return { ok: false, error: "Wrong password." };
+    if (!(await checkAdmin(data.adminPassword))) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
     if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
     const { error } = await supabase.from("store_groups").delete().eq("id", data.id);
@@ -157,7 +157,7 @@ export const upsertDiscountFn = createServerFn({ method: "POST" })
     }) => input,
   )
   .handler(async ({ data }): Promise<{ ok: true; discount: Discount } | { ok: false; error: string }> => {
-    if (!checkAdmin(data.adminPassword)) return { ok: false, error: "Wrong password." };
+    if (!(await checkAdmin(data.adminPassword))) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
     if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
     const payload = {
@@ -182,7 +182,7 @@ export const upsertDiscountFn = createServerFn({ method: "POST" })
 export const deleteDiscountFn = createServerFn({ method: "POST" })
   .inputValidator((input: { adminPassword: string; id: string }) => input)
   .handler(async ({ data }): Promise<{ ok: true } | { ok: false; error: string }> => {
-    if (!checkAdmin(data.adminPassword)) return { ok: false, error: "Wrong password." };
+    if (!(await checkAdmin(data.adminPassword))) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
     if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
     const { error } = await supabase.from("store_discounts").delete().eq("id", data.id);

@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { verifyAdminPassword } from "./store-admin.server";
 import { createNobleSupabase, normalizeContact } from "./supabase.server";
 import type { PluginId } from "./plugins";
 
@@ -26,9 +27,8 @@ export interface StoreOrder {
   paymentRef?: string | null;
 }
 
-function checkAdmin(password: string): boolean {
-  const expected = process.env.STORE_ADMIN_PASSWORD || "AURORA-ADMIN";
-  return password === expected;
+async function checkAdmin(password: string): Promise<boolean> {
+  return verifyAdminPassword(password);
 }
 
 // Same human-typeable, checksum-guarded format as before (NBL-YYYYMM-XXXX-XX)
@@ -132,7 +132,7 @@ export const createStoreOrder = createServerFn({ method: "POST" })
 export const listStoreOrders = createServerFn({ method: "POST" })
   .inputValidator((input: { adminPassword: string }) => input)
   .handler(async ({ data }): Promise<{ ok: true; orders: StoreOrder[] } | { ok: false; error: string }> => {
-    if (!checkAdmin(data.adminPassword)) return { ok: false, error: "Wrong password." };
+    if (!(await checkAdmin(data.adminPassword))) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
     if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
 
@@ -150,7 +150,7 @@ export const listStoreOrders = createServerFn({ method: "POST" })
 export const markOrderPaid = createServerFn({ method: "POST" })
   .inputValidator((input: { orderId: string; adminPassword: string; paymentRef?: string }) => input)
   .handler(async ({ data }): Promise<{ ok: true } | { ok: false; error: string }> => {
-    if (!checkAdmin(data.adminPassword)) return { ok: false, error: "Wrong password." };
+    if (!(await checkAdmin(data.adminPassword))) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
     if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
 
@@ -184,7 +184,7 @@ export const markOrderPaid = createServerFn({ method: "POST" })
 export const markOrderDelivered = createServerFn({ method: "POST" })
   .inputValidator((input: { orderId: string; adminPassword: string }) => input)
   .handler(async ({ data }): Promise<{ ok: true } | { ok: false; error: string }> => {
-    if (!checkAdmin(data.adminPassword)) return { ok: false, error: "Wrong password." };
+    if (!(await checkAdmin(data.adminPassword))) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
     if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
     const { error } = await supabase.from("store_orders").update({ status: "delivered", delivered_at: new Date().toISOString() }).eq("id", data.orderId);
@@ -195,7 +195,7 @@ export const markOrderDelivered = createServerFn({ method: "POST" })
 export const cancelStoreOrder = createServerFn({ method: "POST" })
   .inputValidator((input: { orderId: string; adminPassword: string }) => input)
   .handler(async ({ data }): Promise<{ ok: true } | { ok: false; error: string }> => {
-    if (!checkAdmin(data.adminPassword)) return { ok: false, error: "Wrong password." };
+    if (!(await checkAdmin(data.adminPassword))) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
     if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
     const { error } = await supabase.from("store_orders").update({ status: "cancelled" }).eq("id", data.orderId);
@@ -206,7 +206,7 @@ export const cancelStoreOrder = createServerFn({ method: "POST" })
 export const deleteStoreOrder = createServerFn({ method: "POST" })
   .inputValidator((input: { orderId: string; adminPassword: string }) => input)
   .handler(async ({ data }): Promise<{ ok: true } | { ok: false; error: string }> => {
-    if (!checkAdmin(data.adminPassword)) return { ok: false, error: "Wrong password." };
+    if (!(await checkAdmin(data.adminPassword))) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
     if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
     const { error } = await supabase.from("store_orders").delete().eq("id", data.orderId);
@@ -217,7 +217,7 @@ export const deleteStoreOrder = createServerFn({ method: "POST" })
 export const verifyStoreSerial = createServerFn({ method: "POST" })
   .inputValidator((input: { serial: string; adminPassword: string }) => input)
   .handler(async ({ data }): Promise<{ ok: true; order: StoreOrder | null } | { ok: false; error: string }> => {
-    if (!checkAdmin(data.adminPassword)) return { ok: false, error: "Wrong password." };
+    if (!(await checkAdmin(data.adminPassword))) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
     if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
     const { data: row, error } = await supabase
@@ -232,7 +232,7 @@ export const verifyStoreSerial = createServerFn({ method: "POST" })
 export const wipeAllStoreOrders = createServerFn({ method: "POST" })
   .inputValidator((input: { adminPassword: string }) => input)
   .handler(async ({ data }): Promise<{ ok: true } | { ok: false; error: string }> => {
-    if (!checkAdmin(data.adminPassword)) return { ok: false, error: "Wrong password." };
+    if (!(await checkAdmin(data.adminPassword))) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
     if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
     const { error } = await supabase.from("store_orders").delete().neq("id", "00000000-0000-0000-0000-000000000000");
