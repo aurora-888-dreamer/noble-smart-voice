@@ -11,7 +11,7 @@ export type SchoolStudent = { id: string; full_name: string; student_number?: st
 export type SchoolGuardian = { id: string; student_id: string; full_name: string; relation: string; email?: string; whatsapp?: string; invite_code: string; invite_used_at?: string };
 export type SchoolActivity = { id: string; title: string; body?: string; activity_date: string; author_name?: string; class_id?: string; school_classes?: { name?: string } };
 export type SchoolAnnouncement = { id: string; title: string; body?: string; scope: string; division?: string; class_id?: string; author_name?: string; created_at: string };
-export type SchoolMessage = { id: string; student_id: string; from_side: "teacher" | "parent"; body: string; author_name?: string; closed_by_teacher?: boolean; closed_by_parent?: boolean };
+export type SchoolMessage = { id: string; student_id: string; from_side: "teacher" | "parent"; body: string; author_name?: string; closed_by_teacher: boolean; closed_by_parent: boolean };
 
 export type SchoolClassesResult = SchoolError | { ok: true; classes: SchoolClass[] };
 export type SchoolStaffResult = SchoolError | { ok: true; staff: SchoolStaff[] };
