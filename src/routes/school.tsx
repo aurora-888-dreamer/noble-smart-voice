@@ -65,14 +65,13 @@ function SchoolPage() {
   const [schoolId, setSchoolId] = useState<string | null>(null); // never read sessionStorage here — server has no access to it, causes hydration mismatch
 
   useEffect(() => {
-    const cached = getSchoolIdSync();
-    if (cached) {
-      setSchoolId(cached);
-      return;
-    }
+    // Always fetch fresh — no caching here. A cached value would silently
+    // go stale every time SCHOOL_ID is changed in Secrets, and nothing
+    // short of manually clearing browser storage would ever pick up the
+    // new value. Fetching this once per page load is cheap enough.
     getSchoolId().then((res) => {
       if (res.id) {
-        sessionStorage.setItem("noble.school.id", res.id);
+        sessionStorage.setItem("noble.school.id", res.id); // still cached for THIS page load's synchronous helpers below, refreshed every time this effect runs
         setSchoolId(res.id);
       } else {
         setSchoolId(""); // fetched, but not configured — distinguishes from "still loading"
