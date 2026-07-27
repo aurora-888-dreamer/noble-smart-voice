@@ -14,7 +14,339 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      school_activities: {
+        Row: {
+          activity_date: string
+          author_name: string | null
+          body: string | null
+          class_id: string | null
+          created_at: string
+          id: string
+          school_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          activity_date?: string
+          author_name?: string | null
+          body?: string | null
+          class_id?: string | null
+          created_at?: string
+          id?: string
+          school_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          activity_date?: string
+          author_name?: string | null
+          body?: string | null
+          class_id?: string | null
+          created_at?: string
+          id?: string
+          school_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_activities_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "school_classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      school_announcements: {
+        Row: {
+          author_name: string | null
+          body: string | null
+          class_id: string | null
+          created_at: string
+          division: string | null
+          id: string
+          school_id: string
+          scope: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          author_name?: string | null
+          body?: string | null
+          class_id?: string | null
+          created_at?: string
+          division?: string | null
+          id?: string
+          school_id: string
+          scope: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          author_name?: string | null
+          body?: string | null
+          class_id?: string | null
+          created_at?: string
+          division?: string | null
+          id?: string
+          school_id?: string
+          scope?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_announcements_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "school_classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      school_classes: {
+        Row: {
+          created_at: string
+          division: string
+          id: string
+          level: string | null
+          name: string
+          school_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          division: string
+          id?: string
+          level?: string | null
+          name: string
+          school_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          division?: string
+          id?: string
+          level?: string | null
+          name?: string
+          school_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      school_guardians: {
+        Row: {
+          created_at: string
+          email: string | null
+          full_name: string
+          id: string
+          invite_code: string
+          invite_used_at: string | null
+          relation: string
+          student_id: string
+          updated_at: string
+          whatsapp: string | null
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          full_name: string
+          id?: string
+          invite_code: string
+          invite_used_at?: string | null
+          relation: string
+          student_id: string
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          full_name?: string
+          id?: string
+          invite_code?: string
+          invite_used_at?: string | null
+          relation?: string
+          student_id?: string
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_guardians_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "school_students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      school_messages: {
+        Row: {
+          author_name: string | null
+          body: string
+          closed_by_parent: boolean
+          closed_by_teacher: boolean
+          created_at: string
+          from_side: string
+          id: string
+          school_id: string | null
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          author_name?: string | null
+          body: string
+          closed_by_parent?: boolean
+          closed_by_teacher?: boolean
+          created_at?: string
+          from_side: string
+          id?: string
+          school_id?: string | null
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          author_name?: string | null
+          body?: string
+          closed_by_parent?: boolean
+          closed_by_teacher?: boolean
+          created_at?: string
+          from_side?: string
+          id?: string
+          school_id?: string | null
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_messages_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "school_students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      school_staff: {
+        Row: {
+          class_id: string | null
+          created_at: string
+          division: string
+          email: string | null
+          full_name: string
+          id: string
+          role: string
+          school_id: string
+          updated_at: string
+        }
+        Insert: {
+          class_id?: string | null
+          created_at?: string
+          division: string
+          email?: string | null
+          full_name: string
+          id?: string
+          role: string
+          school_id: string
+          updated_at?: string
+        }
+        Update: {
+          class_id?: string | null
+          created_at?: string
+          division?: string
+          email?: string | null
+          full_name?: string
+          id?: string
+          role?: string
+          school_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_staff_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "school_classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      school_students: {
+        Row: {
+          address: string | null
+          allergies: string | null
+          certificates: string[]
+          class_id: string | null
+          created_at: string
+          dob: string | null
+          extracurriculars: string[]
+          full_name: string
+          gender: string | null
+          id: string
+          joined_at: string | null
+          nickname: string | null
+          notes: string | null
+          pob: string | null
+          religion: string | null
+          school_id: string
+          status: string
+          student_number: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          allergies?: string | null
+          certificates?: string[]
+          class_id?: string | null
+          created_at?: string
+          dob?: string | null
+          extracurriculars?: string[]
+          full_name: string
+          gender?: string | null
+          id?: string
+          joined_at?: string | null
+          nickname?: string | null
+          notes?: string | null
+          pob?: string | null
+          religion?: string | null
+          school_id: string
+          status?: string
+          student_number?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          allergies?: string | null
+          certificates?: string[]
+          class_id?: string | null
+          created_at?: string
+          dob?: string | null
+          extracurriculars?: string[]
+          full_name?: string
+          gender?: string | null
+          id?: string
+          joined_at?: string | null
+          nickname?: string | null
+          notes?: string | null
+          pob?: string | null
+          religion?: string | null
+          school_id?: string
+          status?: string
+          student_number?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_students_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "school_classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
