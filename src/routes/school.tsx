@@ -9,7 +9,7 @@ import { usePlugin } from "@/lib/plugins-store";
 import { useLicenseInfo } from "@/lib/auth-store";
 import {
   loginSchoolStaff, schoolLogout, setAdminSubrole, setStaffIdentity, useSchoolSession,
-  redeemParentCode, parentLogout, useParentCode, type AdminSubrole,
+  redeemParentCode, parentLogout, useParentCode, getStoredSchoolPassword, type AdminSubrole,
 } from "@/lib/school-store";
 import {
   listSchoolClasses, createSchoolClass, listSchoolStaff, createSchoolStaff, deleteSchoolStaff,
@@ -22,7 +22,7 @@ import {
   type SchoolRole,
 } from "@/lib/school.functions";
 
-const SCHOOL_ID = "bf61c5ac-be69-4458-8f55-1e0390ee71df";
+const SCHOOL_ID = "";
 
 export const Route = createFileRoute("/school")({
   head: () => ({ meta: [{ title: "School Dashboard — Noble" }] }),
@@ -41,7 +41,7 @@ const ROLE_LABEL: Record<SchoolRole, string> = {
 };
 
 function getStoredPassword(): string {
-  return sessionStorage.getItem("noble.school.tier") ? sessionStorage.getItem("noble.school.pw") || "" : "";
+  return getStoredSchoolPassword();
 }
 
 function SchoolPage() {
@@ -118,7 +118,6 @@ function StaffLogin({ onBack }: { onBack: () => void }) {
     const res = await loginSchoolStaff(pw);
     setChecking(false);
     if (!res.ok) setErr("Password salah.");
-    else sessionStorage.setItem("noble.school.pw", pw);
   }
   return (
     <div className="max-w-sm mx-auto">
