@@ -5,13 +5,13 @@ export type SchoolRole = "hos" | "principal" | "teacher_homeroom" | "teacher_sha
 export type StaffTier = "admin" | "teacher";
 
 export type SchoolError = { ok: false; error: string };
-export type SchoolClass = { id: string; name: string; division?: string; level?: string | null };
-export type SchoolStaff = { id: string; full_name: string; role: SchoolRole; division?: string; class_id?: string | null; email?: string | null };
-export type SchoolStudent = { id: string; full_name: string; student_number?: string | null; nickname?: string | null; class_id?: string; gender?: "M" | "F" | null; dob?: string | null; pob?: string | null; address?: string | null; religion?: string | null; joined_at?: string | null; status?: string; allergies?: string | null; notes?: string | null; certificates?: string[]; extracurriculars?: string[] };
-export type SchoolGuardian = { id: string; student_id: string; full_name: string; relation: string; email?: string | null; whatsapp?: string | null; invite_code: string; invite_used_at?: string | null };
-export type SchoolActivity = { id: string; title: string; body?: string | null; activity_date: string; author_name?: string | null; class_id?: string; school_classes?: { name?: string } };
-export type SchoolAnnouncement = { id: string; title: string; body?: string | null; scope: string; division?: string | null; class_id?: string | null; author_name?: string | null; created_at: string };
-export type SchoolMessage = { id: string; student_id: string; from_side: "teacher" | "parent"; body: string; author_name?: string | null; closed_by_teacher?: boolean; closed_by_parent?: boolean };
+export type SchoolClass = { id: string; name: string; division: string; level?: string };
+export type SchoolStaff = { id: string; full_name: string; role: SchoolRole; division: string; class_id?: string; email?: string };
+export type SchoolStudent = { id: string; full_name: string; student_number?: string; nickname?: string; class_id?: string; gender?: "M" | "F"; dob?: string; pob?: string; address?: string; religion?: string; joined_at?: string; status?: string; allergies?: string; notes?: string; certificates?: string[]; extracurriculars?: string[] };
+export type SchoolGuardian = { id: string; student_id: string; full_name: string; relation: string; email?: string; whatsapp?: string; invite_code: string; invite_used_at?: string };
+export type SchoolActivity = { id: string; title: string; body?: string; activity_date: string; author_name?: string; class_id?: string; school_classes?: { name?: string } };
+export type SchoolAnnouncement = { id: string; title: string; body?: string; scope: string; division?: string; class_id?: string; author_name?: string; created_at: string };
+export type SchoolMessage = { id: string; student_id: string; from_side: "teacher" | "parent"; body: string; author_name?: string; closed_by_teacher?: boolean; closed_by_parent?: boolean };
 
 export type SchoolClassesResult = SchoolError | { ok: true; classes: SchoolClass[] };
 export type SchoolStaffResult = SchoolError | { ok: true; staff: SchoolStaff[] };
