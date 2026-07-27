@@ -18,11 +18,13 @@ import {
   postSchoolActivity, deleteSchoolActivity, listActivitiesForClass, listActivitiesForCode, listAllActivities,
   postMessageAsTeacher, postMessageAsParent, listMessagesForStudent, listMessagesForCode,
   closeThreadAsTeacher, closeThreadAsParent,
-  postAnnouncement, listAnnouncements, listAnnouncementsForCode,
+  postAnnouncement, listAnnouncements, listAnnouncementsForCode, getSchoolId,
   type SchoolRole,
 } from "@/lib/school.functions";
 
-const SCHOOL_ID = "66e23a74-6451-44ff-bc95-f68cfe60d871";
+// SCHOOL_ID now comes from the SCHOOL_ID Secret (see getSchoolId in
+// school.functions.ts) — not hardcoded here anymore, since a hardcoded
+// value kept getting reverted whenever this file was re-edited/republished.
 
 export const Route = createFileRoute("/school")({
   head: () => ({ meta: [{ title: "School Dashboard — Noble" }] }),
@@ -44,6 +46,14 @@ function getStoredPassword(): string {
   return getStoredSchoolPassword();
 }
 
+// SCHOOL_ID is fetched once from the server (env var) and cached in
+// sessionStorage for the rest of the tab's session — same pattern as the
+// password, so every helper below can read it synchronously.
+function getSchoolIdSync(): string {
+  if (typeof window === "undefined") return "";
+  return sessionStorage.getItem("noble.school.id") || "";
+}
+
 function SchoolPage() {
   const hasPlugin = usePlugin("school");
   const license = useLicenseInfo();
@@ -51,6 +61,23 @@ function SchoolPage() {
   const session = useSchoolSession();
   const parentCode = useParentCode();
   const [mode, setMode] = useState<"pick" | "staff" | "parent">("pick");
+  const [schoolId, setSchoolId] = useState<string | null>(null); // never read sessionStorage here — server has no access to it, causes hydration mismatch
+
+  useEffect(() => {
+    const cached = getSchoolIdSync();
+    if (cached) {
+      setSchoolId(cached);
+      return;
+    }
+    getSchoolId().then((res) => {
+      if (res.id) {
+        sessionStorage.setItem("noble.school.id", res.id);
+        setSchoolId(res.id);
+      } else {
+        setSchoolId(""); // fetched, but not configured — distinguishes from "still loading"
+      }
+    });
+  }, []);
 
   if (!hasPlugin && !isAdmin) {
     return (
@@ -62,14 +89,15 @@ function SchoolPage() {
       </AppShell>
     );
   }
-  if (!SCHOOL_ID) {
+  if (schoolId === null) return null; // still loading, avoid a flash of the setup notice
+  if (!schoolId) {
     return (
       <AppShell title="School Dashboard">
         <div className="rounded-2xl border border-dashed border-destructive/40 bg-destructive/5 p-6 text-center text-sm">
           <p className="font-semibold text-destructive mb-1">Setup belum selesai</p>
           <p className="text-muted-foreground">
             Jalankan SQL, lalu <code className="font-mono text-xs">insert into school_schools(name) values ('Stella Maris') returning id;</code>
-            {" "}tempel UUID-nya ke <code className="font-mono">SCHOOL_ID</code> di <code className="font-mono">src/routes/school.tsx</code>.
+            {" "}tambahkan Secret baru bernama <code className="font-mono">SCHOOL_ID</code> di Lovable, isi dengan UUID hasil query tadi.
           </p>
         </div>
       </AppShell>
@@ -297,7 +325,7 @@ function ClassManagerPrincipal({ division, classes }: { division: string; classe
   async function add() {
     if (!name.trim()) return;
     setBusy(true);
-    await createSchoolClass({ data: { password: pw, schoolId: SCHOOL_ID, name: name.trim(), division } });
+    await createSchoolClass({ data: { password: pw, schoolId: getSchoolIdSync(), name: name.trim(), division } });
     setBusy(false); setName(""); setReload((x) => x + 1);
   }
   return (
@@ -328,7 +356,7 @@ function StaffRoster({ canEdit, classes, scopeDivision }: { canEdit: boolean; cl
   async function add() {
     if (!name.trim()) return;
     setBusy(true);
-    await createSchoolStaff({ data: { password: pw, schoolId: SCHOOL_ID, fullName: name.trim(), role, division: scopeDivision ?? "kindergarten", classId: classId || undefined } });
+    await createSchoolStaff({ data: { password: pw, schoolId: getSchoolIdSync(), fullName: name.trim(), role, division: scopeDivision ?? "kindergarten", classId: classId || undefined } });
     setBusy(false); setName(""); setReload((x) => x + 1);
   }
   async function remove(id: string) {
@@ -379,7 +407,7 @@ function StudentRoster({ canEdit, classes }: { canEdit: boolean; classes: { id: 
   const [studentNumber, setStudentNumber] = useState("");
   async function add() {
     if (!name.trim() || !classId) return;
-    await upsertSchoolStudent({ data: { password: pw, schoolId: SCHOOL_ID, classId, fullName: name.trim(), studentNumber: studentNumber || undefined } });
+    await upsertSchoolStudent({ data: { password: pw, schoolId: getSchoolIdSync(), classId, fullName: name.trim(), studentNumber: studentNumber || undefined } });
     setName(""); setStudentNumber(""); setAdding(false); setReload((x) => x + 1);
   }
   async function remove(id: string) {
@@ -497,7 +525,7 @@ function CsvImportPanel({ classes }: { classes: { id: string; name: string }[] }
   async function runSeed() {
     setSeeding(true);
     setSeedResult(null);
-    const res = await seedStellaMarisPhase1({ data: { password: pw, schoolId: SCHOOL_ID } });
+    const res = await seedStellaMarisPhase1({ data: { password: pw, schoolId: getSchoolIdSync() } });
     setSeeding(false);
     setSeedResult(res.ok
       ? (res.classesAdded + " kelas baru, " + res.teachersAdded + " guru baru, " + res.studentsAdded + " murid baru ditambahkan (" + res.studentsSkipped + " sudah ada sebelumnya).")
@@ -524,7 +552,7 @@ function CsvImportPanel({ classes }: { classes: { id: string; name: string }[] }
         className: cols[idx("classname")] ?? "",
       };
     });
-    const res = await importSchoolStudents({ data: { password: pw, schoolId: SCHOOL_ID, rows } });
+    const res = await importSchoolStudents({ data: { password: pw, schoolId: getSchoolIdSync(), rows } });
     setBusy(false);
     setResult(res.ok ? (res.imported + " murid diimpor, " + res.skipped + " dilewati.") : ("Gagal: " + res.error));
     e.target.value = "";
@@ -587,7 +615,7 @@ function AnnouncementPanel({ subrole, division, classes }: { subrole: AdminSubro
     if (!title.trim()) return;
     setErr(null);
     const res = await postAnnouncement({
-      data: { password: pw, subrole, schoolId: SCHOOL_ID, scope, division: scope === "division" ? (division ?? undefined) : undefined, classId: scope === "class" ? classId : undefined, title: title.trim(), body },
+      data: { password: pw, subrole, schoolId: getSchoolIdSync(), scope, division: scope === "division" ? (division ?? undefined) : undefined, classId: scope === "class" ? classId : undefined, title: title.trim(), body },
     });
     if (!res.ok) { setErr(res.error); return; }
     setTitle(""); setBody(""); setReload((x) => x + 1);
@@ -645,7 +673,7 @@ function TeacherDashboard({ staffName }: { staffName: string }) {
 
   async function post() {
     if (!title.trim() || !classId) return;
-    await postSchoolActivity({ data: { password: pw, schoolId: SCHOOL_ID, classId, title: title.trim(), body, authorName: staffName } });
+    await postSchoolActivity({ data: { password: pw, schoolId: getSchoolIdSync(), classId, title: title.trim(), body, authorName: staffName } });
     setTitle(""); setBody(""); setReload((x) => x + 1);
   }
   async function removeActivity(id: string) {
@@ -716,7 +744,7 @@ function TeacherMessageThread({ studentId, staffName }: { studentId: string; sta
 
   async function send() {
     if (!body.trim()) return;
-    await postMessageAsTeacher({ data: { password: pw, schoolId: SCHOOL_ID, studentId, body: body.trim(), authorName: staffName } });
+    await postMessageAsTeacher({ data: { password: pw, schoolId: getSchoolIdSync(), studentId, body: body.trim(), authorName: staffName } });
     setBody(""); setReload((x) => x + 1);
   }
   async function close() {
