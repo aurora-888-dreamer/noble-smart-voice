@@ -577,6 +577,12 @@ export const seedStellaMarisPhase1 = createServerFn({ method: "POST" })
     const supabase = createNobleSupabase();
     if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
 
+    // Debug echo — confirms exactly what schoolId this run used, and what
+    // the server itself sees in the table right now (same connection, same
+    // request) — so there's no ambiguity left about caching or connection.
+    const { count: countBefore } = await supabase.from("school_students").select("*", { count: "exact", head: true });
+    const { data: schoolCheck, error: schoolCheckErr } = await supabase.from("school_schools").select("id, name").eq("id", data.schoolId).maybeSingle();
+
     let classesAdded = 0;
     let teachersAdded = 0;
     let studentsAdded = 0;
@@ -591,7 +597,12 @@ export const seedStellaMarisPhase1 = createServerFn({ method: "POST" })
           .insert({ school_id: data.schoolId, name: c.name, division: "kindergarten", level: c.level })
           .select("id")
           .single();
-        if (classErr) return { ok: false as const, error: `Kelas "${c.name}": ${classErr.message}` };
+        if (classErr) {
+          return {
+            ok: false as const,
+            error: `Kelas "${c.name}": ${classErr.message} — [debug] schoolId dipakai: ${data.schoolId}, baris school_schools ditemukan: ${schoolCheck ? schoolCheck.name : "TIDAK DITEMUKAN"}, error cek sekolah: ${schoolCheckErr?.message ?? "-"}`,
+          };
+        }
         classId = newClass.id;
         classesAdded++;
       }
@@ -628,7 +639,16 @@ export const seedStellaMarisPhase1 = createServerFn({ method: "POST" })
       }
     }
 
-    return { ok: true as const, classesAdded, teachersAdded, studentsAdded, studentsSkipped };
+    const { count: countAfter } = await supabase.from("school_students").select("*", { count: "exact", head: true });
+
+    return {
+      ok: true as const,
+      classesAdded,
+      teachersAdded,
+      studentsAdded,
+      studentsSkipped,
+      debug: `schoolId dipakai: ${data.schoolId} | baris school_schools ditemukan: ${schoolCheck ? `YA (${schoolCheck.name})` : "TIDAK"} | total school_students SEBELUM: ${countBefore} | SESUDAH: ${countAfter}`,
+    };
   });
 
 export const postSchoolActivity = createServerFn({ method: "POST" })
