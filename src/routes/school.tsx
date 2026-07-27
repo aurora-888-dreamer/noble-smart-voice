@@ -637,7 +637,7 @@ function CsvImportPanel({ classes }: { classes: { id: string; name: string }[] }
     const res = await seedStellaMarisPhase1({ data: { password: pw, schoolId: getSchoolIdSync() } });
     setSeeding(false);
     setSeedResult(res.ok
-      ? (res.classesAdded + " kelas baru, " + res.teachersAdded + " guru baru, " + res.studentsAdded + " murid baru ditambahkan (" + res.studentsSkipped + " sudah ada sebelumnya).")
+      ? (res.classesAdded + " kelas baru, " + res.teachersAdded + " guru baru, " + res.studentsAdded + " murid baru ditambahkan (" + res.studentsSkipped + " sudah ada sebelumnya).\n\n[DEBUG] " + res.debug)
       : ("Gagal: " + res.error));
   }
 
