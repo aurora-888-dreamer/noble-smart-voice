@@ -22,7 +22,7 @@ import {
   type SchoolRole,
 } from "@/lib/school.functions";
 
-const SCHOOL_ID = "";
+const SCHOOL_ID = "66e23a74-6451-44ff-bc95-f68cfe60d871";
 
 export const Route = createFileRoute("/school")({
   head: () => ({ meta: [{ title: "School Dashboard — Noble" }] }),
