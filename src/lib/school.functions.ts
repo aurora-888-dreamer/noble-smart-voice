@@ -16,18 +16,22 @@ function randomCode(n = 8): string {
   for (let i = 0; i < n; i++) out += alpha[Math.floor(Math.random() * alpha.length)];
   return out;
 }
-// ————— School ID (from server env; client caches it in sessionStorage) —————
-export const getSchoolId = createServerFn({ method: "GET" })
-  .handler(async (): Promise<{ id: string }> => ({ id: process.env.SCHOOL_ID || "" }));
 
 // ————— Auth check (client calls this once to know which tier a password unlocks) —————
-
 export const checkSchoolAccess = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string }) => input)
   .handler(async ({ data }): Promise<{ ok: true; tier: StaffTier } | { ok: false }> => {
     const tier = checkSchoolPassword(data.password);
     return tier ? { ok: true, tier } : { ok: false };
   });
+
+// Reads the school's id from an environment variable (Secret) instead of
+// being hardcoded in school.tsx — a hardcoded value kept getting reverted
+// whenever the file was re-edited/re-published. Set SCHOOL_ID as a Secret
+// with the UUID from `insert into school_schools(...) returning id;`.
+export const getSchoolId = createServerFn({ method: "GET" }).handler(async (): Promise<{ id: string | null }> => {
+  return { id: process.env.SCHOOL_ID || null };
+});
 
 // ————— Classes —————
 export const listSchoolClasses = createServerFn({ method: "POST" })
@@ -106,6 +110,58 @@ export const deleteSchoolStaff = createServerFn({ method: "POST" })
   });
 
 // ————— Students (readable/writable by admin or teacher tier) —————
+// ————— Teacher device-linking: pick yourself from the roster once, set a
+// PIN, and future visits on this device skip the shared password entirely —
+// just PIN-in. —————
+export const listTeacherStaffPublic = createServerFn({ method: "POST" })
+  .inputValidator((input: { password: string }) => input)
+  .handler(async ({ data }) => {
+    if (!checkSchoolPassword(data.password)) return { ok: false as const, error: "Wrong password." };
+    const supabase = createNobleSupabase();
+    if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
+    const { data: rows, error } = await supabase
+      .from("school_staff")
+      .select("id, full_name, role, class_id")
+      .in("role", ["teacher_homeroom", "teacher_shadow", "teacher_subject"])
+      .order("full_name");
+    if (error) return { ok: false as const, error: error.message };
+    return { ok: true as const, staff: rows ?? [] };
+  });
+
+export const setTeacherPin = createServerFn({ method: "POST" })
+  .inputValidator((input: { password: string; staffId: string; pin: string }) => input)
+  .handler(async ({ data }) => {
+    if (!checkSchoolPassword(data.password)) return { ok: false as const, error: "Wrong password." };
+    if (!/^\d{4,6}$/.test(data.pin)) return { ok: false as const, error: "PIN harus 4-6 angka." };
+    const supabase = createNobleSupabase();
+    if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
+    const { data: row, error } = await supabase
+      .from("school_staff")
+      .update({ pin: data.pin })
+      .eq("id", data.staffId)
+      .select("id, full_name, role, class_id")
+      .single();
+    if (error) return { ok: false as const, error: error.message };
+    return { ok: true as const, staff: row };
+  });
+
+// Public — no shared password needed. The staffId + correct PIN together
+// ARE the credential, same spirit as the parent invite code.
+export const loginTeacherByPin = createServerFn({ method: "POST" })
+  .inputValidator((input: { staffId: string; pin: string }) => input)
+  .handler(async ({ data }) => {
+    const supabase = createNobleSupabase();
+    if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
+    const { data: row, error } = await supabase
+      .from("school_staff")
+      .select("id, full_name, role, class_id, pin")
+      .eq("id", data.staffId)
+      .maybeSingle();
+    if (error) return { ok: false as const, error: error.message };
+    if (!row || !row.pin || row.pin !== data.pin) return { ok: false as const, error: "PIN salah." };
+    return { ok: true as const, staff: { id: row.id, full_name: row.full_name, role: row.role, class_id: row.class_id } };
+  });
+
 export const listSchoolStudents = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string; classId?: string }) => input)
   .handler(async ({ data }) => {

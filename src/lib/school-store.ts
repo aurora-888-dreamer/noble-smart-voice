@@ -8,7 +8,7 @@
 // not per person) — at launch this gets replaced with real per-person NSV
 // accounts without changing the shape most of the UI reads from.
 import { useEffect, useState } from "react";
-import { checkSchoolAccess, redeemGuardianInvite, type StaffTier } from "./school.functions";
+import { checkSchoolAccess, redeemGuardianInvite, loginTeacherByPin, setTeacherPin, type StaffTier } from "./school.functions";
 
 const TIER_KEY = "noble.school.tier";           // "admin" | "teacher"
 const PW_KEY = "noble.school.pw";                // stored together with tier, atomically, so they can never desync
@@ -16,6 +16,8 @@ const SUBROLE_KEY = "noble.school.subrole";      // "hos" | "admin_hos" | "princ
 const DIVISION_KEY = "noble.school.division";    // Principal's assigned division
 const STAFF_NAME_KEY = "noble.school.staffName"; // picked identity for attribution (teacher tier)
 const PARENT_CODE_KEY = "noble.school.parentCode";
+const TEACHER_DEVICE_KEY = "noble.school.teacherDevice"; // persistent (localStorage) — which teacher this device belongs to
+const TEACHER_UNLOCKED_KEY = "noble.school.teacherUnlocked"; // session-only — has the PIN been entered this session
 
 export type AdminSubrole = "hos" | "admin_hos" | "principal";
 
@@ -63,12 +65,69 @@ export function getStaffIdentity(): string | null {
   return sessionStorage.getItem(STAFF_NAME_KEY);
 }
 
+// ————— Teacher device-linking (persistent — survives closing the app) —————
+// Once a teacher picks themselves from the roster and sets a PIN, this
+// device remembers WHO they are (localStorage). Returning visits only need
+// the PIN — not the shared teacher password, not re-picking their name.
+export interface TeacherDevice {
+  id: string;
+  name: string;
+  classId: string | null;
+}
+export function getTeacherDevice(): TeacherDevice | null {
+  if (typeof window === "undefined") return null;
+  const raw = localStorage.getItem(TEACHER_DEVICE_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as TeacherDevice;
+  } catch {
+    return null;
+  }
+}
+export function saveTeacherDevice(device: TeacherDevice) {
+  localStorage.setItem(TEACHER_DEVICE_KEY, JSON.stringify(device));
+  sessionStorage.setItem(TEACHER_UNLOCKED_KEY, "1");
+  sessionStorage.setItem(TIER_KEY, "teacher");
+  sessionStorage.setItem(STAFF_NAME_KEY, device.name);
+  window.dispatchEvent(new Event("noble:school"));
+}
+// "Bukan Anda? Ganti akun" — fully forgets this device belongs to anyone.
+export function clearTeacherDevice() {
+  localStorage.removeItem(TEACHER_DEVICE_KEY);
+  sessionStorage.removeItem(TEACHER_UNLOCKED_KEY);
+  sessionStorage.removeItem(TIER_KEY);
+  sessionStorage.removeItem(STAFF_NAME_KEY);
+  window.dispatchEvent(new Event("noble:school"));
+}
+export function isTeacherUnlocked(): boolean {
+  if (typeof window === "undefined") return false;
+  return sessionStorage.getItem(TEACHER_UNLOCKED_KEY) === "1";
+}
+export async function loginTeacherPin(staffId: string, pin: string) {
+  const res = await loginTeacherByPin({ data: { staffId, pin } });
+  if (res.ok) {
+    saveTeacherDevice({ id: res.staff.id, name: res.staff.full_name, classId: res.staff.class_id });
+  }
+  return res;
+}
+// First-time setup: teacher picked their name from the roster and chose a
+// PIN. Sets it server-side, then links this device so future visits skip
+// straight to the PIN pad.
+export async function completeTeacherSetup(password: string, staffId: string, pin: string) {
+  const res = await setTeacherPin({ data: { password, staffId, pin } });
+  if (res.ok) {
+    saveTeacherDevice({ id: res.staff.id, name: res.staff.full_name, classId: res.staff.class_id });
+  }
+  return res;
+}
+
 export function schoolLogout() {
   sessionStorage.removeItem(TIER_KEY);
   sessionStorage.removeItem(PW_KEY);
   sessionStorage.removeItem(SUBROLE_KEY);
   sessionStorage.removeItem(DIVISION_KEY);
   sessionStorage.removeItem(STAFF_NAME_KEY);
+  sessionStorage.removeItem(TEACHER_UNLOCKED_KEY); // locks the PIN screen again, but keeps the device link
   window.dispatchEvent(new Event("noble:school"));
 }
 
@@ -77,35 +136,41 @@ export function useSchoolSession() {
   const [subrole, setSubrole] = useState<AdminSubrole | null>(null);
   const [division, setDivision] = useState<string | null>(null);
   const [staffName, setStaffName] = useState<string | null>(null);
+  const [teacherDevice, setTeacherDevice] = useState<TeacherDevice | null>(null);
+  const [teacherUnlocked, setTeacherUnlockedState] = useState(false);
   useEffect(() => {
     const sync = () => {
-      setTier(getSchoolTier());
+      const device = getTeacherDevice();
+      const unlocked = isTeacherUnlocked();
+      setTeacherDevice(device);
+      setTeacherUnlockedState(unlocked);
+      setTier(device && unlocked ? "teacher" : device ? null : getSchoolTier());
       setSubrole(getAdminSubrole());
       setDivision(getPrincipalDivision());
-      setStaffName(getStaffIdentity());
+      setStaffName(device ? device.name : getStaffIdentity());
     };
     sync();
     window.addEventListener("noble:school", sync);
     return () => window.removeEventListener("noble:school", sync);
   }, []);
-  return { tier, subrole, division, staffName };
+  return { tier, subrole, division, staffName, teacherDevice, teacherUnlocked };
 }
 
 // ————— Parent session (a verified invite code — NOT a free student pick) —————
 export async function redeemParentCode(code: string) {
   const res = await redeemGuardianInvite({ data: { code } });
   if (res.ok) {
-    sessionStorage.setItem(PARENT_CODE_KEY, code.trim().toUpperCase());
+    localStorage.setItem(PARENT_CODE_KEY, code.trim().toUpperCase());
     window.dispatchEvent(new Event("noble:school"));
   }
   return res;
 }
 export function getParentCode(): string | null {
   if (typeof window === "undefined") return null;
-  return sessionStorage.getItem(PARENT_CODE_KEY);
+  return localStorage.getItem(PARENT_CODE_KEY);
 }
 export function parentLogout() {
-  sessionStorage.removeItem(PARENT_CODE_KEY);
+  localStorage.removeItem(PARENT_CODE_KEY);
   window.dispatchEvent(new Event("noble:school"));
 }
 export function useParentCode() {
