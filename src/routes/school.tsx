@@ -19,7 +19,7 @@ import {
   postSchoolActivity, deleteSchoolActivity, listActivitiesForClass, listActivitiesForCode, listAllActivities,
   postMessageAsTeacher, postMessageAsParent, listMessagesForStudent, listMessagesForCode,
   closeThreadAsTeacher, closeThreadAsParent,
-  postAnnouncement, listAnnouncements, listAnnouncementsForCode, getSchoolId,
+  postAnnouncement, listAnnouncements, listAnnouncementsForCode, getSchoolId, debugSupabaseUrl,
   type SchoolRole,
 } from "@/lib/school.functions";
 
@@ -623,6 +623,12 @@ function CsvImportPanel({ classes }: { classes: { id: string; name: string }[] }
   const [busy, setBusy] = useState(false);
   const [seeding, setSeeding] = useState(false);
   const [seedResult, setSeedResult] = useState<string | null>(null);
+  const [debugUrl, setDebugUrl] = useState<string | null>(null);
+
+  async function runDebug() {
+    const res = await debugSupabaseUrl();
+    setDebugUrl(res.url || "(kosong / belum diset)");
+  }
 
   async function runSeed() {
     setSeeding(true);
@@ -661,6 +667,15 @@ function CsvImportPanel({ classes }: { classes: { id: string; name: string }[] }
   }
   return (
     <div className="space-y-4">
+      <div className="rounded-2xl border border-accent/40 bg-accent/10 p-4">
+        <p className="text-sm font-semibold mb-2">Debug: Cek Koneksi Database</p>
+        <button onClick={runDebug} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold">Tampilkan URL Supabase yang Dipakai</button>
+        {debugUrl && (
+          <p className="text-xs mt-2 font-mono break-all bg-background rounded-lg p-2">{debugUrl}</p>
+        )}
+        <p className="text-[11px] text-muted-foreground mt-2">Harus mengandung <code className="font-mono">gcszpmmvsutdqqtgswuu</code>. Kalau beda, itu penyebab data tidak muncul di SQL Editor.</p>
+      </div>
+
       <div className="rounded-2xl bg-card border border-border p-4">
         <p className="text-sm font-semibold mb-2">Import Data Contoh (Stella Maris)</p>
         <p className="text-xs text-muted-foreground mb-3">Isi otomatis 9 kelas, guru per kelas, dan 133 murid sekaligus &mdash; aman dijalankan berkali-kali, data yang sudah ada dilewati.</p>
