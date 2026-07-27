@@ -9,7 +9,7 @@ export type SchoolClass = { id: string; name: string; division: string; level?: 
 export type SchoolStaff = { id: string; full_name: string; role: SchoolRole; division: string; class_id?: string; email?: string };
 export type SchoolStudent = { id: string; full_name: string; student_number?: string; nickname?: string; class_id?: string; gender?: "M" | "F"; dob?: string; pob?: string; address?: string; religion?: string; joined_at?: string; status?: string; allergies?: string; notes?: string; certificates?: string[]; extracurriculars?: string[] };
 export type SchoolGuardian = { id: string; student_id: string; full_name: string; relation: string; email?: string; whatsapp?: string; invite_code: string; invite_used_at?: string };
-export type SchoolActivity = { id: string; title: string; body?: string; activity_date: string; author_name?: string; class_id?: string; school_classes?: { name?: string } };
+export type SchoolActivity = { id: string; title: string; body?: string; activity_date: string; author_name?: string; class_id?: string; school_classes?: { name: string } };
 export type SchoolAnnouncement = { id: string; title: string; body?: string; scope: string; division?: string; class_id?: string; author_name?: string; created_at: string };
 export type SchoolMessage = { id: string; student_id: string; from_side: "teacher" | "parent"; body: string; author_name?: string; closed_by_teacher: boolean; closed_by_parent: boolean };
 
