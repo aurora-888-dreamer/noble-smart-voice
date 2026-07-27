@@ -16,8 +16,12 @@ function randomCode(n = 8): string {
   for (let i = 0; i < n; i++) out += alpha[Math.floor(Math.random() * alpha.length)];
   return out;
 }
+// ————— School ID (from server env; client caches it in sessionStorage) —————
+export const getSchoolId = createServerFn({ method: "GET" })
+  .handler(async (): Promise<{ id: string }> => ({ id: process.env.SCHOOL_ID || "" }));
 
 // ————— Auth check (client calls this once to know which tier a password unlocks) —————
+
 export const checkSchoolAccess = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string }) => input)
   .handler(async ({ data }): Promise<{ ok: true; tier: StaffTier } | { ok: false }> => {
