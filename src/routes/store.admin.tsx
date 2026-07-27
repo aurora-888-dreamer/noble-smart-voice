@@ -15,6 +15,7 @@ import {
   type Discount, type DiscountKind, type CustomerGroup,
 } from "@/lib/discounts-store";
 import { PLUGIN_REGISTRY } from "@/lib/plugins";
+import { requestStoreAdminReset, resetStoreAdminPassword } from "@/lib/store-admin.functions";
 
 export const Route = createFileRoute("/store/admin")({
   head: () => ({ meta: [{ title: "Admin Dashboard — AURORA MASTER" }] }),
