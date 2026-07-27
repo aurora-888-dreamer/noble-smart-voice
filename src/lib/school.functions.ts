@@ -18,6 +18,13 @@ function randomCode(n = 8): string {
 }
 
 // ————— Auth check (client calls this once to know which tier a password unlocks) —————
+// TEMPORARY DEBUG — reveals which Supabase URL the deployed server code is
+// actually reading right now. Not sensitive (URL only, no key). Remove once
+// the connection mismatch is confirmed fixed.
+export const debugSupabaseUrl = createServerFn({ method: "GET" }).handler(async (): Promise<{ url: string | null }> => {
+  return { url: process.env.NOBLE_SUPABASE_URL || null };
+});
+
 export const checkSchoolAccess = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string }) => input)
   .handler(async ({ data }): Promise<{ ok: true; tier: StaffTier } | { ok: false }> => {
