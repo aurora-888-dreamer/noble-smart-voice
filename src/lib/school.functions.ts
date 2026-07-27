@@ -337,7 +337,7 @@ export const redeemGuardianInvite = createServerFn({ method: "POST" })
     return {
       ok: true,
       guardianName: guardian.full_name,
-      student: guardian.school_students as SchoolStudent | null,
+      student: guardian.school_students as unknown as SchoolStudent | null,
     };
   });
 
