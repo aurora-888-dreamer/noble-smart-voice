@@ -15,6 +15,7 @@ import {
   type Discount, type DiscountKind, type CustomerGroup,
 } from "@/lib/discounts-store";
 import { PLUGIN_REGISTRY } from "@/lib/plugins";
+import { requestStoreAdminReset, resetStoreAdminPassword } from "@/lib/store-admin.functions";
 
 export const Route = createFileRoute("/store/admin")({
   head: () => ({ meta: [{ title: "Admin Dashboard — AURORA MASTER" }] }),
@@ -38,6 +39,7 @@ function AdminLogin() {
   const [pw, setPw] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
+  const [forgot, setForgot] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -47,6 +49,8 @@ function AdminLogin() {
     setChecking(false);
     if (!ok) setErr("Incorrect password");
   }
+
+  if (forgot) return <ForgotPassword onDone={() => setForgot(false)} />;
 
   return (
     <div className="max-w-sm mx-auto mt-16 rounded-2xl bg-card border border-border p-6">
@@ -70,14 +74,120 @@ function AdminLogin() {
         >
           {checking ? "Checking…" : "Sign in"}
         </button>
-        <p className="text-[11px] text-muted-foreground text-center pt-2">
-          Password is set via the <code className="font-mono">STORE_ADMIN_PASSWORD</code> environment
-          variable (default: <code className="font-mono">AURORA-ADMIN</code>).
-        </p>
+        <button
+          type="button"
+          onClick={() => setForgot(true)}
+          className="w-full text-xs text-muted-foreground underline pt-1"
+        >
+          Lupa password?
+        </button>
       </form>
     </div>
   );
 }
+
+// Two-step reset: an emailed 6-digit code, then a new password. The code is
+// only ever sent to the configured admin email — entering any other address
+// silently does nothing, so this form can't be used to fish for it.
+function ForgotPassword({ onDone }: { onDone: () => void }) {
+  const [step, setStep] = useState<"email" | "code">("email");
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+
+  async function sendCode(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setErr(null);
+    const res = await requestStoreAdminReset({ data: { email } });
+    setBusy(false);
+    if (!res.ok) return setErr(res.error);
+    setNote("Jika email tersebut terdaftar sebagai admin, kode reset sudah dikirim. Berlaku 15 menit.");
+    setStep("code");
+  }
+
+  async function applyReset(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setErr(null);
+    const res = await resetStoreAdminPassword({ data: { code, newPassword: newPw } });
+    setBusy(false);
+    if (!res.ok) return setErr(res.error);
+    const ok = await adminLogin(newPw);
+    if (!ok) {
+      setNote("Password berhasil diubah. Silakan masuk dengan password baru.");
+      onDone();
+    }
+  }
+
+  return (
+    <div className="max-w-sm mx-auto mt-16 rounded-2xl bg-card border border-border p-6">
+      <div className="flex items-center gap-2 mb-4">
+        <KeyRound className="text-primary" size={20} />
+        <h1 className="text-xl font-semibold">Reset Password</h1>
+      </div>
+
+      {step === "email" ? (
+        <form onSubmit={sendCode} className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            Masukkan email admin. Kami akan mengirim kode 6 digit untuk mengatur ulang password.
+          </p>
+          <input
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="admin@email.com"
+            className="w-full rounded-xl bg-secondary px-4 py-3 text-sm outline-none"
+          />
+          {err && <p className="text-xs text-destructive">{err}</p>}
+          <button
+            type="submit"
+            disabled={busy || !email.trim()}
+            className="w-full rounded-full bg-primary text-primary-foreground py-3 text-sm font-semibold disabled:opacity-50"
+          >
+            {busy ? "Mengirim…" : "Kirim kode"}
+          </button>
+        </form>
+      ) : (
+        <form onSubmit={applyReset} className="space-y-3">
+          {note && <p className="text-xs text-muted-foreground">{note}</p>}
+          <input
+            inputMode="numeric"
+            maxLength={6}
+            value={code}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+            placeholder="Kode 6 digit"
+            className="w-full rounded-xl bg-secondary px-4 py-3 text-sm tracking-[0.4em] text-center outline-none"
+          />
+          <input
+            type="password"
+            value={newPw}
+            onChange={(e) => setNewPw(e.target.value)}
+            placeholder="Password baru (min. 8 karakter)"
+            className="w-full rounded-xl bg-secondary px-4 py-3 text-sm outline-none"
+          />
+          {err && <p className="text-xs text-destructive">{err}</p>}
+          <button
+            type="submit"
+            disabled={busy || code.length !== 6 || newPw.trim().length < 8}
+            className="w-full rounded-full bg-primary text-primary-foreground py-3 text-sm font-semibold disabled:opacity-50"
+          >
+            {busy ? "Menyimpan…" : "Simpan password baru"}
+          </button>
+        </form>
+      )}
+
+      <button onClick={onDone} className="w-full text-xs text-muted-foreground underline pt-4">
+        Kembali ke login
+      </button>
+    </div>
+  );
+}
+
 
 function AdminDashboard({ adminPassword }: { adminPassword: string }) {
   const orders = useOrders(adminPassword);

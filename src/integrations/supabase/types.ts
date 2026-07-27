@@ -347,6 +347,51 @@ export type Database = {
           },
         ]
       }
+      store_admin_auth: {
+        Row: {
+          id: number
+          password_hash: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          password_hash: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          password_hash?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      store_admin_resets: {
+        Row: {
+          code_hash: string
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          used_at: string | null
+        }
+        Insert: {
+          code_hash: string
+          created_at?: string
+          email: string
+          expires_at: string
+          id?: string
+          used_at?: string | null
+        }
+        Update: {
+          code_hash?: string
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          used_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
