@@ -19,10 +19,16 @@ function randomCode(n = 8): string {
 
 // ————— Auth check (client calls this once to know which tier a password unlocks) —————
 // TEMPORARY DEBUG — reveals which Supabase URL the deployed server code is
-// actually reading right now. Not sensitive (URL only, no key). Remove once
-// the connection mismatch is confirmed fixed.
-export const debugSupabaseUrl = createServerFn({ method: "GET" }).handler(async (): Promise<{ url: string | null }> => {
-  return { url: process.env.NOBLE_SUPABASE_URL || null };
+// actually reading right now, plus the last 6 characters of the service
+// role key (safe to show — not enough to reconstruct the real key, but
+// enough to confirm it matches what you just pasted into Secrets).
+// Remove once the connection mismatch is confirmed fixed.
+export const debugSupabaseUrl = createServerFn({ method: "GET" }).handler(async (): Promise<{ url: string | null; keyTail: string | null }> => {
+  const key = process.env.NOBLE_SUPABASE_SERVICE_ROLE_KEY || "";
+  return {
+    url: process.env.NOBLE_SUPABASE_URL || null,
+    keyTail: key ? "..." + key.slice(-6) : null,
+  };
 });
 
 export const checkSchoolAccess = createServerFn({ method: "POST" })
