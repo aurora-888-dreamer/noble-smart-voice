@@ -1,43 +1,76 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState, useCallback, useEffect, useRef } from "react";
-import { useLiveQuery } from "dexie-react-hooks";
+import { useEffect, useRef, useState } from "react";
 import {
-  GraduationCap, Users, ClipboardCheck, CalendarDays, BookOpen, Clock, Megaphone,
-  MessageSquare, LineChart, FolderKanban, UserPlus, Baby, Plus, Trash2, Save, X,
-  School, Shield, Home as HomeIcon,
+  Shield, GraduationCap, BookOpen, Home as HomeIcon, Baby, Users, Trash2,
+  UserPlus, Upload, Send, LogOut, Save, Megaphone, MessageSquare, X, Bell,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
-import { SchoolTools } from "@/components/SchoolTools";
 import { usePlugin } from "@/lib/plugins-store";
 import { useLicenseInfo } from "@/lib/auth-store";
 import {
-  getSchoolDb, ROLE_LABEL, DIVISION_LABEL, KG_LEVELS, startOfDay, startOfWeek,
-  type SchoolRole, type Division, type KgLevel, type AttendanceStatus, type AssessmentPeriod,
-} from "@/lib/school-db";
-import { useSchoolRole, setSchoolRole, setActorId, getParentStudentIds, setParentStudentIds } from "@/lib/school-store";
+  loginSchoolStaff, schoolLogout, setAdminSubrole, setStaffIdentity, useSchoolSession,
+  redeemParentCode, parentLogout, useParentCode, type AdminSubrole,
+} from "@/lib/school-store";
+import {
+  listSchoolClasses, createSchoolClass, listSchoolStaff, createSchoolStaff, deleteSchoolStaff,
+  listSchoolStudents, upsertSchoolStudent, deleteSchoolStudent, importSchoolStudents,
+  listGuardians, addGuardian, deleteGuardian, getStudentForCode,
+  postSchoolActivity, deleteSchoolActivity, listActivitiesForClass, listActivitiesForCode, listAllActivities,
+  postMessageAsTeacher, postMessageAsParent, listMessagesForStudent, listMessagesForCode,
+  closeThreadAsTeacher, closeThreadAsParent,
+  postAnnouncement, listAnnouncements, listAnnouncementsForCode,
+  type SchoolRole,
+} from "@/lib/school.functions";
+
+const SCHOOL_ID = "";
 
 export const Route = createFileRoute("/school")({
-  head: () => ({ meta: [
-    { title: "School Dashboard — Noble" },
-    { name: "description", content: "Kindergarten management dashboard for teachers, parents, principals and Head of School." },
-  ] }),
+  head: () => ({ meta: [{ title: "School Dashboard — Noble" }] }),
   component: SchoolPage,
 });
+
+const DIVISIONS = [
+  { id: "kindergarten", label: "Kindergarten" },
+  { id: "primary", label: "Primary (1–6)" },
+  { id: "secondary", label: "Secondary / Junior High (7–10)" },
+  { id: "ib", label: "IB Diploma (11–12)" },
+];
+const ROLE_LABEL: Record<SchoolRole, string> = {
+  hos: "Head of School", principal: "Principal",
+  teacher_homeroom: "Homeroom Teacher", teacher_shadow: "Shadow Teacher", teacher_subject: "Subject Teacher",
+};
+
+function getStoredPassword(): string {
+  return sessionStorage.getItem("noble.school.tier") ? sessionStorage.getItem("noble.school.pw") || "" : "";
+}
 
 function SchoolPage() {
   const hasPlugin = usePlugin("school");
   const license = useLicenseInfo();
   const isAdmin = license.code === "NOBLE440077" || license.tier === "premium";
-  const role = useSchoolRole();
+  const session = useSchoolSession();
+  const parentCode = useParentCode();
+  const [mode, setMode] = useState<"pick" | "staff" | "parent">("pick");
 
   if (!hasPlugin && !isAdmin) {
     return (
       <AppShell title="School Dashboard">
         <div className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-          The School Dashboard plugin is not enabled for your account.
-          <div className="mt-3">
-            <Link to="/upgrade" className="rounded-xl bg-primary text-primary-foreground px-4 py-2 text-xs font-semibold">Upgrade / Enable</Link>
-          </div>
+          Plugin School Dashboard belum aktif.
+          <div className="mt-3"><Link to="/upgrade" className="rounded-xl bg-primary text-primary-foreground px-4 py-2 text-xs font-semibold">Upgrade / Enable</Link></div>
+        </div>
+      </AppShell>
+    );
+  }
+  if (!SCHOOL_ID) {
+    return (
+      <AppShell title="School Dashboard">
+        <div className="rounded-2xl border border-dashed border-destructive/40 bg-destructive/5 p-6 text-center text-sm">
+          <p className="font-semibold text-destructive mb-1">Setup belum selesai</p>
+          <p className="text-muted-foreground">
+            Jalankan SQL, lalu <code className="font-mono text-xs">insert into school_schools(name) values ('Stella Maris') returning id;</code>
+            {" "}tempel UUID-nya ke <code className="font-mono">SCHOOL_ID</code> di <code className="font-mono">src/routes/school.tsx</code>.
+          </p>
         </div>
       </AppShell>
     );
@@ -45,125 +78,183 @@ function SchoolPage() {
 
   return (
     <AppShell title="School Dashboard">
-      {!role ? <RolePicker /> : <RoleRouter role={role} />}
+      {parentCode ? <ParentDashboard code={parentCode} /> : session.tier ? <StaffRouter /> : mode === "pick" ? (
+        <EntryPicker onPick={setMode} />
+      ) : mode === "staff" ? <StaffLogin onBack={() => setMode("pick")} /> : <ParentLogin onBack={() => setMode("pick")} />}
     </AppShell>
   );
 }
 
-// ---------------- Role picker ----------------
-function RolePicker() {
-  const roles: { r: SchoolRole; Icon: typeof School }[] = [
-    { r: "hos", Icon: Shield },
-    { r: "principal", Icon: GraduationCap },
-    { r: "teacher_homeroom", Icon: BookOpen },
-    { r: "teacher_shadow", Icon: BookOpen },
-    { r: "teacher_subject", Icon: BookOpen },
-    { r: "parent", Icon: HomeIcon },
-  ];
+function EntryPicker({ onPick }: { onPick: (m: "staff" | "parent") => void }) {
   return (
     <div>
       <p className="text-sm text-muted-foreground mb-4">
-        Sample: <span className="font-semibold text-foreground">Stella Maris International School</span> · Step 1: Kindergarten (Toddler · Nursery · K1 · K2)
+        Sample: <span className="font-semibold text-foreground">Stella Maris International School</span> · Kindergarten
       </p>
-      <h2 className="text-lg font-semibold mb-3">Choose your role</h2>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-        {roles.map(({ r, Icon }) => (
-          <button
-            key={r}
-            onClick={() => setSchoolRole(r)}
-            className="rounded-2xl bg-card border border-border p-4 text-left active:scale-[0.98]"
-          >
-            <Icon size={22} className="text-primary mb-2" />
-            <p className="text-sm font-semibold">{ROLE_LABEL[r]}</p>
-          </button>
-        ))}
+      <h2 className="text-lg font-semibold mb-3">Masuk sebagai</h2>
+      <div className="grid grid-cols-2 gap-3">
+        <button onClick={() => onPick("staff")} className="rounded-2xl bg-card border border-border p-5 text-left active:scale-[0.98]">
+          <Shield size={22} className="text-primary mb-2" />
+          <p className="text-sm font-semibold">Staff</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5">HoS · Admin HoS · Principal · Guru</p>
+        </button>
+        <button onClick={() => onPick("parent")} className="rounded-2xl bg-card border border-border p-5 text-left active:scale-[0.98]">
+          <HomeIcon size={22} className="text-primary mb-2" />
+          <p className="text-sm font-semibold">Orangtua</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5">Pakai kode undangan dari Guru</p>
+        </button>
       </div>
     </div>
   );
 }
 
-function RoleRouter({ role }: { role: SchoolRole }) {
+function StaffLogin({ onBack }: { onBack: () => void }) {
+  const [pw, setPw] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setChecking(true); setErr(null);
+    const res = await loginSchoolStaff(pw);
+    setChecking(false);
+    if (!res.ok) setErr("Password salah.");
+    else sessionStorage.setItem("noble.school.pw", pw);
+  }
+  return (
+    <div className="max-w-sm mx-auto">
+      <button onClick={onBack} className="text-xs text-muted-foreground underline mb-4">Kembali</button>
+      <form onSubmit={submit} className="rounded-2xl bg-card border border-border p-5 space-y-3">
+        <p className="text-sm font-semibold">Masuk sebagai Staff</p>
+        <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="Password" className="w-full rounded-xl bg-secondary px-4 py-3 text-sm outline-none" autoFocus />
+        {err && <p className="text-xs text-destructive">{err}</p>}
+        <button type="submit" disabled={checking || !pw.trim()} className="w-full rounded-full bg-primary text-primary-foreground py-3 text-sm font-semibold disabled:opacity-50">{checking ? "Memeriksa" : "Masuk"}</button>
+      </form>
+    </div>
+  );
+}
+
+function ParentLogin({ onBack }: { onBack: () => void }) {
+  const [code, setCode] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setChecking(true); setErr(null);
+    const res = await redeemParentCode(code);
+    setChecking(false);
+    if (!res.ok) setErr(("error" in res && res.error) || "Kode tidak valid.");
+  }
+  return (
+    <div className="max-w-sm mx-auto">
+      <button onClick={onBack} className="text-xs text-muted-foreground underline mb-4">Kembali</button>
+      <form onSubmit={submit} className="rounded-2xl bg-card border border-border p-5 space-y-3">
+        <p className="text-sm font-semibold">Masukkan kode undangan</p>
+        <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="mis. XK7QM2NP" className="w-full rounded-xl bg-secondary px-4 py-3 text-sm outline-none font-mono tracking-wider text-center" autoFocus />
+        {err && <p className="text-xs text-destructive">{err}</p>}
+        <button type="submit" disabled={checking || !code.trim()} className="w-full rounded-full bg-primary text-primary-foreground py-3 text-sm font-semibold disabled:opacity-50">{checking ? "Memeriksa" : "Buka"}</button>
+      </form>
+    </div>
+  );
+}
+
+function StaffRouter() {
+  const { tier, subrole, division, staffName } = useSchoolSession();
+  if (tier === "admin" && !subrole) return <AdminSubrolePicker />;
+  if (tier === "admin" && subrole === "principal" && !division) return <DivisionPicker />;
+  if (tier === "teacher" && !staffName) return <TeacherIdentityPicker />;
+
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
         <div>
           <p className="text-xs uppercase tracking-wide text-muted-foreground">Signed in as</p>
-          <p className="text-sm font-semibold">{ROLE_LABEL[role]}</p>
+          <p className="text-sm font-semibold">
+            {tier === "admin" ? (subrole === "hos" ? "Head of School" : subrole === "admin_hos" ? "Admin HoS" : "Principal - " + DIVISIONS.find((d) => d.id === division)?.label) : staffName}
+          </p>
         </div>
-        <button
-          onClick={() => { setSchoolRole(null); setActorId(null); }}
-          className="text-xs rounded-full border border-border px-3 py-1.5"
-        >Switch role</button>
+        <button onClick={schoolLogout} className="text-xs rounded-full border border-border px-3 py-1.5 flex items-center gap-1"><LogOut size={12} /> Keluar</button>
       </div>
-      {role === "parent" ? <ParentDashboard /> :
-       role === "hos" || role === "principal" ? <PrincipalDashboard role={role} /> :
-       <TeacherDashboard role={role} />}
+      {tier === "admin" && (subrole === "hos" || subrole === "admin_hos") && <HosDashboard subrole={subrole} />}
+      {tier === "admin" && subrole === "principal" && <PrincipalDashboard division={division!} />}
+      {tier === "teacher" && <TeacherDashboard staffName={staffName!} />}
     </div>
   );
 }
 
-// ---------------- Teacher Dashboard ----------------
-type TeacherTab = "overview" | "students" | "attendance" | "activity" | "lesson" | "timetable" | "projects" | "calendar" | "assessment" | "messages";
-
-function TeacherDashboard({ role }: { role: SchoolRole }) {
-  const [tab, setTab] = useState<TeacherTab>("overview");
-  const tabs: { id: TeacherTab; label: string; Icon: typeof School }[] = [
-    { id: "overview", label: "Overview", Icon: LineChart },
-    { id: "students", label: "Students", Icon: Users },
-    { id: "attendance", label: "Attendance", Icon: ClipboardCheck },
-    { id: "activity", label: "Daily Activity", Icon: BookOpen },
-    { id: "lesson", label: "Lesson Plan", Icon: BookOpen },
-    { id: "timetable", label: "Timetable", Icon: Clock },
-    { id: "projects", label: "Projects", Icon: FolderKanban },
-    { id: "calendar", label: "Calendar", Icon: CalendarDays },
-    { id: "assessment", label: "Assessment", Icon: LineChart },
-    { id: "messages", label: "Messages", Icon: MessageSquare },
+function AdminSubrolePicker() {
+  const roles: { r: AdminSubrole; label: string; desc: string }[] = [
+    { r: "hos", label: "Head of School", desc: "Lihat semua data + umumkan ke seluruh sekolah" },
+    { r: "admin_hos", label: "Admin HoS", desc: "Kelola data murid & staff, import CSV" },
+    { r: "principal", label: "Principal", desc: "Kelola 1 Divisi, buat akun Guru" },
   ];
   return (
-    <div>
-      <SchoolTools />
-      <ClassSelector />
-      <div className="flex gap-2 overflow-x-auto pb-2 mb-4 -mx-4 px-4 no-scrollbar">
-        {tabs.map(({ id, label, Icon }) => (
-          <button key={id} onClick={() => setTab(id)}
-            className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold border flex items-center gap-1.5 ${tab === id ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border"}`}>
-            <Icon size={13} />{label}
-          </button>
-        ))}
-      </div>
-      {tab === "overview" && <TeacherOverview />}
-      {tab === "students" && <StudentsPanel canEdit />}
-      {tab === "attendance" && <AttendancePanel />}
-      {tab === "activity" && <DailyActivityPanel />}
-      {tab === "lesson" && <LessonPlanPanel />}
-      {tab === "timetable" && <TimetablePanel />}
-      {tab === "projects" && <ProjectPlanPanel />}
-      {tab === "calendar" && <CalendarPanel canEdit />}
-      {tab === "assessment" && <AssessmentPanel />}
-      {tab === "messages" && <MessagesPanel role={role} />}
+    <div className="grid gap-3">
+      {roles.map(({ r, label, desc }) => (
+        <button key={r} onClick={() => setAdminSubrole(r)} className="rounded-2xl bg-card border border-border p-4 text-left active:scale-[0.98]">
+          <p className="text-sm font-semibold">{label}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
+        </button>
+      ))}
+    </div>
+  );
+}
+function DivisionPicker() {
+  return (
+    <div className="grid gap-3">
+      <p className="text-sm text-muted-foreground mb-1">Pilih Divisi yang Anda kelola:</p>
+      {DIVISIONS.map((d) => (
+        <button key={d.id} onClick={() => setAdminSubrole("principal", d.id)} className="rounded-2xl bg-card border border-border p-4 text-left active:scale-[0.98]"><p className="text-sm font-semibold">{d.label}</p></button>
+      ))}
+    </div>
+  );
+}
+function TeacherIdentityPicker() {
+  const [name, setName] = useState("");
+  return (
+    <div className="max-w-sm mx-auto rounded-2xl bg-card border border-border p-5">
+      <p className="text-sm font-semibold mb-1">Siapa Anda?</p>
+      <p className="text-xs text-muted-foreground mb-3">Dipakai untuk menandai aktivitas/pesan yang Anda buat.</p>
+      <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nama lengkap (mis. Ms. Hermin)" className="w-full rounded-xl bg-secondary px-4 py-3 text-sm outline-none mb-3" autoFocus />
+      <button onClick={() => name.trim() && setStaffIdentity(name.trim())} disabled={!name.trim()} className="w-full rounded-full bg-primary text-primary-foreground py-3 text-sm font-semibold disabled:opacity-50">Lanjut</button>
     </div>
   );
 }
 
-function TeacherOverview() {
-  const classId = useSelectedClassId();
-  const db = getSchoolDb();
-  const today = startOfDay();
-  const students = useLiveQuery(async () => classId ? db.students.where("classId").equals(classId).toArray() : [], [classId]);
-  const attToday = useLiveQuery(async () => classId ? db.attendance.where("classId").equals(classId).and(a => a.date === today).toArray() : [], [classId, today]);
-  const lessonsThisWeek = useLiveQuery(async () => classId ? db.lessons.where("classId").equals(classId).and(l => l.weekStart === startOfWeek()).toArray() : [], [classId]);
-  const upcoming = useLiveQuery(async () => db.calendar.where("eventAt").aboveOrEqual(Date.now()).limit(5).toArray(), []);
-  const present = (attToday ?? []).filter(a => a.status === "present").length;
+function HosDashboard({ subrole }: { subrole: AdminSubrole }) {
+  const [tab, setTab] = useState<"overview" | "students" | "staff" | "activity" | "announce" | "import">("overview");
+  const canEditProfile = subrole === "admin_hos";
+  const pw = getStoredPassword();
+  const classes = useAsync(() => listSchoolClasses({ data: { password: pw } }), [pw]);
+  const staff = useAsync(() => listSchoolStaff({ data: { password: pw } }), [pw]);
+  const classList = classes.data && "classes" in classes.data ? classes.data.classes : [];
+  const staffList = staff.data && "staff" in staff.data ? staff.data.staff : [];
+  const tabs = [
+    { id: "overview", label: "Overview" }, { id: "students", label: "Data Murid" },
+    { id: "staff", label: "Staff" }, { id: "activity", label: "Semua Activity" }, { id: "announce", label: "Pengumuman" },
+    ...(canEditProfile ? [{ id: "import" as const, label: "Import CSV" }] : []),
+  ] as const;
   return (
-    <div className="grid grid-cols-2 gap-3">
-      <Stat label="Students" value={students?.length ?? 0} Icon={Baby} />
-      <Stat label="Present today" value={`${present}/${students?.length ?? 0}`} Icon={ClipboardCheck} />
-      <Stat label="Lessons this week" value={lessonsThisWeek?.length ?? 0} Icon={BookOpen} />
-      <Stat label="Upcoming events" value={upcoming?.length ?? 0} Icon={CalendarDays} />
+    <div>
+      <div className="flex gap-2 overflow-x-auto pb-2 mb-4 no-scrollbar">
+        {tabs.map((t) => (
+          <button key={t.id} onClick={() => setTab(t.id)} className={"shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold border " + (tab === t.id ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>{t.label}</button>
+        ))}
+      </div>
+      {tab === "overview" && (
+        <div className="grid grid-cols-2 gap-3">
+          <StatCard label="Classes" value={classList.length} Icon={GraduationCap} />
+          <StatCard label="Staff" value={staffList.length} Icon={Users} />
+        </div>
+      )}
+      {tab === "students" && <StudentRoster canEdit={canEditProfile} classes={classList} />}
+      {tab === "staff" && <StaffRoster canEdit={canEditProfile} classes={classList} scopeDivision={null} />}
+      {tab === "activity" && <AllActivitiesView division={null} />}
+      {tab === "announce" && <AnnouncementPanel subrole={subrole} division={null} classes={classList} />}
+      {tab === "import" && canEditProfile && <CsvImportPanel classes={classList} />}
     </div>
   );
 }
-function Stat({ label, value, Icon }: { label: string; value: number | string; Icon: typeof School }) {
+function StatCard({ label, value, Icon }: { label: string; value: number; Icon: typeof Shield }) {
   return (
     <div className="rounded-2xl bg-card border border-border p-4">
       <Icon size={16} className="text-primary mb-2" />
@@ -173,1003 +264,587 @@ function Stat({ label, value, Icon }: { label: string; value: number | string; I
   );
 }
 
-// ---------------- Class selector (shared) ----------------
-function useSelectedClassId(): number | null {
-  const [_, setBump] = useState(0);
-  useMemo(() => {
-    const sync = () => setBump(x => x + 1);
-    window.addEventListener("noble:school", sync);
-    return () => window.removeEventListener("noble:school", sync);
-  }, []);
-  const id = typeof window === "undefined" ? null : (localStorage.getItem("noble.school.classId") ? Number(localStorage.getItem("noble.school.classId")) : null);
-  return id;
+function PrincipalDashboard({ division }: { division: string }) {
+  const [tab, setTab] = useState<"overview" | "students" | "classes" | "staff" | "activity" | "announce">("overview");
+  const pw = getStoredPassword();
+  const classesAll = useAsync(() => listSchoolClasses({ data: { password: pw } }), [pw]);
+  const classes = (classesAll.data && "classes" in classesAll.data ? classesAll.data.classes : []).filter((c: { division: string }) => c.division === division);
+  const tabs = [
+    { id: "overview", label: "Overview" }, { id: "students", label: "Data Murid" }, { id: "classes", label: "Classes" },
+    { id: "staff", label: "Staff" }, { id: "activity", label: "Activity Guru" }, { id: "announce", label: "Pengumuman" },
+  ] as const;
+  return (
+    <div>
+      <p className="text-xs text-muted-foreground mb-3">Principal - {DIVISIONS.find((d) => d.id === division)?.label}</p>
+      <div className="flex gap-2 overflow-x-auto pb-2 mb-4 no-scrollbar">
+        {tabs.map((t) => (
+          <button key={t.id} onClick={() => setTab(t.id)} className={"shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold border " + (tab === t.id ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>{t.label}</button>
+        ))}
+      </div>
+      {tab === "overview" && <div className="grid grid-cols-2 gap-3"><StatCard label="Classes" value={classes.length} Icon={GraduationCap} /></div>}
+      {tab === "students" && <StudentRoster canEdit classes={classes} />}
+      {tab === "classes" && <ClassManagerPrincipal division={division} classes={classes} />}
+      {tab === "staff" && <StaffRoster canEdit classes={classes} scopeDivision={division} />}
+      {tab === "activity" && <AllActivitiesView division={division} />}
+      {tab === "announce" && <AnnouncementPanel subrole="principal" division={division} classes={classes} />}
+    </div>
+  );
 }
-function setSelectedClassId(id: number | null) {
-  if (id == null) localStorage.removeItem("noble.school.classId");
-  else localStorage.setItem("noble.school.classId", String(id));
-  window.dispatchEvent(new Event("noble:school"));
-}
-function ClassSelector() {
-  const db = getSchoolDb();
-  const classes = useLiveQuery(async () => db.classes.toArray(), []);
-  const selected = useSelectedClassId();
-  const [creating, setCreating] = useState(false);
+function ClassManagerPrincipal({ division, classes }: { division: string; classes: { id: string; name: string; level?: string }[] }) {
+  const pw = getStoredPassword();
   const [name, setName] = useState("");
-  const [level, setLevel] = useState<KgLevel>("k1");
-
-  async function addClass() {
+  const [busy, setBusy] = useState(false);
+  const [reload, setReload] = useState(0);
+  async function add() {
     if (!name.trim()) return;
-    const id = await db.classes.add({ name: name.trim(), division: "kindergarten", level, createdAt: Date.now() });
-    setSelectedClassId(id as number);
-    setName(""); setCreating(false);
+    setBusy(true);
+    await createSchoolClass({ data: { password: pw, schoolId: SCHOOL_ID, name: name.trim(), division } });
+    setBusy(false); setName(""); setReload((x) => x + 1);
   }
-
   return (
-    <div className="rounded-2xl bg-card border border-border p-3 mb-4">
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-xs text-muted-foreground">Class:</span>
-        <select
-          value={selected ?? ""}
-          onChange={(e) => setSelectedClassId(e.target.value ? Number(e.target.value) : null)}
-          className="rounded-lg bg-background border border-border px-2 py-1 text-sm"
-        >
-          <option value="">— select —</option>
-          {(classes ?? []).map(c => (
-            <option key={c.id} value={c.id}>{c.name} ({c.level})</option>
-          ))}
-        </select>
-        <button onClick={() => setCreating(v => !v)} className="ml-auto text-xs rounded-full border border-border px-3 py-1 flex items-center gap-1">
-          <Plus size={12} />New class
-        </button>
+    <div key={reload}>
+      <div className="rounded-2xl bg-card border border-border p-3 mb-3 flex gap-2">
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nama kelas (mis. K1 Sunflower)" className="flex-1 rounded-lg bg-background border border-border px-3 py-1.5 text-sm" />
+        <button onClick={add} disabled={busy} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-sm font-semibold disabled:opacity-50">Tambah</button>
       </div>
-      {creating && (
-        <div className="mt-3 flex gap-2 flex-wrap">
-          <input value={name} onChange={e => setName(e.target.value)} placeholder="Class name (e.g. K1 Sunflower)"
-            className="flex-1 min-w-40 rounded-lg bg-background border border-border px-3 py-1.5 text-sm" />
-          <select value={level} onChange={e => setLevel(e.target.value as KgLevel)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm">
-            {KG_LEVELS.map(l => <option key={l} value={l}>{l.toUpperCase()}</option>)}
-          </select>
-          <button onClick={addClass} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-sm font-semibold">Save</button>
-        </div>
-      )}
+      <ul className="space-y-2">
+        {classes.map((c) => <li key={c.id} className="rounded-xl bg-card border border-border p-3 text-sm">{c.name}{c.level ? " - " + c.level.toUpperCase() : ""}</li>)}
+        {classes.length === 0 && <Hint>Belum ada kelas di divisi ini.</Hint>}
+      </ul>
     </div>
   );
 }
 
-// ---------------- Students ----------------
-function StudentsPanel({ canEdit }: { canEdit: boolean }) {
-  const db = getSchoolDb();
-  const classId = useSelectedClassId();
-  const students = useLiveQuery(async () => classId ? db.students.where("classId").equals(classId).toArray() : db.students.toArray(), [classId]);
-  const [openId, setOpenId] = useState<number | null>(null);
-  const [adding, setAdding] = useState(false);
+function StaffRoster({ canEdit, classes, scopeDivision }: { canEdit: boolean; classes: { id: string; name: string }[]; scopeDivision: string | null }) {
+  const pw = getStoredPassword();
+  const [reload, setReload] = useState(0);
+  const staff = useAsync(() => listSchoolStaff({ data: { password: pw } }), [pw, reload]);
   const [name, setName] = useState("");
-  const [nick, setNick] = useState("");
-
+  const [role, setRole] = useState<SchoolRole>(scopeDivision ? "teacher_homeroom" : "principal");
+  const [classId, setClassId] = useState("");
+  const [busy, setBusy] = useState(false);
+  const roleOptions: { v: SchoolRole; label: string }[] = scopeDivision
+    ? [{ v: "teacher_homeroom", label: "Homeroom Teacher" }, { v: "teacher_shadow", label: "Shadow Teacher" }, { v: "teacher_subject", label: "Subject Teacher" }]
+    : [{ v: "principal", label: "Principal" }];
   async function add() {
-    if (!name.trim() || !classId) return;
-    await db.students.add({ fullName: name.trim(), nickname: nick.trim() || undefined, classId, createdAt: Date.now() });
-    setName(""); setNick(""); setAdding(false);
+    if (!name.trim()) return;
+    setBusy(true);
+    await createSchoolStaff({ data: { password: pw, schoolId: SCHOOL_ID, fullName: name.trim(), role, division: scopeDivision ?? "kindergarten", classId: classId || undefined } });
+    setBusy(false); setName(""); setReload((x) => x + 1);
   }
-  if (!classId) return <Hint>Select a class first.</Hint>;
-  return (
-    <div>
-      {canEdit && (
-        <div className="mb-3">
-          {!adding ? (
-            <button onClick={() => setAdding(true)} className="rounded-full border border-border px-3 py-1.5 text-xs flex items-center gap-1"><UserPlus size={13} />Add student</button>
-          ) : (
-            <div className="flex gap-2 flex-wrap">
-              <input value={name} onChange={e => setName(e.target.value)} placeholder="Full name" className="flex-1 min-w-40 rounded-lg bg-background border border-border px-3 py-1.5 text-sm" />
-              <input value={nick} onChange={e => setNick(e.target.value)} placeholder="Nickname" className="w-32 rounded-lg bg-background border border-border px-3 py-1.5 text-sm" />
-              <button onClick={add} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-sm font-semibold">Save</button>
-              <button onClick={() => setAdding(false)} className="rounded-lg border border-border px-3 py-1.5 text-sm"><X size={13} /></button>
-            </div>
-          )}
-        </div>
-      )}
-      <ul className="space-y-2">
-        {(students ?? []).map(s => (
-          <li key={s.id} className="rounded-xl bg-card border border-border p-3">
-            <button onClick={() => setOpenId(openId === s.id ? null : s.id!)} className="w-full flex items-center justify-between">
-              <div className="text-left">
-                <p className="text-sm font-semibold">{s.fullName}</p>
-                {s.nickname && <p className="text-xs text-muted-foreground">"{s.nickname}"</p>}
-              </div>
-              <span className="text-xs text-muted-foreground">{openId === s.id ? "▾" : "▸"}</span>
-            </button>
-            {openId === s.id && <StudentDetails studentId={s.id!} canEdit={canEdit} />}
-          </li>
-        ))}
-        {(students ?? []).length === 0 && <Hint>No students yet.</Hint>}
-      </ul>
-    </div>
-  );
-}
-
-function StudentDetails({ studentId, canEdit }: { studentId: number; canEdit: boolean }) {
-  const db = getSchoolDb();
-  const student = useLiveQuery(async () => db.students.get(studentId), [studentId]);
-  const guardians = useLiveQuery(async () => db.guardians.where("studentId").equals(studentId).toArray(), [studentId]);
-  const [gName, setGName] = useState(""); const [gRel, setGRel] = useState<"father" | "mother" | "guardian">("mother");
-  const [gEmail, setGEmail] = useState(""); const [gWA, setGWA] = useState("");
-  const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    if (student) {
-      setForm({
-        studentNumber: student.studentNumber ?? "",
-        fullName: student.fullName ?? "",
-        nickname: student.nickname ?? "",
-        pob: student.pob ?? "",
-        dob: student.dob ? new Date(student.dob).toISOString().slice(0, 10) : "",
-        gender: student.gender ?? "",
-        religion: student.religion ?? "",
-        address: student.address ?? "",
-        joinedAt: student.joinedAt ? new Date(student.joinedAt).toISOString().slice(0, 10) : "",
-        status: student.status ?? "active",
-        allergies: student.allergies ?? "",
-        certificates: (student.certificates ?? []).join(", "),
-        extracurriculars: (student.extracurriculars ?? []).join(", "),
-        notes: student.notes ?? "",
-      });
-    }
-  }, [student]);
-
-  async function saveProfile() {
-    await db.students.update(studentId, {
-      studentNumber: form.studentNumber || undefined,
-      fullName: form.fullName.trim() || student!.fullName,
-      nickname: form.nickname || undefined,
-      pob: form.pob || undefined,
-      dob: form.dob ? new Date(form.dob).getTime() : undefined,
-      gender: (form.gender as "M" | "F") || undefined,
-      religion: form.religion || undefined,
-      address: form.address || undefined,
-      joinedAt: form.joinedAt ? new Date(form.joinedAt).getTime() : undefined,
-      status: (form.status as "active" | "inactive" | "graduated" | "transferred") || "active",
-      allergies: form.allergies || undefined,
-      certificates: form.certificates ? form.certificates.split(",").map(s => s.trim()).filter(Boolean) : undefined,
-      extracurriculars: form.extracurriculars ? form.extracurriculars.split(",").map(s => s.trim()).filter(Boolean) : undefined,
-      notes: form.notes || undefined,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any);
-    setEditing(false);
+  async function remove(id: string) {
+    await deleteSchoolStaff({ data: { password: pw, id } });
+    setReload((x) => x + 1);
   }
-  function set(k: string, v: string) { setForm(f => ({ ...f, [k]: v })); }
-
-  async function addGuardian() {
-    if (!gName.trim()) return;
-    await db.guardians.add({ studentId, fullName: gName.trim(), relation: gRel, email: gEmail || undefined, whatsapp: gWA || undefined, isPrimary: (guardians?.length ?? 0) === 0 });
-    setGName(""); setGEmail(""); setGWA("");
-  }
-
-  const inp = "rounded-lg bg-background border border-border px-2 py-1 text-xs";
-  return (
-    <div className="mt-3 pt-3 border-t border-border space-y-4">
-      {/* Profile */}
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">Profile</p>
-          {canEdit && (
-            <button onClick={() => editing ? saveProfile() : setEditing(true)} className="text-xs rounded-full border border-border px-2.5 py-0.5">
-              {editing ? "Save" : "Edit"}
-            </button>
-          )}
-        </div>
-        {!editing ? (
-          <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-            <ProfileRow label="Student ID" value={student?.studentNumber} />
-            <ProfileRow label="Nickname" value={student?.nickname} />
-            <ProfileRow label="Gender" value={student?.gender === "M" ? "Male" : student?.gender === "F" ? "Female" : undefined} />
-            <ProfileRow label="Religion" value={student?.religion} />
-            <ProfileRow label="Place of birth" value={student?.pob} />
-            <ProfileRow label="Date of birth" value={student?.dob ? new Date(student.dob).toLocaleDateString() : undefined} />
-            <ProfileRow label="Joined" value={student?.joinedAt ? new Date(student.joinedAt).toLocaleDateString() : undefined} />
-            <ProfileRow label="Status" value={student?.status} />
-            <ProfileRow label="Address" value={student?.address} full />
-            <ProfileRow label="Allergies" value={student?.allergies} full />
-            <ProfileRow label="Certificates" value={student?.certificates?.join(", ")} full />
-            <ProfileRow label="Extracurriculars" value={student?.extracurriculars?.join(", ")} full />
-            <ProfileRow label="Notes" value={student?.notes} full />
-          </dl>
-        ) : (
-          <div className="grid grid-cols-2 gap-2">
-            <input className={inp} placeholder="Student ID" value={form.studentNumber} onChange={e => set("studentNumber", e.target.value)} />
-            <input className={inp} placeholder="Full name" value={form.fullName} onChange={e => set("fullName", e.target.value)} />
-            <input className={inp} placeholder="Nickname" value={form.nickname} onChange={e => set("nickname", e.target.value)} />
-            <select className={inp} value={form.gender} onChange={e => set("gender", e.target.value)}>
-              <option value="">Gender…</option><option value="M">Male</option><option value="F">Female</option>
-            </select>
-            <input className={inp} placeholder="Place of birth" value={form.pob} onChange={e => set("pob", e.target.value)} />
-            <input type="date" className={inp} value={form.dob} onChange={e => set("dob", e.target.value)} />
-            <input className={inp} placeholder="Religion" value={form.religion} onChange={e => set("religion", e.target.value)} />
-            <input type="date" className={inp} value={form.joinedAt} onChange={e => set("joinedAt", e.target.value)} />
-            <select className={inp} value={form.status} onChange={e => set("status", e.target.value)}>
-              <option value="active">Active</option><option value="inactive">Inactive</option>
-              <option value="graduated">Graduated</option><option value="transferred">Transferred</option>
-            </select>
-            <input className={`${inp} col-span-2`} placeholder="Address" value={form.address} onChange={e => set("address", e.target.value)} />
-            <input className={`${inp} col-span-2`} placeholder="Allergies" value={form.allergies} onChange={e => set("allergies", e.target.value)} />
-            <input className={`${inp} col-span-2`} placeholder="Certificates (comma separated)" value={form.certificates} onChange={e => set("certificates", e.target.value)} />
-            <input className={`${inp} col-span-2`} placeholder="Extracurriculars (comma separated)" value={form.extracurriculars} onChange={e => set("extracurriculars", e.target.value)} />
-            <textarea className={`${inp} col-span-2`} rows={2} placeholder="Notes" value={form.notes} onChange={e => set("notes", e.target.value)} />
-          </div>
-        )}
-      </div>
-
-      {/* Guardians (WA & email live here for kindergarten) */}
-      <div>
-        <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Guardians · WhatsApp & Email</p>
-        <ul className="space-y-1 mb-3">
-          {(guardians ?? []).map(g => (
-            <li key={g.id} className="text-xs flex items-center justify-between">
-              <span>{g.fullName} · <span className="text-muted-foreground">{g.relation}</span>{g.email && ` · ${g.email}`}{g.whatsapp && ` · ${g.whatsapp}`}</span>
-              {canEdit && <button onClick={() => db.guardians.delete(g.id!)} className="text-destructive"><Trash2 size={12} /></button>}
-            </li>
-          ))}
-          {(guardians ?? []).length === 0 && <li className="text-xs text-muted-foreground">No guardian contacts yet.</li>}
-        </ul>
-        {canEdit && (
-          <div className="grid grid-cols-2 gap-2">
-            <input value={gName} onChange={e => setGName(e.target.value)} placeholder="Guardian name" className={inp} />
-            <select value={gRel} onChange={e => setGRel(e.target.value as "father" | "mother" | "guardian")} className={inp}>
-              <option value="mother">Mother</option><option value="father">Father</option><option value="guardian">Guardian</option>
-            </select>
-            <input value={gEmail} onChange={e => setGEmail(e.target.value)} placeholder="Email" className={inp} />
-            <input value={gWA} onChange={e => setGWA(e.target.value)} placeholder="WhatsApp" className={inp} />
-            <button onClick={addGuardian} className="col-span-2 rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold">Add guardian</button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function ProfileRow({ label, value, full }: { label: string; value?: string; full?: boolean }) {
-  if (!value) return null;
-  return (
-    <div className={full ? "col-span-2" : ""}>
-      <dt className="text-[10px] uppercase text-muted-foreground">{label}</dt>
-      <dd className="text-xs">{value}</dd>
-    </div>
-  );
-}
-
-// ---------------- Attendance ----------------
-function AttendancePanel() {
-  const db = getSchoolDb();
-  const classId = useSelectedClassId();
-  const [dateStr, setDateStr] = useState(new Date().toISOString().slice(0, 10));
-  const date = startOfDay(new Date(dateStr).getTime());
-  const students = useLiveQuery(async () => classId ? db.students.where("classId").equals(classId).toArray() : [], [classId]);
-  const records = useLiveQuery(async () => classId ? db.attendance.where("classId").equals(classId).and(a => a.date === date).toArray() : [], [classId, date]);
-  if (!classId) return <Hint>Select a class first.</Hint>;
-  const byStudent = new Map<number, AttendanceStatus>();
-  (records ?? []).forEach(r => byStudent.set(r.studentId, r.status));
-  async function mark(studentId: number, status: AttendanceStatus) {
-    const existing = (records ?? []).find(r => r.studentId === studentId);
-    if (existing) await db.attendance.update(existing.id!, { status });
-    else await db.attendance.add({ classId: classId!, studentId, date, status, createdAt: Date.now() });
-  }
-  const statuses: { s: AttendanceStatus; label: string; cls: string }[] = [
-    { s: "present", label: "P", cls: "bg-primary text-primary-foreground" },
-    { s: "absent", label: "A", cls: "bg-destructive text-destructive-foreground" },
-    { s: "sick", label: "S", cls: "bg-amber-500 text-white" },
-    { s: "permission", label: "I", cls: "bg-blue-500 text-white" },
-    { s: "late", label: "L", cls: "bg-orange-500 text-white" },
-  ];
-  return (
-    <div>
-      <div className="mb-3 flex items-center gap-2">
-        <input type="date" value={dateStr} onChange={e => setDateStr(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-1 text-sm" />
-      </div>
-      <ul className="space-y-2">
-        {(students ?? []).map(s => (
-          <li key={s.id} className="rounded-xl bg-card border border-border p-3 flex items-center justify-between gap-2">
-            <span className="text-sm truncate">{s.fullName}</span>
-            <div className="flex gap-1">
-              {statuses.map(({ s: st, label, cls }) => (
-                <button key={st} onClick={() => mark(s.id!, st)}
-                  className={`w-8 h-8 rounded-full text-xs font-bold ${byStudent.get(s.id!) === st ? cls : "bg-secondary text-secondary-foreground"}`}>{label}</button>
-              ))}
-            </div>
-          </li>
-        ))}
-        {(students ?? []).length === 0 && <Hint>Add students first.</Hint>}
-      </ul>
-      <p className="text-[10px] text-muted-foreground mt-3">P=Present · A=Absent · S=Sick · I=Permission · L=Late</p>
-    </div>
-  );
-}
-
-// ---------------- Daily activity ----------------
-function DailyActivityPanel() {
-  const db = getSchoolDb();
-  const classId = useSelectedClassId();
-  const [title, setTitle] = useState(""); const [body, setBody] = useState("");
-  const items = useLiveQuery(async () => classId ? db.activities.where("classId").equals(classId).reverse().sortBy("date") : [], [classId]);
-  if (!classId) return <Hint>Select a class first.</Hint>;
-  async function save() {
-    if (!title.trim()) return;
-    await db.activities.add({ classId: classId!, date: startOfDay(), title: title.trim(), body, createdAt: Date.now() });
-    setTitle(""); setBody("");
-  }
-  return (
-    <div>
-      <div className="rounded-2xl bg-card border border-border p-3 mb-3">
-        <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Activity title" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm mb-2" />
-        <textarea value={body} onChange={e => setBody(e.target.value)} rows={4} placeholder="Narrative (EN/ID mix OK)" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm" />
-        <button onClick={save} className="mt-2 rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-sm font-semibold flex items-center gap-1"><Save size={13} />Post</button>
-      </div>
-      <ul className="space-y-2">
-        {(items ?? []).map(i => (
-          <li key={i.id} className="rounded-xl bg-card border border-border p-3">
-            <div className="flex justify-between">
-              <p className="text-sm font-semibold">{i.title}</p>
-              <button onClick={() => db.activities.delete(i.id!)} className="text-destructive"><Trash2 size={13} /></button>
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">{new Date(i.date).toLocaleDateString()}</p>
-            {i.body && <p className="text-sm mt-2 whitespace-pre-wrap">{i.body}</p>}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-// ---------------- Lesson plan ----------------
-function LessonPlanPanel() {
-  const db = getSchoolDb();
-  const classId = useSelectedClassId();
-  const [subject, setSubject] = useState(""); const [obj, setObj] = useState(""); const [acts, setActs] = useState(""); const [mat, setMat] = useState(""); const [ass, setAss] = useState("");
-  const items = useLiveQuery(async () => classId ? db.lessons.where("classId").equals(classId).reverse().sortBy("weekStart") : [], [classId]);
-  if (!classId) return <Hint>Select a class first.</Hint>;
-  async function save() {
-    if (!obj.trim()) return;
-    await db.lessons.add({ classId: classId!, weekStart: startOfWeek(), subject: subject || undefined, objective: obj, activities: acts, materials: mat || undefined, assessment: ass || undefined, createdAt: Date.now() });
-    setSubject(""); setObj(""); setActs(""); setMat(""); setAss("");
-  }
-  return (
-    <div>
-      <div className="rounded-2xl bg-card border border-border p-3 mb-3 grid gap-2">
-        <input value={subject} onChange={e => setSubject(e.target.value)} placeholder="Subject / theme" className="rounded-lg bg-background border border-border px-3 py-2 text-sm" />
-        <textarea value={obj} onChange={e => setObj(e.target.value)} rows={2} placeholder="Learning objective" className="rounded-lg bg-background border border-border px-3 py-2 text-sm" />
-        <textarea value={acts} onChange={e => setActs(e.target.value)} rows={3} placeholder="Activities" className="rounded-lg bg-background border border-border px-3 py-2 text-sm" />
-        <input value={mat} onChange={e => setMat(e.target.value)} placeholder="Materials" className="rounded-lg bg-background border border-border px-3 py-2 text-sm" />
-        <input value={ass} onChange={e => setAss(e.target.value)} placeholder="Assessment method" className="rounded-lg bg-background border border-border px-3 py-2 text-sm" />
-        <button onClick={save} className="justify-self-start rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-sm font-semibold">Save lesson plan</button>
-      </div>
-      <ul className="space-y-2">
-        {(items ?? []).map(l => (
-          <li key={l.id} className="rounded-xl bg-card border border-border p-3 text-sm">
-            <div className="flex justify-between">
-              <p className="font-semibold">{l.subject ?? "Lesson"} · week of {new Date(l.weekStart).toLocaleDateString()}</p>
-              <button onClick={() => db.lessons.delete(l.id!)} className="text-destructive"><Trash2 size={13} /></button>
-            </div>
-            <p className="mt-1"><span className="text-muted-foreground">Objective: </span>{l.objective}</p>
-            {l.activities && <p><span className="text-muted-foreground">Activities: </span>{l.activities}</p>}
-            {l.materials && <p><span className="text-muted-foreground">Materials: </span>{l.materials}</p>}
-            {l.assessment && <p><span className="text-muted-foreground">Assessment: </span>{l.assessment}</p>}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-// ---------------- Timetable ----------------
-function TimetablePanel() {
-  const db = getSchoolDb();
-  const classId = useSelectedClassId();
-  const slots = useLiveQuery(async () => classId ? db.timetable.where("classId").equals(classId).toArray() : [], [classId]);
-  const [dow, setDow] = useState(1); const [st, setSt] = useState("08:00"); const [en, setEn] = useState("08:45"); const [subj, setSubj] = useState("");
-  if (!classId) return <Hint>Select a class first.</Hint>;
-  async function add() {
-    if (!subj.trim()) return;
-    await db.timetable.add({ classId: classId!, dayOfWeek: dow, startTime: st, endTime: en, subject: subj.trim() });
-    setSubj("");
-  }
-  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  return (
-    <div>
-      <div className="rounded-2xl bg-card border border-border p-3 mb-3 grid grid-cols-4 gap-2">
-        <select value={dow} onChange={e => setDow(Number(e.target.value))} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm">
-          {days.map((d, i) => <option key={i} value={i}>{d}</option>)}
-        </select>
-        <input type="time" value={st} onChange={e => setSt(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm" />
-        <input type="time" value={en} onChange={e => setEn(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm" />
-        <input value={subj} onChange={e => setSubj(e.target.value)} placeholder="Subject" className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm" />
-        <button onClick={add} className="col-span-4 justify-self-start rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-sm font-semibold">Add slot</button>
-      </div>
-      {days.map((d, i) => {
-        const daySlots = (slots ?? []).filter(s => s.dayOfWeek === i).sort((a, b) => a.startTime.localeCompare(b.startTime));
-        if (daySlots.length === 0) return null;
-        return (
-          <div key={i} className="mb-3">
-            <p className="text-xs uppercase text-muted-foreground mb-1">{d}</p>
-            <ul className="space-y-1">
-              {daySlots.map(s => (
-                <li key={s.id} className="rounded-lg bg-card border border-border p-2 text-sm flex justify-between">
-                  <span>{s.startTime}–{s.endTime} · {s.subject}</span>
-                  <button onClick={() => db.timetable.delete(s.id!)} className="text-destructive"><Trash2 size={12} /></button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// ---------------- Projects ----------------
-function ProjectPlanPanel() {
-  const db = getSchoolDb();
-  const classId = useSelectedClassId();
-  const items = useLiveQuery(async () => classId ? db.projects.where("classId").equals(classId).reverse().sortBy("createdAt") : [], [classId]);
-  const [title, setTitle] = useState(""); const [summary, setSummary] = useState("");
-  if (!classId) return <Hint>Select a class first.</Hint>;
-  async function add() {
-    if (!title.trim()) return;
-    await db.projects.add({ classId: classId!, title: title.trim(), summary, milestones: [], createdAt: Date.now() });
-    setTitle(""); setSummary("");
-  }
-  return (
-    <div>
-      <div className="rounded-2xl bg-card border border-border p-3 mb-3">
-        <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Project title" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm mb-2" />
-        <textarea value={summary} onChange={e => setSummary(e.target.value)} rows={3} placeholder="Summary / learning goals" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm" />
-        <button onClick={add} className="mt-2 rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-sm font-semibold">Add project</button>
-      </div>
-      <ul className="space-y-2">
-        {(items ?? []).map(p => (
-          <li key={p.id} className="rounded-xl bg-card border border-border p-3">
-            <div className="flex justify-between">
-              <p className="text-sm font-semibold">{p.title}</p>
-              <button onClick={() => db.projects.delete(p.id!)} className="text-destructive"><Trash2 size={13} /></button>
-            </div>
-            {p.summary && <p className="text-xs text-muted-foreground mt-1">{p.summary}</p>}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-// ---------------- Calendar ----------------
-function CalendarPanel({ canEdit }: { canEdit: boolean }) {
-  const db = getSchoolDb();
-  const classId = useSelectedClassId();
-  const items = useLiveQuery(async () => db.calendar.orderBy("eventAt").toArray(), []);
-  const [title, setTitle] = useState(""); const [when, setWhen] = useState(""); const [scope, setScope] = useState<"all" | "class">("class");
-  async function add() {
-    if (!title.trim() || !when) return;
-    await db.calendar.add({
-      scope, division: scope === "all" ? undefined : "kindergarten", classId: scope === "class" ? classId ?? undefined : undefined,
-      title: title.trim(), eventAt: new Date(when).getTime(), createdAt: Date.now(),
-    });
-    setTitle(""); setWhen("");
-  }
+  const list = staff.data && "staff" in staff.data ? staff.data.staff : [];
+  const filtered = scopeDivision ? list.filter((s: { division: string }) => s.division === scopeDivision) : list;
   return (
     <div>
       {canEdit && (
         <div className="rounded-2xl bg-card border border-border p-3 mb-3 grid gap-2">
-          <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Event title" className="rounded-lg bg-background border border-border px-3 py-2 text-sm" />
-          <div className="flex gap-2">
-            <input type="datetime-local" value={when} onChange={e => setWhen(e.target.value)} className="flex-1 rounded-lg bg-background border border-border px-3 py-2 text-sm" />
-            <select value={scope} onChange={e => setScope(e.target.value as "all" | "class")} className="rounded-lg bg-background border border-border px-2 py-2 text-sm">
-              <option value="class">My class</option><option value="all">Whole school</option>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nama lengkap" className="rounded-lg bg-background border border-border px-3 py-1.5 text-sm" />
+          <div className="grid grid-cols-2 gap-2">
+            <select value={role} onChange={(e) => setRole(e.target.value as SchoolRole)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm">
+              {roleOptions.map((r) => <option key={r.v} value={r.v}>{r.label}</option>)}
             </select>
+            {scopeDivision && (
+              <select value={classId} onChange={(e) => setClassId(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm">
+                <option value="">pilih kelas opsional</option>
+                {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            )}
           </div>
-          <button onClick={add} className="justify-self-start rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-sm font-semibold">Add event</button>
+          <button onClick={add} disabled={busy} className="justify-self-start rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-sm font-semibold disabled:opacity-50 flex items-center gap-1"><UserPlus size={13} /> Tambah Staff</button>
         </div>
       )}
       <ul className="space-y-2">
-        {(items ?? []).map(c => (
-          <li key={c.id} className="rounded-xl bg-card border border-border p-3 text-sm flex justify-between">
-            <div>
-              <p className="font-semibold">{c.title}</p>
-              <p className="text-xs text-muted-foreground">{new Date(c.eventAt).toLocaleString()} · {c.scope}</p>
-            </div>
-            {canEdit && <button onClick={() => db.calendar.delete(c.id!)} className="text-destructive"><Trash2 size={13} /></button>}
+        {filtered.map((s: { id: string; full_name: string; role: SchoolRole }) => (
+          <li key={s.id} className="rounded-xl bg-card border border-border p-3 text-sm flex justify-between">
+            <div><p className="font-semibold">{s.full_name}</p><p className="text-xs text-muted-foreground">{ROLE_LABEL[s.role]}</p></div>
+            {canEdit && <button onClick={() => remove(s.id)} className="text-destructive"><Trash2 size={14} /></button>}
           </li>
         ))}
+        {filtered.length === 0 && <Hint>Belum ada staff.</Hint>}
       </ul>
     </div>
   );
 }
 
-// ---------------- Assessment ----------------
-function AssessmentPanel() {
-  const db = getSchoolDb();
-  const classId = useSelectedClassId();
-  const students = useLiveQuery(async () => classId ? db.students.where("classId").equals(classId).toArray() : [], [classId]);
-  const [studentId, setStudentId] = useState<number | null>(null);
-  const [period, setPeriod] = useState<AssessmentPeriod>("weekly");
-  const [scores, setScores] = useState({ Language: 3, Motor: 3, Social: 3, Cognitive: 3, Creativity: 3 });
-  const [comment, setComment] = useState("");
-  const existing = useLiveQuery(async () => studentId ? db.assessments.where("studentId").equals(studentId).reverse().sortBy("periodStart") : [], [studentId]);
-  if (!classId) return <Hint>Select a class first.</Hint>;
-  async function save() {
-    if (!studentId) return;
-    const now = Date.now();
-    const periodStart = period === "weekly" ? startOfWeek(now) : period === "monthly" ? new Date(new Date(now).getFullYear(), new Date(now).getMonth(), 1).getTime() : new Date(new Date(now).getFullYear(), new Date(now).getMonth() < 6 ? 0 : 6, 1).getTime();
-    await db.assessments.add({
-      studentId, classId: classId!, period, periodStart,
-      domains: Object.entries(scores).map(([name, score]) => ({ name, score })),
-      overallComment: comment || undefined, createdAt: now,
-    });
-    setComment("");
+function StudentRoster({ canEdit, classes }: { canEdit: boolean; classes: { id: string; name: string }[] }) {
+  const pw = getStoredPassword();
+  const [reload, setReload] = useState(0);
+  const [classId, setClassId] = useState("");
+  const students = useAsync(() => listSchoolStudents({ data: { password: pw, classId: classId || undefined } }), [pw, classId, reload]);
+  const [adding, setAdding] = useState(false);
+  const [name, setName] = useState("");
+  const [studentNumber, setStudentNumber] = useState("");
+  async function add() {
+    if (!name.trim() || !classId) return;
+    await upsertSchoolStudent({ data: { password: pw, schoolId: SCHOOL_ID, classId, fullName: name.trim(), studentNumber: studentNumber || undefined } });
+    setName(""); setStudentNumber(""); setAdding(false); setReload((x) => x + 1);
   }
+  async function remove(id: string) {
+    await deleteSchoolStudent({ data: { password: pw, id } });
+    setReload((x) => x + 1);
+  }
+  const list = students.data && "students" in students.data ? students.data.students : [];
   return (
     <div>
-      <div className="rounded-2xl bg-card border border-border p-3 mb-3 grid gap-2">
-        <div className="flex gap-2">
-          <select value={studentId ?? ""} onChange={e => setStudentId(e.target.value ? Number(e.target.value) : null)} className="flex-1 rounded-lg bg-background border border-border px-2 py-1.5 text-sm">
-            <option value="">— pick student —</option>
-            {(students ?? []).map(s => <option key={s.id} value={s.id}>{s.fullName}</option>)}
-          </select>
-          <select value={period} onChange={e => setPeriod(e.target.value as AssessmentPeriod)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm">
-            <option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="semester">Semester</option>
-          </select>
+      <select value={classId} onChange={(e) => setClassId(e.target.value)} className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm mb-3">
+        <option value="">semua kelas</option>
+        {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+      </select>
+      {canEdit && (
+        <div className="mb-3">
+          {!adding ? (
+            <button onClick={() => setAdding(true)} disabled={!classId} className="rounded-full border border-border px-3 py-1.5 text-xs flex items-center gap-1 disabled:opacity-40"><UserPlus size={13} /> Tambah Murid {!classId ? "(pilih kelas dulu)" : ""}</button>
+          ) : (
+            <div className="flex gap-2 flex-wrap">
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nama lengkap" className="flex-1 min-w-40 rounded-lg bg-background border border-border px-3 py-1.5 text-sm" />
+              <input value={studentNumber} onChange={(e) => setStudentNumber(e.target.value)} placeholder="Student ID" className="w-32 rounded-lg bg-background border border-border px-3 py-1.5 text-sm" />
+              <button onClick={add} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-sm font-semibold">Simpan</button>
+            </div>
+          )}
         </div>
-        {Object.entries(scores).map(([k, v]) => (
-          <label key={k} className="flex items-center gap-2 text-xs">
-            <span className="w-24 text-muted-foreground">{k}</span>
-            <input type="range" min={1} max={5} value={v} onChange={e => setScores(s => ({ ...s, [k]: Number(e.target.value) }))} className="flex-1" />
-            <span className="w-6 text-right font-semibold">{v}</span>
-          </label>
+      )}
+      <ul className="space-y-2">
+        {list.map((s: { id: string; full_name: string; student_number?: string }) => (
+          <StudentRow key={s.id} student={s} canEdit={canEdit} onDelete={() => remove(s.id)} />
         ))}
-        <textarea value={comment} onChange={e => setComment(e.target.value)} rows={2} placeholder="Overall comment" className="rounded-lg bg-background border border-border px-3 py-2 text-sm" />
-        <button onClick={save} disabled={!studentId} className="justify-self-start rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-sm font-semibold disabled:opacity-40">Save assessment</button>
-      </div>
-      {studentId && (
-        <ul className="space-y-2">
-          {(existing ?? []).map(a => (
-            <li key={a.id} className="rounded-xl bg-card border border-border p-3 text-sm">
-              <div className="flex justify-between">
-                <p className="font-semibold capitalize">{a.period} · {new Date(a.periodStart).toLocaleDateString()}</p>
-                <button onClick={() => db.assessments.delete(a.id!)} className="text-destructive"><Trash2 size={12} /></button>
-              </div>
-              <div className="grid grid-cols-5 gap-1 mt-2 text-[10px] text-center">
-                {a.domains.map(d => (
-                  <div key={d.name} className="rounded bg-secondary p-1">
-                    <p className="text-muted-foreground">{d.name.slice(0, 4)}</p>
-                    <p className="font-bold">{d.score}</p>
-                  </div>
-                ))}
-              </div>
-              {a.overallComment && <p className="mt-2 text-xs">{a.overallComment}</p>}
-            </li>
-          ))}
-        </ul>
+        {list.length === 0 && <Hint>Belum ada murid.</Hint>}
+      </ul>
+    </div>
+  );
+}
+function StudentRow({ student, canEdit, onDelete }: { student: { id: string; full_name: string; student_number?: string }; canEdit: boolean; onDelete: () => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <li className="rounded-xl bg-card border border-border p-3">
+      <button onClick={() => setOpen((v) => !v)} className="w-full flex items-center justify-between">
+        <div className="text-left"><p className="text-sm font-semibold">{student.full_name}</p>{student.student_number && <p className="text-xs text-muted-foreground">{student.student_number}</p>}</div>
+        <span className="text-xs text-muted-foreground">{open ? "v" : ">"}</span>
+      </button>
+      {open && (
+        <div className="mt-3 pt-3 border-t border-border">
+          <GuardianEditor studentId={student.id} canEdit={canEdit} />
+          {canEdit && <button onClick={onDelete} className="mt-3 text-xs text-destructive flex items-center gap-1"><Trash2 size={12} /> Hapus murid</button>}
+        </div>
+      )}
+    </li>
+  );
+}
+function GuardianEditor({ studentId, canEdit }: { studentId: string; canEdit: boolean }) {
+  const pw = getStoredPassword();
+  const [reload, setReload] = useState(0);
+  const guardians = useAsync(() => listGuardians({ data: { password: pw, studentId } }), [pw, studentId, reload]);
+  const [name, setName] = useState("");
+  const [relation, setRelation] = useState<"father" | "mother" | "guardian">("mother");
+  const [wa, setWa] = useState("");
+  async function add() {
+    if (!name.trim()) return;
+    await addGuardian({ data: { password: pw, studentId, fullName: name.trim(), relation, whatsapp: wa || undefined } });
+    setName(""); setWa(""); setReload((x) => x + 1);
+  }
+  async function remove(id: string) {
+    await deleteGuardian({ data: { password: pw, id } });
+    setReload((x) => x + 1);
+  }
+  function shareCode(g: { invite_code: string; full_name: string }) {
+    const text = encodeURIComponent("Halo " + g.full_name + "! Kode undangan School Dashboard untuk memantau anak Anda: " + g.invite_code + ". Buka Noble - School Dashboard - Orangtua - masukkan kode ini.");
+    window.open("https://wa.me/?text=" + text, "_blank", "noopener");
+  }
+  const list = guardians.data && "guardians" in guardians.data ? guardians.data.guardians : [];
+  return (
+    <div>
+      <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Guardians</p>
+      <ul className="space-y-2 mb-3">
+        {list.map((g: { id: string; full_name: string; relation: string; whatsapp?: string; invite_code: string; invite_used_at?: string }) => (
+          <li key={g.id} className="rounded-lg bg-secondary/50 p-2 text-xs">
+            <div className="flex items-center justify-between gap-2">
+              <span>{g.full_name} - {g.relation}{g.whatsapp ? " - " + g.whatsapp : ""}</span>
+              {canEdit && <button onClick={() => remove(g.id)} className="text-destructive shrink-0"><Trash2 size={12} /></button>}
+            </div>
+            <div className="flex items-center gap-2 mt-1">
+              <code className="font-mono bg-background rounded px-1.5 py-0.5">{g.invite_code}</code>
+              {g.invite_used_at && <span className="text-primary">sudah dibuka</span>}
+              <button onClick={() => shareCode(g)} className="ml-auto text-primary flex items-center gap-1"><Send size={11} /> Kirim WA</button>
+            </div>
+          </li>
+        ))}
+        {list.length === 0 && <p className="text-xs text-muted-foreground">Belum ada wali.</p>}
+      </ul>
+      {canEdit && (
+        <div className="grid grid-cols-2 gap-2">
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nama wali" className="rounded-lg bg-background border border-border px-2 py-1 text-xs" />
+          <select value={relation} onChange={(e) => setRelation(e.target.value as "father" | "mother" | "guardian")} className="rounded-lg bg-background border border-border px-2 py-1 text-xs">
+            <option value="mother">Ibu</option><option value="father">Ayah</option><option value="guardian">Wali</option>
+          </select>
+          <input value={wa} onChange={(e) => setWa(e.target.value)} placeholder="No. WhatsApp" className="col-span-2 rounded-lg bg-background border border-border px-2 py-1 text-xs" />
+          <button onClick={add} className="col-span-2 rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold">Tambah Wali</button>
+        </div>
       )}
     </div>
   );
 }
 
-// ---------------- Messages ----------------
-function MessagesPanel({ role }: { role: SchoolRole }) {
-  const db = getSchoolDb();
-  const classId = useSelectedClassId();
-  const students = useLiveQuery(async () => classId ? db.students.where("classId").equals(classId).toArray() : [], [classId]);
-  const [studentId, setStudentId] = useState<number | null>(null);
+function CsvImportPanel({ classes }: { classes: { id: string; name: string }[] }) {
+  const pw = getStoredPassword();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [result, setResult] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setBusy(true);
+    const text = await file.text();
+    const lines = text.split(/\r?\n/).filter((l) => l.trim());
+    const headerLine = lines[0];
+    const dataLines = lines.slice(1);
+    const headers = headerLine.split(",").map((h) => h.trim().toLowerCase());
+    const idx = (key: string) => headers.indexOf(key);
+    const rows = dataLines.map((line) => {
+      const cols = line.split(",").map((c) => c.trim());
+      return {
+        studentNumber: idx("studentnumber") >= 0 ? cols[idx("studentnumber")] : undefined,
+        fullName: cols[idx("fullname")] ?? "",
+        nickname: idx("nickname") >= 0 ? cols[idx("nickname")] : undefined,
+        gender: (idx("gender") >= 0 ? cols[idx("gender")] : undefined) as "M" | "F" | undefined,
+        className: cols[idx("classname")] ?? "",
+      };
+    });
+    const res = await importSchoolStudents({ data: { password: pw, schoolId: SCHOOL_ID, rows } });
+    setBusy(false);
+    setResult(res.ok ? (res.imported + " murid diimpor, " + res.skipped + " dilewati.") : ("Gagal: " + res.error));
+    e.target.value = "";
+  }
+  return (
+    <div className="rounded-2xl bg-card border border-border p-4">
+      <p className="text-sm font-semibold mb-2">Import Data Murid (CSV)</p>
+      <p className="text-xs text-muted-foreground mb-3">Kolom wajib: <code className="font-mono">fullName, className</code>. Opsional: <code className="font-mono">studentNumber, nickname, gender</code>.</p>
+      <p className="text-[11px] text-muted-foreground mb-3">Kelas tersedia: {classes.map((c) => c.name).join(", ") || "(belum ada)"}</p>
+      <button onClick={() => fileRef.current?.click()} disabled={busy} className="rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold flex items-center gap-2 disabled:opacity-50"><Upload size={15} /> {busy ? "Mengimpor" : "Pilih File CSV"}</button>
+      <input ref={fileRef} type="file" accept=".csv,text/csv" onChange={handleFile} className="hidden" />
+      {result && <p className="text-xs mt-3 whitespace-pre-wrap">{result}</p>}
+    </div>
+  );
+}
+
+function AllActivitiesView({ division }: { division: string | null }) {
+  const pw = getStoredPassword();
+  const activities = useAsync(() => listAllActivities({ data: { password: pw, division: division || undefined } }), [pw, division]);
+  const list = activities.data && "activities" in activities.data ? activities.data.activities : [];
+  return (
+    <ul className="space-y-2">
+      {list.map((a: { id: string; title: string; body?: string; activity_date: string; author_name?: string; school_classes?: { name: string } }) => (
+        <li key={a.id} className="rounded-xl bg-card border border-border p-3">
+          <div className="flex justify-between text-sm">
+            <p className="font-semibold">{a.title}</p>
+            <span className="text-xs text-muted-foreground">{a.school_classes?.name}</span>
+          </div>
+          <p className="text-xs text-muted-foreground mt-0.5">{new Date(a.activity_date).toLocaleDateString()}{a.author_name ? " - " + a.author_name : ""}</p>
+          {a.body && <p className="text-sm mt-2 whitespace-pre-wrap">{a.body}</p>}
+        </li>
+      ))}
+      {list.length === 0 && <Hint>Belum ada activity.</Hint>}
+    </ul>
+  );
+}
+
+function AnnouncementPanel({ subrole, division, classes }: { subrole: AdminSubrole; division: string | null; classes: { id: string; name: string }[] }) {
+  const pw = getStoredPassword();
+  const [reload, setReload] = useState(0);
+  const list = useAsync(() => listAnnouncements({ data: { password: pw } }), [pw, reload]);
+  const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
-  const thread = useLiveQuery(async () => studentId ? db.messages.where("toStudentId").equals(studentId).sortBy("createdAt") : [], [studentId]);
+  const [scope, setScope] = useState<"school" | "division" | "class">(subrole === "hos" ? "school" : "division");
+  const [classId, setClassId] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+
+  async function post() {
+    if (!title.trim()) return;
+    setErr(null);
+    const res = await postAnnouncement({
+      data: { password: pw, subrole, schoolId: SCHOOL_ID, scope, division: scope === "division" ? (division ?? undefined) : undefined, classId: scope === "class" ? classId : undefined, title: title.trim(), body },
+    });
+    if (!res.ok) { setErr(res.error); return; }
+    setTitle(""); setBody(""); setReload((x) => x + 1);
+  }
+  const items = list.data && "announcements" in list.data ? list.data.announcements : [];
+  return (
+    <div>
+      <div className="rounded-2xl bg-card border border-border p-3 mb-3">
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Judul pengumuman" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm mb-2" />
+        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={3} placeholder="Isi" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm mb-2" />
+        <div className="flex gap-2 flex-wrap">
+          <select value={scope} onChange={(e) => setScope(e.target.value as typeof scope)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm">
+            {subrole === "hos" && <option value="school">Seluruh Sekolah</option>}
+            <option value="division">Divisi Saya</option>
+            <option value="class">Kelas Tertentu</option>
+          </select>
+          {scope === "class" && (
+            <select value={classId} onChange={(e) => setClassId(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm">
+              <option value="">pilih kelas</option>
+              {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          )}
+          <button onClick={post} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-sm font-semibold flex items-center gap-1"><Megaphone size={13} /> Umumkan</button>
+        </div>
+        {err && <p className="text-xs text-destructive mt-2">{err}</p>}
+      </div>
+      <ul className="space-y-2">
+        {items.map((a: { id: string; title: string; body?: string; scope: string; created_at: string }) => (
+          <li key={a.id} className="rounded-xl bg-card border border-border p-3">
+            <div className="flex justify-between text-sm"><p className="font-semibold">{a.title}</p><span className="text-[10px] uppercase text-muted-foreground">{a.scope}</span></div>
+            <p className="text-xs text-muted-foreground">{new Date(a.created_at).toLocaleString()}</p>
+            {a.body && <p className="text-sm mt-1">{a.body}</p>}
+          </li>
+        ))}
+        {items.length === 0 && <Hint>Belum ada pengumuman.</Hint>}
+      </ul>
+    </div>
+  );
+}
+
+function TeacherDashboard({ staffName }: { staffName: string }) {
+  const pw = getStoredPassword();
+  const [reload, setReload] = useState(0);
+  const classes = useAsync(() => listSchoolClasses({ data: { password: pw } }), [pw]);
+  const [classId, setClassId] = useState("");
+  const students = useAsync(() => (classId ? listSchoolStudents({ data: { password: pw, classId } }) : Promise.resolve(null)), [pw, classId, reload]);
+  const activities = useAsync(() => (classId ? listActivitiesForClass({ data: { password: pw, classId } }) : Promise.resolve(null)), [pw, classId, reload]);
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [selectedStudent, setSelectedStudent] = useState<{ id: string; full_name: string } | null>(null);
+
+  const classList = classes.data && "classes" in classes.data ? classes.data.classes : [];
+  const studentList = students.data && "students" in students.data ? students.data.students : [];
+  const activityList = activities.data && "activities" in activities.data ? activities.data.activities : [];
+
+  async function post() {
+    if (!title.trim() || !classId) return;
+    await postSchoolActivity({ data: { password: pw, schoolId: SCHOOL_ID, classId, title: title.trim(), body, authorName: staffName } });
+    setTitle(""); setBody(""); setReload((x) => x + 1);
+  }
+  async function removeActivity(id: string) {
+    await deleteSchoolActivity({ data: { password: pw, id } });
+    setReload((x) => x + 1);
+  }
+
+  if (selectedStudent) {
+    return (
+      <div>
+        <button onClick={() => setSelectedStudent(null)} className="text-xs text-muted-foreground underline mb-3">Kembali ke kelas</button>
+        <p className="text-sm font-semibold mb-3">{selectedStudent.full_name}</p>
+        <Section title="Guardians dan Undangan" Icon={Users}><GuardianEditor studentId={selectedStudent.id} canEdit /></Section>
+        <Section title="Pesan dengan Orangtua" Icon={MessageSquare}><TeacherMessageThread studentId={selectedStudent.id} staffName={staffName} /></Section>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <select value={classId} onChange={(e) => setClassId(e.target.value)} className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm mb-4">
+        <option value="">pilih kelas</option>
+        {classList.map((c: { id: string; name: string }) => <option key={c.id} value={c.id}>{c.name}</option>)}
+      </select>
+      {classId && (
+        <>
+          <Section title="Murid" Icon={Baby}>
+            <ul className="space-y-2">
+              {studentList.map((s: { id: string; full_name: string }) => (
+                <li key={s.id}>
+                  <button onClick={() => setSelectedStudent(s)} className="w-full rounded-xl bg-card border border-border p-3 text-left text-sm flex items-center justify-between">
+                    {s.full_name} <span className="text-xs text-muted-foreground">Pesan / Wali</span>
+                  </button>
+                </li>
+              ))}
+              {studentList.length === 0 && <Hint>Belum ada murid di kelas ini.</Hint>}
+            </ul>
+          </Section>
+          <Section title="Daily Activity" Icon={BookOpen}>
+            <div className="rounded-2xl bg-card border border-border p-3 mb-3">
+              <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Judul aktivitas" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm mb-2" />
+              <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={3} placeholder="Cerita" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm" />
+              <button onClick={post} className="mt-2 rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-sm font-semibold flex items-center gap-1"><Save size={13} /> Kirim</button>
+            </div>
+            <ul className="space-y-2">
+              {activityList.map((a: { id: string; title: string; body?: string; activity_date: string; author_name?: string }) => (
+                <li key={a.id} className="rounded-xl bg-card border border-border p-3">
+                  <div className="flex justify-between"><p className="text-sm font-semibold">{a.title}</p><button onClick={() => removeActivity(a.id)} className="text-destructive"><Trash2 size={13} /></button></div>
+                  <p className="text-xs text-muted-foreground mt-0.5">{new Date(a.activity_date).toLocaleDateString()}{a.author_name ? " - " + a.author_name : ""}</p>
+                  {a.body && <p className="text-sm mt-2 whitespace-pre-wrap">{a.body}</p>}
+                </li>
+              ))}
+            </ul>
+          </Section>
+        </>
+      )}
+    </div>
+  );
+}
+
+function TeacherMessageThread({ studentId, staffName }: { studentId: string; staffName: string }) {
+  const pw = getStoredPassword();
+  const [reload, setReload] = useState(0);
+  const msgs = usePolling(() => listMessagesForStudent({ data: { password: pw, studentId } }), [pw, studentId, reload], 6000);
+  const [body, setBody] = useState("");
+  const list = msgs.data && "messages" in msgs.data ? msgs.data.messages : [];
+  const unread = list.filter((m: { from_side: string; closed_by_teacher: boolean }) => m.from_side === "parent" && !m.closed_by_teacher).length;
+
   async function send() {
-    if (!body.trim() || !studentId) return;
-    await db.messages.add({ fromRole: role, toStudentId: studentId, body: body.trim(), createdAt: Date.now() });
-    setBody("");
+    if (!body.trim()) return;
+    await postMessageAsTeacher({ data: { password: pw, schoolId: SCHOOL_ID, studentId, body: body.trim(), authorName: staffName } });
+    setBody(""); setReload((x) => x + 1);
+  }
+  async function close() {
+    await closeThreadAsTeacher({ data: { password: pw, studentId } });
+    setReload((x) => x + 1);
   }
   return (
     <div>
-      <select value={studentId ?? ""} onChange={e => setStudentId(e.target.value ? Number(e.target.value) : null)} className="w-full rounded-lg bg-background border border-border px-2 py-1.5 text-sm mb-3">
-        <option value="">— pick student thread —</option>
-        {(students ?? []).map(s => <option key={s.id} value={s.id}>{s.fullName}</option>)}
-      </select>
-      <div className="rounded-2xl bg-card border border-border p-3 mb-3 space-y-2 max-h-80 overflow-y-auto">
-        {(thread ?? []).map(m => (
-          <div key={m.id} className={`text-sm ${m.fromRole === "parent" ? "text-right" : ""}`}>
-            <div className={`inline-block rounded-2xl px-3 py-2 ${m.fromRole === "parent" ? "bg-secondary" : "bg-primary/15"}`}>
-              <p className="text-[10px] text-muted-foreground">{ROLE_LABEL[m.fromRole]}</p>
+      {unread > 0 && (
+        <div className="flex items-center justify-between rounded-xl bg-primary/15 text-primary px-3 py-2 text-xs font-semibold mb-2">
+          <span className="flex items-center gap-1.5"><Bell size={13} /> {unread} pesan baru dari orangtua</span>
+          <button onClick={close} className="flex items-center gap-1"><X size={13} /> Tutup notifikasi</button>
+        </div>
+      )}
+      <div className="rounded-2xl bg-card border border-border p-3 mb-2 space-y-2 max-h-72 overflow-y-auto">
+        {list.map((m: { id: string; from_side: string; body: string; author_name?: string }) => (
+          <div key={m.id} className={"text-sm " + (m.from_side === "teacher" ? "text-right" : "")}>
+            <div className={"inline-block rounded-2xl px-3 py-2 " + (m.from_side === "teacher" ? "bg-primary/15" : "bg-secondary")}>
+              <p className="text-[10px] text-muted-foreground">{m.author_name || (m.from_side === "teacher" ? "Guru" : "Orangtua")}</p>
               <p>{m.body}</p>
             </div>
           </div>
         ))}
-        {(!thread || thread.length === 0) && <p className="text-xs text-muted-foreground">No messages yet.</p>}
+        {list.length === 0 && <p className="text-xs text-muted-foreground">Belum ada pesan.</p>}
       </div>
       <div className="flex gap-2">
-        <input value={body} onChange={e => setBody(e.target.value)} placeholder="Write a message…" className="flex-1 rounded-lg bg-background border border-border px-3 py-2 text-sm" onKeyDown={e => e.key === "Enter" && send()} />
-        <button onClick={send} className="rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold">Send</button>
+        <input value={body} onChange={(e) => setBody(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} placeholder="Tulis pesan" className="flex-1 rounded-lg bg-background border border-border px-3 py-2 text-sm" />
+        <button onClick={send} className="rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold">Kirim</button>
       </div>
     </div>
   );
 }
-
-// ---------------- Principal / HoS ----------------
-function PrincipalDashboard({ role }: { role: SchoolRole }) {
-  const [tab, setTab] = useState<"overview" | "teachers" | "classes" | "announcements" | "calendar" | "browse">("overview");
-  const db = getSchoolDb();
-  const classes = useLiveQuery(async () => db.classes.toArray(), []);
-  const students = useLiveQuery(async () => db.students.toArray(), []);
-  const staff = useLiveQuery(async () => db.staff.toArray(), []);
-  const tabs = [
-    { id: "overview", label: "Overview" }, { id: "teachers", label: "Staff" },
-    { id: "classes", label: "Classes" }, { id: "announcements", label: "Announcements" },
-    { id: "calendar", label: "Calendar" }, { id: "browse", label: "Teacher view" },
-  ] as const;
-  return (
-    <div>
-      <p className="text-xs text-muted-foreground mb-3">{role === "hos" ? "Head of School" : "Principal"} · Full read access to teacher dashboards.</p>
-      <div className="flex gap-2 overflow-x-auto pb-2 mb-4 no-scrollbar">
-        {tabs.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold border ${tab === t.id ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border"}`}>{t.label}</button>
-        ))}
-      </div>
-      {tab === "overview" && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Stat label="Classes" value={classes?.length ?? 0} Icon={School} />
-          <Stat label="Students" value={students?.length ?? 0} Icon={Baby} />
-          <Stat label="Staff" value={staff?.length ?? 0} Icon={Users} />
-          <Stat label="Divisions" value={4} Icon={GraduationCap} />
-          <div className="col-span-2 md:col-span-4 rounded-2xl bg-card border border-border p-3">
-            <p className="text-xs uppercase text-muted-foreground mb-2">Divisions</p>
-            <ul className="text-sm space-y-1">
-              {(Object.keys(DIVISION_LABEL) as Division[]).map(d => (
-                <li key={d}>· {DIVISION_LABEL[d]}</li>
-              ))}
-            </ul>
-            <p className="text-[10px] text-muted-foreground mt-2">Step 1 focuses on Kindergarten. Other divisions will be added in Step 2.</p>
-          </div>
-        </div>
-      )}
-      {tab === "teachers" && <StaffPanel />}
-      {tab === "classes" && <ClassManager />}
-      {tab === "announcements" && <AnnouncementsPanel canPost role={role} />}
-      {tab === "calendar" && <CalendarPanel canEdit />}
-      {tab === "browse" && <div><ClassSelector /><TeacherDashboardReadonly /></div>}
-    </div>
-  );
-}
-
-function StaffPanel() {
-  const db = getSchoolDb();
-  const staff = useLiveQuery(async () => db.staff.toArray(), []);
-  const [name, setName] = useState(""); const [srole, setSRole] = useState<SchoolRole>("teacher_homeroom"); const [division, setDivision] = useState<Division>("kindergarten"); const [email, setEmail] = useState("");
-  async function add() {
-    if (!name.trim()) return;
-    await db.staff.add({ fullName: name.trim(), role: srole, division, email: email || undefined, createdAt: Date.now() });
-    setName(""); setEmail("");
-  }
-  return (
-    <div>
-      <div className="rounded-2xl bg-card border border-border p-3 mb-3 grid grid-cols-2 gap-2">
-        <input value={name} onChange={e => setName(e.target.value)} placeholder="Full name" className="col-span-2 rounded-lg bg-background border border-border px-3 py-1.5 text-sm" />
-        <select value={srole} onChange={e => setSRole(e.target.value as SchoolRole)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm">
-          {(["hos", "principal", "teacher_homeroom", "teacher_shadow", "teacher_subject"] as SchoolRole[]).map(r => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
-        </select>
-        <select value={division} onChange={e => setDivision(e.target.value as Division)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm">
-          {(Object.keys(DIVISION_LABEL) as Division[]).map(d => <option key={d} value={d}>{DIVISION_LABEL[d]}</option>)}
-        </select>
-        <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" className="col-span-2 rounded-lg bg-background border border-border px-3 py-1.5 text-sm" />
-        <button onClick={add} className="col-span-2 justify-self-start rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-sm font-semibold">Add staff</button>
-      </div>
-      <ul className="space-y-2">
-        {(staff ?? []).map(s => (
-          <li key={s.id} className="rounded-xl bg-card border border-border p-3 text-sm flex justify-between">
-            <div>
-              <p className="font-semibold">{s.fullName}</p>
-              <p className="text-xs text-muted-foreground">{ROLE_LABEL[s.role]} · {DIVISION_LABEL[s.division]}{s.email && ` · ${s.email}`}</p>
-            </div>
-            <button onClick={() => db.staff.delete(s.id!)} className="text-destructive"><Trash2 size={13} /></button>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function ClassManager() {
-  const db = getSchoolDb();
-  const classes = useLiveQuery(async () => db.classes.toArray(), []);
-  const studentCount = useLiveQuery(async () => db.students.count(), []);
-  const [status, setStatus] = useState<"idle" | "importing" | "success" | "error">("idle");
-  const [seedMsg, setSeedMsg] = useState<string | null>(null);
-  const [errorDetail, setErrorDetail] = useState<string | null>(null);
-
-  const runSeed = useCallback(async () => {
-    setStatus("importing");
-    setSeedMsg("Importing roster from Stella Maris source data…");
-    setErrorDetail(null);
-    try {
-      if (typeof indexedDB === "undefined") throw new Error("IndexedDB unavailable in this browser context.");
-      const { seedStellaMaris } = await import("@/lib/school-seed");
-      const r = await seedStellaMaris();
-      setStatus("success");
-      setSeedMsg(`Imported ${r.studentsAdded} new students · ${r.classesAdded} new classes · +${r.teachersAdded} teachers. Roster total: ${r.totalStudents}.`);
-    } catch (e) {
-      const err = e as Error;
-      setStatus("error");
-      setSeedMsg("Auto-import failed. Tap Retry to try again.");
-      setErrorDetail(`${err.name ?? "Error"}: ${err.message}${err.stack ? `\n${err.stack.split("\n").slice(0, 3).join("\n")}` : ""}`);
-      console.error("[school-seed]", e);
-    }
-  }, []);
-
-  // Auto-import once when the roster is clearly incomplete.
-  const autoRan = useRef(false);
-  useEffect(() => {
-    if (autoRan.current) return;
-    if (studentCount === undefined) return;
-    if (studentCount < 140) {
-      autoRan.current = true;
-      runSeed();
-    }
-  }, [studentCount, runSeed]);
-
-  const seeding = status === "importing";
-  const dotColor =
-    status === "importing" ? "bg-amber-500 animate-pulse"
-    : status === "success" ? "bg-emerald-500"
-    : status === "error" ? "bg-destructive"
-    : (studentCount ?? 0) >= 140 ? "bg-emerald-500" : "bg-muted-foreground/40";
-  const statusLabel =
-    status === "importing" ? "Importing…"
-    : status === "success" ? "Imported"
-    : status === "error" ? "Failed"
-    : (studentCount ?? 0) >= 140 ? "Ready" : "Idle";
-
-  return (
-    <div>
-      <div className="rounded-2xl bg-card border border-border p-3 mb-3 flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <p className="text-sm font-semibold">Stella Maris — Preschool AY 2026/2027</p>
-          <p className="text-[10px] text-muted-foreground flex items-center gap-1.5 mt-0.5">
-            <span className={`inline-block w-2 h-2 rounded-full ${dotColor}`} />
-            <span>{statusLabel} · {studentCount ?? "…"} / 143 students</span>
-          </p>
-        </div>
-        <button onClick={runSeed} disabled={seeding} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold disabled:opacity-50 shrink-0">
-          {seeding ? "Loading…" : status === "error" ? "Retry" : "Reload roster"}
-        </button>
-      </div>
-      {seedMsg && (
-        <div className={`rounded-xl border p-2.5 mb-3 text-xs ${
-          status === "error" ? "border-destructive/40 bg-destructive/10 text-destructive"
-          : status === "success" ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-          : "border-border bg-muted/30 text-muted-foreground"
-        }`}>
-          <p className="font-medium">{seedMsg}</p>
-          {errorDetail && (
-            <pre className="mt-1.5 text-[10px] whitespace-pre-wrap break-words opacity-80 font-mono">{errorDetail}</pre>
-          )}
-        </div>
-      )}
-      <ClassSelector />
-      <ul className="space-y-2">
-        {(classes ?? []).map(c => (
-          <li key={c.id} className="rounded-xl bg-card border border-border p-3 text-sm flex justify-between">
-            <span>{c.name} · {DIVISION_LABEL[c.division]}{c.level && ` · ${c.level.toUpperCase()}`}</span>
-            <button onClick={() => db.classes.delete(c.id!)} className="text-destructive"><Trash2 size={13} /></button>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-
-function TeacherDashboardReadonly() {
-  const [tab, setTab] = useState<"attendance" | "activity" | "lesson" | "assessment">("activity");
-  const tabs = [
-    { id: "attendance", label: "Attendance" }, { id: "activity", label: "Daily Activity" },
-    { id: "lesson", label: "Lesson" }, { id: "assessment", label: "Assessment" },
-  ] as const;
-  return (
-    <div>
-      <div className="flex gap-2 overflow-x-auto pb-2 mb-3 no-scrollbar">
-        {tabs.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold border ${tab === t.id ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border"}`}>{t.label}</button>
-        ))}
-      </div>
-      {tab === "attendance" && <AttendancePanel />}
-      {tab === "activity" && <DailyActivityPanel />}
-      {tab === "lesson" && <LessonPlanPanel />}
-      {tab === "assessment" && <AssessmentPanel />}
-    </div>
-  );
-}
-
-function AnnouncementsPanel({ canPost, role }: { canPost: boolean; role: SchoolRole }) {
-  const db = getSchoolDb();
-  const items = useLiveQuery(async () => db.announcements.reverse().sortBy("createdAt"), []);
-  const [title, setTitle] = useState(""); const [body, setBody] = useState(""); const [scope, setScope] = useState<"all" | "division">("all");
-  async function post() {
-    if (!title.trim()) return;
-    await db.announcements.add({ scope, division: scope === "division" ? "kindergarten" : undefined, title: title.trim(), body, createdAt: Date.now() });
-    setTitle(""); setBody("");
-  }
-  return (
-    <div>
-      {canPost && (
-        <div className="rounded-2xl bg-card border border-border p-3 mb-3">
-          <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Announcement title" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm mb-2" />
-          <textarea value={body} onChange={e => setBody(e.target.value)} rows={3} placeholder="Message" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm mb-2" />
-          <div className="flex gap-2">
-            <select value={scope} onChange={e => setScope(e.target.value as "all" | "division")} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm">
-              <option value="all">Whole school</option><option value="division">Kindergarten only</option>
-            </select>
-            <button onClick={post} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-sm font-semibold flex items-center gap-1"><Megaphone size={13} />Broadcast</button>
-          </div>
-          <p className="text-[10px] text-muted-foreground mt-2">Posted as {ROLE_LABEL[role]}.</p>
-        </div>
-      )}
-      <ul className="space-y-2">
-        {(items ?? []).map(a => (
-          <li key={a.id} className="rounded-xl bg-card border border-border p-3">
-            <div className="flex justify-between">
-              <p className="text-sm font-semibold">{a.title}</p>
-              {canPost && <button onClick={() => db.announcements.delete(a.id!)} className="text-destructive"><Trash2 size={12} /></button>}
-            </div>
-            <p className="text-[10px] text-muted-foreground">{new Date(a.createdAt).toLocaleString()} · {a.scope}</p>
-            {a.body && <p className="text-sm mt-1 whitespace-pre-wrap">{a.body}</p>}
-          </li>
-        ))}
-        {(items ?? []).length === 0 && <Hint>No announcements yet.</Hint>}
-      </ul>
-    </div>
-  );
-}
-
-// ---------------- Parent ----------------
-function ParentDashboard() {
-  const db = getSchoolDb();
-  const allStudents = useLiveQuery(async () => db.students.toArray(), []);
-  const linked = getParentStudentIds();
-  const [selected, setSelected] = useState<number | null>(linked[0] ?? null);
-  const myChildren = (allStudents ?? []).filter(s => linked.includes(s.id!));
-  const announcements = useLiveQuery(async () => db.announcements.reverse().sortBy("createdAt"), []);
-  const calendar = useLiveQuery(async () => db.calendar.orderBy("eventAt").toArray(), []);
-  const assessments = useLiveQuery(async () => selected ? db.assessments.where("studentId").equals(selected).reverse().sortBy("periodStart") : [], [selected]);
-  const activities = useLiveQuery(async () => {
-    if (!selected) return [];
-    const student = allStudents?.find(s => s.id === selected);
-    if (!student?.classId) return [];
-    return db.activities.where("classId").equals(student.classId).reverse().sortBy("date");
-  }, [selected, allStudents]);
-  const messages = useLiveQuery(async () => selected ? db.messages.where("toStudentId").equals(selected).sortBy("createdAt") : [], [selected]);
-  const [reply, setReply] = useState("");
-
-  if (myChildren.length === 0) {
-    return <ParentLinker allStudents={allStudents ?? []} onLinked={id => setSelected(id)} />;
-  }
+function ParentMessageThread({ code }: { code: string }) {
+  const [reload, setReload] = useState(0);
+  const msgs = usePolling(() => listMessagesForCode({ data: { code } }), [code, reload], 6000);
+  const [body, setBody] = useState("");
+  const list = msgs.data && "messages" in msgs.data ? msgs.data.messages : [];
+  const unread = list.filter((m: { from_side: string; closed_by_parent: boolean }) => m.from_side === "teacher" && !m.closed_by_parent).length;
 
   async function send() {
-    if (!reply.trim() || !selected) return;
-    await db.messages.add({ fromRole: "parent", toStudentId: selected, body: reply.trim(), createdAt: Date.now() });
-    setReply("");
+    if (!body.trim()) return;
+    await postMessageAsParent({ data: { code, body: body.trim() } });
+    setBody(""); setReload((x) => x + 1);
   }
+  async function close() {
+    await closeThreadAsParent({ data: { code } });
+    setReload((x) => x + 1);
+  }
+  return (
+    <div>
+      {unread > 0 && (
+        <div className="flex items-center justify-between rounded-xl bg-primary/15 text-primary px-3 py-2 text-xs font-semibold mb-2">
+          <span className="flex items-center gap-1.5"><Bell size={13} /> {unread} pesan baru dari Guru</span>
+          <button onClick={close} className="flex items-center gap-1"><X size={13} /> Tutup notifikasi</button>
+        </div>
+      )}
+      <div className="rounded-2xl bg-card border border-border p-3 mb-2 space-y-2 max-h-72 overflow-y-auto">
+        {list.map((m: { id: string; from_side: string; body: string; author_name?: string }) => (
+          <div key={m.id} className={"text-sm " + (m.from_side === "parent" ? "text-right" : "")}>
+            <div className={"inline-block rounded-2xl px-3 py-2 " + (m.from_side === "parent" ? "bg-primary/15" : "bg-secondary")}>
+              <p className="text-[10px] text-muted-foreground">{m.author_name || (m.from_side === "teacher" ? "Guru" : "Anda")}</p>
+              <p>{m.body}</p>
+            </div>
+          </div>
+        ))}
+        {list.length === 0 && <p className="text-xs text-muted-foreground">Belum ada pesan.</p>}
+      </div>
+      <div className="flex gap-2">
+        <input value={body} onChange={(e) => setBody(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} placeholder="Tulis pesan" className="flex-1 rounded-lg bg-background border border-border px-3 py-2 text-sm" />
+        <button onClick={send} className="rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold">Kirim</button>
+      </div>
+    </div>
+  );
+}
+
+function ParentDashboard({ code }: { code: string }) {
+  const info = useAsync(() => getStudentForCode({ data: { code } }), [code]);
+  const activities = useAsync(() => listActivitiesForCode({ data: { code } }), [code]);
+  const announcements = useAsync(() => listAnnouncementsForCode({ data: { code } }), [code]);
+  const student = info.data && "student" in info.data ? info.data.student : null;
+  const activityList = activities.data && "activities" in activities.data ? activities.data.activities : [];
+  const announcementList = announcements.data && "announcements" in announcements.data ? announcements.data.announcements : [];
+
+  if (info.loading) return <p className="text-sm text-muted-foreground text-center py-8">Memuat</p>;
+  if (!student) return <p className="text-sm text-destructive text-center py-8">{(info.data && "error" in info.data && info.data.error) || "Data tidak ditemukan."}</p>;
 
   return (
     <div>
-      <div className="flex items-center gap-2 mb-4 overflow-x-auto no-scrollbar">
-        {myChildren.map(c => (
-          <button key={c.id} onClick={() => setSelected(c.id!)} className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold border flex items-center gap-1 ${selected === c.id ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border"}`}>
-            <Baby size={12} />{c.nickname || c.fullName}
-          </button>
-        ))}
-        <button onClick={() => setParentStudentIds([])} className="ml-auto text-[10px] text-muted-foreground underline">Unlink</button>
+      <div className="flex items-center justify-between mb-4">
+        <div className="rounded-full bg-primary/15 text-primary px-3 py-1.5 text-sm font-semibold flex items-center gap-1.5"><Baby size={14} /> {student.nickname || student.full_name}</div>
+        <button onClick={parentLogout} className="text-xs rounded-full border border-border px-3 py-1.5 flex items-center gap-1"><LogOut size={12} /> Keluar</button>
       </div>
 
-      <Section title="Announcements" Icon={Megaphone}>
+      <Section title="Pengumuman" Icon={Megaphone}>
         <ul className="space-y-2">
-          {(announcements ?? []).slice(0, 5).map(a => (
-            <li key={a.id} className="rounded-xl bg-card border border-border p-3">
-              <p className="text-sm font-semibold">{a.title}</p>
-              <p className="text-[10px] text-muted-foreground">{new Date(a.createdAt).toLocaleString()}</p>
-              {a.body && <p className="text-sm mt-1">{a.body}</p>}
-            </li>
+          {announcementList.slice(0, 5).map((a: { id: string; title: string; body?: string; created_at: string }) => (
+            <li key={a.id} className="rounded-xl bg-card border border-border p-3 text-sm"><p className="font-semibold">{a.title}</p><p className="text-xs text-muted-foreground">{new Date(a.created_at).toLocaleString()}</p>{a.body && <p className="mt-1">{a.body}</p>}</li>
           ))}
-          {(announcements ?? []).length === 0 && <Hint>No announcements.</Hint>}
-        </ul>
-      </Section>
-
-      <Section title="School Calendar" Icon={CalendarDays}>
-        <ul className="space-y-2">
-          {(calendar ?? []).filter(e => e.eventAt >= Date.now()).slice(0, 5).map(e => (
-            <li key={e.id} className="rounded-xl bg-card border border-border p-3 text-sm">
-              <p className="font-semibold">{e.title}</p>
-              <p className="text-xs text-muted-foreground">{new Date(e.eventAt).toLocaleString()}</p>
-            </li>
-          ))}
+          {announcementList.length === 0 && <Hint>Belum ada pengumuman.</Hint>}
         </ul>
       </Section>
 
       <Section title="Daily Activities" Icon={BookOpen}>
         <ul className="space-y-2">
-          {(activities ?? []).slice(0, 5).map(a => (
-            <li key={a.id} className="rounded-xl bg-card border border-border p-3 text-sm">
-              <p className="font-semibold">{a.title}</p>
-              <p className="text-xs text-muted-foreground">{new Date(a.date).toLocaleDateString()}</p>
-              {a.body && <p className="mt-1">{a.body}</p>}
-            </li>
+          {activityList.map((a: { id: string; title: string; body?: string; activity_date: string }) => (
+            <li key={a.id} className="rounded-xl bg-card border border-border p-3 text-sm"><p className="font-semibold">{a.title}</p><p className="text-xs text-muted-foreground">{new Date(a.activity_date).toLocaleDateString()}</p>{a.body && <p className="mt-1">{a.body}</p>}</li>
           ))}
-          {(activities ?? []).length === 0 && <Hint>No activity reports yet.</Hint>}
+          {activityList.length === 0 && <Hint>Belum ada laporan aktivitas.</Hint>}
         </ul>
       </Section>
 
-      <Section title="Assessment Reports" Icon={LineChart}>
-        <ul className="space-y-2">
-          {(assessments ?? []).map(a => (
-            <li key={a.id} className="rounded-xl bg-card border border-border p-3 text-sm">
-              <p className="font-semibold capitalize">{a.period} report · {new Date(a.periodStart).toLocaleDateString()}</p>
-              <div className="grid grid-cols-5 gap-1 mt-2 text-[10px] text-center">
-                {a.domains.map(d => (
-                  <div key={d.name} className="rounded bg-secondary p-1">
-                    <p className="text-muted-foreground">{d.name.slice(0, 4)}</p>
-                    <p className="font-bold">{d.score}/5</p>
-                  </div>
-                ))}
-              </div>
-              {a.overallComment && <p className="mt-2 text-xs italic">"{a.overallComment}"</p>}
-            </li>
-          ))}
-          {(assessments ?? []).length === 0 && <Hint>No assessments yet.</Hint>}
-        </ul>
-      </Section>
-
-      <Section title="Messages with Teacher" Icon={MessageSquare}>
-        <div className="rounded-2xl bg-card border border-border p-3 mb-2 space-y-2 max-h-60 overflow-y-auto">
-          {(messages ?? []).map(m => (
-            <div key={m.id} className={`text-sm ${m.fromRole === "parent" ? "text-right" : ""}`}>
-              <div className={`inline-block rounded-2xl px-3 py-2 ${m.fromRole === "parent" ? "bg-secondary" : "bg-primary/15"}`}>
-                <p className="text-[10px] text-muted-foreground">{ROLE_LABEL[m.fromRole]}</p>
-                <p>{m.body}</p>
-              </div>
-            </div>
-          ))}
-          {(!messages || messages.length === 0) && <p className="text-xs text-muted-foreground">No messages yet.</p>}
-        </div>
-        <div className="flex gap-2">
-          <input value={reply} onChange={e => setReply(e.target.value)} onKeyDown={e => e.key === "Enter" && send()} placeholder="Reply…" className="flex-1 rounded-lg bg-background border border-border px-3 py-2 text-sm" />
-          <button onClick={send} className="rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold">Send</button>
-        </div>
-      </Section>
+      <Section title="Pesan dengan Guru" Icon={MessageSquare}><ParentMessageThread code={code} /></Section>
     </div>
   );
 }
 
-function ParentLinker({ allStudents, onLinked }: { allStudents: { id?: number; fullName: string; classId?: number }[]; onLinked: (id: number) => void }) {
-  const [ids, setIds] = useState<number[]>([]);
-  return (
-    <div className="rounded-2xl bg-card border border-border p-4">
-      <p className="text-sm font-semibold mb-2">Link your child(ren)</p>
-      <p className="text-xs text-muted-foreground mb-3">Select which student(s) belong to you. In production, the school would issue a pairing code.</p>
-      <ul className="space-y-2 max-h-64 overflow-y-auto mb-3">
-        {allStudents.map(s => (
-          <li key={s.id}>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={ids.includes(s.id!)} onChange={e => setIds(v => e.target.checked ? [...v, s.id!] : v.filter(x => x !== s.id!))} className="accent-primary" />
-              {s.fullName}
-            </label>
-          </li>
-        ))}
-        {allStudents.length === 0 && <Hint>No students exist yet. Ask a teacher to add students first.</Hint>}
-      </ul>
-      <button disabled={ids.length === 0} onClick={() => { setParentStudentIds(ids); onLinked(ids[0]); }} className="rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold disabled:opacity-40">Link</button>
-    </div>
-  );
+function useAsync<T>(fn: () => Promise<T> | null, deps: unknown[]): { data: T | null; loading: boolean } {
+  const [data, setData] = useState<T | null>(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let cancelled = false;
+    const p = fn();
+    if (!p) { setData(null); setLoading(false); return; }
+    setLoading(true);
+    p.then((res) => { if (!cancelled) { setData(res); setLoading(false); } });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
+  return { data, loading };
 }
-
-function Section({ title, Icon, children }: { title: string; Icon: typeof School; children: React.ReactNode }) {
+function usePolling<T>(fn: () => Promise<T> | null, deps: unknown[], intervalMs: number): { data: T | null; loading: boolean } {
+  const [data, setData] = useState<T | null>(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let cancelled = false;
+    const run = () => {
+      const p = fn();
+      if (!p) return;
+      p.then((res) => { if (!cancelled) { setData(res); setLoading(false); } });
+    };
+    run();
+    const id = setInterval(run, intervalMs);
+    return () => { cancelled = true; clearInterval(id); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
+  return { data, loading };
+}
+function Section({ title, Icon, children }: { title: string; Icon: typeof Shield; children: React.ReactNode }) {
   return (
     <section className="mb-5">
-      <div className="flex items-center gap-2 mb-2">
-        <Icon size={14} className="text-primary" />
-        <h3 className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">{title}</h3>
-      </div>
+      <div className="flex items-center gap-2 mb-2"><Icon size={14} className="text-primary" /><h3 className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">{title}</h3></div>
       {children}
     </section>
   );
