@@ -13,7 +13,7 @@ import {
 } from "@/lib/school-store";
 import {
   listSchoolClasses, createSchoolClass, listSchoolStaff, createSchoolStaff, deleteSchoolStaff,
-  listSchoolStudents, upsertSchoolStudent, deleteSchoolStudent, importSchoolStudents,
+  listSchoolStudents, upsertSchoolStudent, deleteSchoolStudent, importSchoolStudents, seedStellaMarisPhase1,
   listGuardians, addGuardian, deleteGuardian, getStudentForCode,
   postSchoolActivity, deleteSchoolActivity, listActivitiesForClass, listActivitiesForCode, listAllActivities,
   postMessageAsTeacher, postMessageAsParent, listMessagesForStudent, listMessagesForCode,
@@ -22,7 +22,7 @@ import {
   type SchoolRole,
 } from "@/lib/school.functions";
 
-const SCHOOL_ID = "11f07183-4f73-4c8c-800b-667eae3a0445";
+const SCHOOL_ID = "";
 
 export const Route = createFileRoute("/school")({
   head: () => ({ meta: [{ title: "School Dashboard — Noble" }] }),
@@ -492,6 +492,19 @@ function CsvImportPanel({ classes }: { classes: { id: string; name: string }[] }
   const fileRef = useRef<HTMLInputElement>(null);
   const [result, setResult] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [seeding, setSeeding] = useState(false);
+  const [seedResult, setSeedResult] = useState<string | null>(null);
+
+  async function runSeed() {
+    setSeeding(true);
+    setSeedResult(null);
+    const res = await seedStellaMarisPhase1({ data: { password: pw, schoolId: SCHOOL_ID } });
+    setSeeding(false);
+    setSeedResult(res.ok
+      ? (res.classesAdded + " kelas baru, " + res.teachersAdded + " guru baru, " + res.studentsAdded + " murid baru ditambahkan (" + res.studentsSkipped + " sudah ada sebelumnya).")
+      : ("Gagal: " + res.error));
+  }
+
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -518,13 +531,24 @@ function CsvImportPanel({ classes }: { classes: { id: string; name: string }[] }
     e.target.value = "";
   }
   return (
-    <div className="rounded-2xl bg-card border border-border p-4">
-      <p className="text-sm font-semibold mb-2">Import Data Murid (CSV)</p>
-      <p className="text-xs text-muted-foreground mb-3">Kolom wajib: <code className="font-mono">fullName, className</code>. Opsional: <code className="font-mono">studentNumber, nickname, gender</code>.</p>
-      <p className="text-[11px] text-muted-foreground mb-3">Kelas tersedia: {classes.map((c) => c.name).join(", ") || "(belum ada)"}</p>
-      <button onClick={() => fileRef.current?.click()} disabled={busy} className="rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold flex items-center gap-2 disabled:opacity-50"><Upload size={15} /> {busy ? "Mengimpor" : "Pilih File CSV"}</button>
-      <input ref={fileRef} type="file" accept=".csv,text/csv" onChange={handleFile} className="hidden" />
-      {result && <p className="text-xs mt-3 whitespace-pre-wrap">{result}</p>}
+    <div className="space-y-4">
+      <div className="rounded-2xl bg-card border border-border p-4">
+        <p className="text-sm font-semibold mb-2">Import Data Contoh (Stella Maris)</p>
+        <p className="text-xs text-muted-foreground mb-3">Isi otomatis 9 kelas, guru per kelas, dan 133 murid sekaligus &mdash; aman dijalankan berkali-kali, data yang sudah ada dilewati.</p>
+        <button onClick={runSeed} disabled={seeding} className="rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold disabled:opacity-50">
+          {seeding ? "Mengimpor" : "Import Data Contoh Sekarang"}
+        </button>
+        {seedResult && <p className="text-xs mt-3 whitespace-pre-wrap">{seedResult}</p>}
+      </div>
+
+      <div className="rounded-2xl bg-card border border-border p-4">
+        <p className="text-sm font-semibold mb-2">Import Data Murid Sendiri (CSV)</p>
+        <p className="text-xs text-muted-foreground mb-3">Kolom wajib: <code className="font-mono">fullName, className</code>. Opsional: <code className="font-mono">studentNumber, nickname, gender</code>.</p>
+        <p className="text-[11px] text-muted-foreground mb-3">Kelas tersedia: {classes.map((c) => c.name).join(", ") || "(belum ada)"}</p>
+        <button onClick={() => fileRef.current?.click()} disabled={busy} className="rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold flex items-center gap-2 disabled:opacity-50"><Upload size={15} /> {busy ? "Mengimpor" : "Pilih File CSV"}</button>
+        <input ref={fileRef} type="file" accept=".csv,text/csv" onChange={handleFile} className="hidden" />
+        {result && <p className="text-xs mt-3 whitespace-pre-wrap">{result}</p>}
+      </div>
     </div>
   );
 }
