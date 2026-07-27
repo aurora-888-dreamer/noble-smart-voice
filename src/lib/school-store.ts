@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 import { checkSchoolAccess, redeemGuardianInvite, type StaffTier } from "./school.functions";
 
 const TIER_KEY = "noble.school.tier";           // "admin" | "teacher"
+const PW_KEY = "noble.school.pw";                // stored together with tier, atomically, so they can never desync
 const SUBROLE_KEY = "noble.school.subrole";      // "hos" | "admin_hos" | "principal" | "teacher"
 const DIVISION_KEY = "noble.school.division";    // Principal's assigned division
 const STAFF_NAME_KEY = "noble.school.staffName"; // picked identity for attribution (teacher tier)
@@ -23,8 +24,14 @@ export async function loginSchoolStaff(password: string): Promise<{ ok: boolean;
   const res = await checkSchoolAccess({ data: { password } });
   if (!res.ok) return { ok: false };
   sessionStorage.setItem(TIER_KEY, res.tier);
+  sessionStorage.setItem(PW_KEY, password);
   window.dispatchEvent(new Event("noble:school"));
   return { ok: true, tier: res.tier };
+}
+
+export function getStoredSchoolPassword(): string {
+  if (typeof window === "undefined") return "";
+  return sessionStorage.getItem(PW_KEY) || "";
 }
 
 export function getSchoolTier(): StaffTier | null {
@@ -58,6 +65,7 @@ export function getStaffIdentity(): string | null {
 
 export function schoolLogout() {
   sessionStorage.removeItem(TIER_KEY);
+  sessionStorage.removeItem(PW_KEY);
   sessionStorage.removeItem(SUBROLE_KEY);
   sessionStorage.removeItem(DIVISION_KEY);
   sessionStorage.removeItem(STAFF_NAME_KEY);
