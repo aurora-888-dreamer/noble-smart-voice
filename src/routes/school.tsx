@@ -2,19 +2,20 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import {
   Shield, GraduationCap, BookOpen, Home as HomeIcon, Baby, Users, Trash2,
-  UserPlus, Upload, Send, LogOut, Save, Megaphone, MessageSquare, X, Bell,
+  UserPlus, Upload, Send, LogOut, Save, Megaphone, MessageSquare, X, Bell, Lock, Delete,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { usePlugin } from "@/lib/plugins-store";
 import { useLicenseInfo } from "@/lib/auth-store";
 import {
-  loginSchoolStaff, schoolLogout, setAdminSubrole, setStaffIdentity, useSchoolSession,
-  redeemParentCode, parentLogout, useParentCode, getStoredSchoolPassword, type AdminSubrole,
+  loginSchoolStaff, schoolLogout, setAdminSubrole, useSchoolSession,
+  redeemParentCode, parentLogout, useParentCode, getStoredSchoolPassword,
+  loginTeacherPin, completeTeacherSetup, clearTeacherDevice, type AdminSubrole, type TeacherDevice,
 } from "@/lib/school-store";
 import {
   listSchoolClasses, createSchoolClass, listSchoolStaff, createSchoolStaff, deleteSchoolStaff,
   listSchoolStudents, upsertSchoolStudent, deleteSchoolStudent, importSchoolStudents, seedStellaMarisPhase1,
-  listGuardians, addGuardian, deleteGuardian, getStudentForCode,
+  listGuardians, addGuardian, deleteGuardian, getStudentForCode, listTeacherStaffPublic,
   postSchoolActivity, deleteSchoolActivity, listActivitiesForClass, listActivitiesForCode, listAllActivities,
   postMessageAsTeacher, postMessageAsParent, listMessagesForStudent, listMessagesForCode,
   closeThreadAsTeacher, closeThreadAsParent,
@@ -106,7 +107,13 @@ function SchoolPage() {
 
   return (
     <AppShell title="School Dashboard">
-      {parentCode ? <ParentDashboard code={parentCode} /> : session.tier ? <StaffRouter /> : mode === "pick" ? (
+      {parentCode ? (
+        <ParentDashboard code={parentCode} />
+      ) : session.teacherDevice && !session.teacherUnlocked ? (
+        <TeacherPinPad device={session.teacherDevice} />
+      ) : session.tier ? (
+        <StaffRouter />
+      ) : mode === "pick" ? (
         <EntryPicker onPick={setMode} />
       ) : mode === "staff" ? <StaffLogin onBack={() => setMode("pick")} /> : <ParentLogin onBack={() => setMode("pick")} />}
     </AppShell>
@@ -185,10 +192,10 @@ function ParentLogin({ onBack }: { onBack: () => void }) {
 }
 
 function StaffRouter() {
-  const { tier, subrole, division, staffName } = useSchoolSession();
+  const { tier, subrole, division, staffName, teacherDevice } = useSchoolSession();
   if (tier === "admin" && !subrole) return <AdminSubrolePicker />;
   if (tier === "admin" && subrole === "principal" && !division) return <DivisionPicker />;
-  if (tier === "teacher" && !staffName) return <TeacherIdentityPicker />;
+  if (tier === "teacher" && !staffName) return <TeacherFirstTimeSetup />;
 
   return (
     <div>
@@ -199,11 +206,66 @@ function StaffRouter() {
             {tier === "admin" ? (subrole === "hos" ? "Head of School" : subrole === "admin_hos" ? "Admin HoS" : "Principal - " + DIVISIONS.find((d) => d.id === division)?.label) : staffName}
           </p>
         </div>
-        <button onClick={schoolLogout} className="text-xs rounded-full border border-border px-3 py-1.5 flex items-center gap-1"><LogOut size={12} /> Keluar</button>
+        <div className="flex items-center gap-2">
+          <button onClick={schoolLogout} className="text-xs rounded-full border border-border px-3 py-1.5 flex items-center gap-1"><LogOut size={12} /> Keluar</button>
+          {tier === "teacher" && teacherDevice && (
+            <button onClick={clearTeacherDevice} className="text-xs text-muted-foreground underline">Bukan Anda?</button>
+          )}
+        </div>
       </div>
       {tier === "admin" && (subrole === "hos" || subrole === "admin_hos") && <HosDashboard subrole={subrole} />}
       {tier === "admin" && subrole === "principal" && <PrincipalDashboard division={division!} />}
-      {tier === "teacher" && <TeacherDashboard staffName={staffName!} />}
+      {tier === "teacher" && <TeacherDashboard staffName={staffName!} defaultClassId={teacherDevice?.classId ?? null} />}
+    </div>
+  );
+}
+
+// Returning teacher — this device already knows who you are, just confirm your PIN.
+function TeacherPinPad({ device }: { device: TeacherDevice }) {
+  const [pin, setPin] = useState("");
+  const [err, setErr] = useState(false);
+  const [checking, setChecking] = useState(false);
+
+  useEffect(() => {
+    if (pin.length === 4) {
+      setChecking(true);
+      loginTeacherPin(device.id, pin).then((res) => {
+        setChecking(false);
+        if (!res.ok) {
+          setErr(true);
+          setTimeout(() => {
+            setErr(false);
+            setPin("");
+          }, 500);
+        }
+      });
+    }
+  }, [pin, device.id]);
+
+  const press = (d: string) => {
+    if (d === "del") setPin((p) => p.slice(0, -1));
+    else if (pin.length < 4) setPin((p) => p + d);
+  };
+
+  return (
+    <div className="max-w-xs mx-auto text-center pt-8">
+      <div className="grid place-items-center w-12 h-12 rounded-full bg-primary/15 text-primary mx-auto mb-3"><Lock size={20} /></div>
+      <p className="text-sm font-semibold mb-1">Halo, {device.name}</p>
+      <p className="text-xs text-muted-foreground mb-6">Masukkan PIN Anda</p>
+      <div className={"flex justify-center gap-3 mb-8 " + (err ? "shake" : "")}>
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className={"w-3.5 h-3.5 rounded-full " + (i < pin.length ? (err ? "bg-destructive" : "bg-primary") : "bg-muted")} />
+        ))}
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((d) => (
+          <button key={d} onClick={() => press(d)} disabled={checking} className="aspect-square rounded-full bg-card border border-border text-xl font-light active:scale-90">{d}</button>
+        ))}
+        <div />
+        <button onClick={() => press("0")} disabled={checking} className="aspect-square rounded-full bg-card border border-border text-xl font-light active:scale-90">0</button>
+        <button onClick={() => press("del")} disabled={checking} className="aspect-square rounded-full bg-card border border-border grid place-items-center active:scale-90"><Delete size={18} /></button>
+      </div>
+      <button onClick={clearTeacherDevice} className="mt-6 text-xs text-muted-foreground underline">Bukan {device.name}?</button>
     </div>
   );
 }
@@ -235,14 +297,54 @@ function DivisionPicker() {
     </div>
   );
 }
-function TeacherIdentityPicker() {
-  const [name, setName] = useState("");
+function TeacherFirstTimeSetup() {
+  const pw = getStoredPassword();
+  const staff = useAsync(() => listTeacherStaffPublic({ data: { password: pw } }), [pw]);
+  const [picked, setPicked] = useState<{ id: string; full_name: string } | null>(null);
+  const [pin, setPin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const list = staff.data && "staff" in staff.data ? staff.data.staff : [];
+
+  async function finish() {
+    if (pin.length !== 4) { setErr("PIN harus 4 angka."); return; }
+    if (pin !== confirmPin) { setErr("Konfirmasi PIN tidak sama."); return; }
+    if (!picked) return;
+    setSaving(true);
+    setErr(null);
+    const res = await completeTeacherSetup(pw, picked.id, pin);
+    setSaving(false);
+    if (!res.ok) setErr(res.error);
+  }
+
+  if (!picked) {
+    return (
+      <div className="max-w-sm mx-auto">
+        <p className="text-sm font-semibold mb-1">Siapa Anda?</p>
+        <p className="text-xs text-muted-foreground mb-3">Pilih nama Anda dari daftar staff yang sudah didaftarkan Principal.</p>
+        <ul className="space-y-2">
+          {list.map((s: { id: string; full_name: string; role: string }) => (
+            <li key={s.id}>
+              <button onClick={() => setPicked(s)} className="w-full rounded-xl bg-card border border-border p-3 text-left text-sm">{s.full_name}</button>
+            </li>
+          ))}
+          {list.length === 0 && <Hint>Nama Anda belum terdaftar. Minta Principal menambahkan Anda dulu di menu Staff.</Hint>}
+        </ul>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-sm mx-auto rounded-2xl bg-card border border-border p-5">
-      <p className="text-sm font-semibold mb-1">Siapa Anda?</p>
-      <p className="text-xs text-muted-foreground mb-3">Dipakai untuk menandai aktivitas/pesan yang Anda buat.</p>
-      <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nama lengkap (mis. Ms. Hermin)" className="w-full rounded-xl bg-secondary px-4 py-3 text-sm outline-none mb-3" autoFocus />
-      <button onClick={() => name.trim() && setStaffIdentity(name.trim())} disabled={!name.trim()} className="w-full rounded-full bg-primary text-primary-foreground py-3 text-sm font-semibold disabled:opacity-50">Lanjut</button>
+      <p className="text-sm font-semibold mb-1">Halo, {picked.full_name}</p>
+      <p className="text-xs text-muted-foreground mb-4">Buat PIN 4 angka untuk masuk lebih cepat lain kali (tidak perlu password lagi).</p>
+      <input type="password" inputMode="numeric" maxLength={4} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} placeholder="PIN baru (4 angka)" className="w-full rounded-xl bg-secondary px-4 py-3 text-sm outline-none mb-3 text-center tracking-widest" autoFocus />
+      <input type="password" inputMode="numeric" maxLength={4} value={confirmPin} onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ""))} placeholder="Ulangi PIN" className="w-full rounded-xl bg-secondary px-4 py-3 text-sm outline-none mb-3 text-center tracking-widest" />
+      {err && <p className="text-xs text-destructive mb-3">{err}</p>}
+      <button onClick={finish} disabled={saving || pin.length !== 4} className="w-full rounded-full bg-primary text-primary-foreground py-3 text-sm font-semibold disabled:opacity-50">{saving ? "Menyimpan…" : "Selesai"}</button>
+      <button onClick={() => setPicked(null)} className="w-full text-center text-xs text-muted-foreground underline mt-3">Bukan saya</button>
     </div>
   );
 }
@@ -253,8 +355,8 @@ function HosDashboard({ subrole }: { subrole: AdminSubrole }) {
   const pw = getStoredPassword();
   const classes = useAsync(() => listSchoolClasses({ data: { password: pw } }), [pw]);
   const staff = useAsync(() => listSchoolStaff({ data: { password: pw } }), [pw]);
-  const classList = classes.data && "classes" in classes.data ? ((classes.data.classes) ?? []) : [];
-  const staffList = staff.data && "staff" in staff.data ? ((staff.data.staff) ?? []) : [];
+  const classList = classes.data && "classes" in classes.data ? classes.data.classes : [];
+  const staffList = staff.data && "staff" in staff.data ? staff.data.staff : [];
   const tabs = [
     { id: "overview", label: "Overview" }, { id: "students", label: "Data Murid" },
     { id: "staff", label: "Staff" }, { id: "activity", label: "Semua Activity" }, { id: "announce", label: "Pengumuman" },
@@ -295,7 +397,7 @@ function PrincipalDashboard({ division }: { division: string }) {
   const [tab, setTab] = useState<"overview" | "students" | "classes" | "staff" | "activity" | "announce">("overview");
   const pw = getStoredPassword();
   const classesAll = useAsync(() => listSchoolClasses({ data: { password: pw } }), [pw]);
-  const classes = (classesAll.data && "classes" in classesAll.data ? ((classesAll.data.classes) ?? []) : []).filter((c: { division: string }) => c.division === division);
+  const classes = (classesAll.data && "classes" in classesAll.data ? classesAll.data.classes : []).filter((c: { division: string }) => c.division === division);
   const tabs = [
     { id: "overview", label: "Overview" }, { id: "students", label: "Data Murid" }, { id: "classes", label: "Classes" },
     { id: "staff", label: "Staff" }, { id: "activity", label: "Activity Guru" }, { id: "announce", label: "Pengumuman" },
@@ -363,7 +465,7 @@ function StaffRoster({ canEdit, classes, scopeDivision }: { canEdit: boolean; cl
     await deleteSchoolStaff({ data: { password: pw, id } });
     setReload((x) => x + 1);
   }
-  const list = staff.data && "staff" in staff.data ? ((staff.data.staff) ?? []) : [];
+  const list = staff.data && "staff" in staff.data ? staff.data.staff : [];
   const filtered = scopeDivision ? list.filter((s: { division: string }) => s.division === scopeDivision) : list;
   return (
     <div>
@@ -414,7 +516,7 @@ function StudentRoster({ canEdit, classes }: { canEdit: boolean; classes: { id: 
     await deleteSchoolStudent({ data: { password: pw, id } });
     setReload((x) => x + 1);
   }
-  const list = students.data && "students" in students.data ? ((students.data.students) ?? []) : [];
+  const list = students.data && "students" in students.data ? students.data.students : [];
   return (
     <div>
       <select value={classId} onChange={(e) => setClassId(e.target.value)} className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm mb-3">
@@ -480,7 +582,7 @@ function GuardianEditor({ studentId, canEdit }: { studentId: string; canEdit: bo
     const text = encodeURIComponent("Halo " + g.full_name + "! Kode undangan School Dashboard untuk memantau anak Anda: " + g.invite_code + ". Buka Noble - School Dashboard - Orangtua - masukkan kode ini.");
     window.open("https://wa.me/?text=" + text, "_blank", "noopener");
   }
-  const list = guardians.data && "guardians" in guardians.data ? ((guardians.data.guardians) ?? []) : [];
+  const list = guardians.data && "guardians" in guardians.data ? guardians.data.guardians : [];
   return (
     <div>
       <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Guardians</p>
@@ -583,7 +685,7 @@ function CsvImportPanel({ classes }: { classes: { id: string; name: string }[] }
 function AllActivitiesView({ division }: { division: string | null }) {
   const pw = getStoredPassword();
   const activities = useAsync(() => listAllActivities({ data: { password: pw, division: division || undefined } }), [pw, division]);
-  const list = activities.data && "activities" in activities.data ? ((activities.data.activities) ?? []) : [];
+  const list = activities.data && "activities" in activities.data ? activities.data.activities : [];
   return (
     <ul className="space-y-2">
       {list.map((a: { id: string; title: string; body?: string; activity_date: string; author_name?: string; school_classes?: { name: string } }) => (
@@ -620,7 +722,7 @@ function AnnouncementPanel({ subrole, division, classes }: { subrole: AdminSubro
     if (!res.ok) { setErr(res.error); return; }
     setTitle(""); setBody(""); setReload((x) => x + 1);
   }
-  const items = list.data && "announcements" in list.data ? ((list.data.announcements) ?? []) : [];
+  const items = list.data && "announcements" in list.data ? list.data.announcements : [];
   return (
     <div>
       <div className="rounded-2xl bg-card border border-border p-3 mb-3">
@@ -656,20 +758,20 @@ function AnnouncementPanel({ subrole, division, classes }: { subrole: AdminSubro
   );
 }
 
-function TeacherDashboard({ staffName }: { staffName: string }) {
+function TeacherDashboard({ staffName, defaultClassId }: { staffName: string; defaultClassId: string | null }) {
   const pw = getStoredPassword();
   const [reload, setReload] = useState(0);
   const classes = useAsync(() => listSchoolClasses({ data: { password: pw } }), [pw]);
-  const [classId, setClassId] = useState("");
+  const [classId, setClassId] = useState(defaultClassId ?? "");
   const students = useAsync(() => (classId ? listSchoolStudents({ data: { password: pw, classId } }) : Promise.resolve(null)), [pw, classId, reload]);
   const activities = useAsync(() => (classId ? listActivitiesForClass({ data: { password: pw, classId } }) : Promise.resolve(null)), [pw, classId, reload]);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [selectedStudent, setSelectedStudent] = useState<{ id: string; full_name: string } | null>(null);
 
-  const classList = classes.data && "classes" in classes.data ? ((classes.data.classes) ?? []) : [];
-  const studentList = students.data && "students" in students.data ? ((students.data.students) ?? []) : [];
-  const activityList = activities.data && "activities" in activities.data ? ((activities.data.activities) ?? []) : [];
+  const classList = classes.data && "classes" in classes.data ? classes.data.classes : [];
+  const studentList = students.data && "students" in students.data ? students.data.students : [];
+  const activityList = activities.data && "activities" in activities.data ? activities.data.activities : [];
 
   async function post() {
     if (!title.trim() || !classId) return;
@@ -739,7 +841,7 @@ function TeacherMessageThread({ studentId, staffName }: { studentId: string; sta
   const [reload, setReload] = useState(0);
   const msgs = usePolling(() => listMessagesForStudent({ data: { password: pw, studentId } }), [pw, studentId, reload], 6000);
   const [body, setBody] = useState("");
-  const list = msgs.data && "messages" in msgs.data ? ((msgs.data.messages) ?? []) : [];
+  const list = msgs.data && "messages" in msgs.data ? msgs.data.messages : [];
   const unread = list.filter((m: { from_side: string; closed_by_teacher: boolean }) => m.from_side === "parent" && !m.closed_by_teacher).length;
 
   async function send() {
@@ -781,7 +883,7 @@ function ParentMessageThread({ code }: { code: string }) {
   const [reload, setReload] = useState(0);
   const msgs = usePolling(() => listMessagesForCode({ data: { code } }), [code, reload], 6000);
   const [body, setBody] = useState("");
-  const list = msgs.data && "messages" in msgs.data ? ((msgs.data.messages) ?? []) : [];
+  const list = msgs.data && "messages" in msgs.data ? msgs.data.messages : [];
   const unread = list.filter((m: { from_side: string; closed_by_parent: boolean }) => m.from_side === "teacher" && !m.closed_by_parent).length;
 
   async function send() {
@@ -824,9 +926,9 @@ function ParentDashboard({ code }: { code: string }) {
   const info = useAsync(() => getStudentForCode({ data: { code } }), [code]);
   const activities = useAsync(() => listActivitiesForCode({ data: { code } }), [code]);
   const announcements = useAsync(() => listAnnouncementsForCode({ data: { code } }), [code]);
-  const student = (info.data && "student" in info.data ? info.data.student : null) as { nickname?: string; full_name: string } | null;
-  const activityList = activities.data && "activities" in activities.data ? ((activities.data.activities) ?? []) : [];
-  const announcementList = announcements.data && "announcements" in announcements.data ? ((announcements.data.announcements) ?? []) : [];
+  const student = info.data && "student" in info.data ? info.data.student : null;
+  const activityList = activities.data && "activities" in activities.data ? activities.data.activities : [];
+  const announcementList = announcements.data && "announcements" in announcements.data ? announcements.data.announcements : [];
 
   if (info.loading) return <p className="text-sm text-muted-foreground text-center py-8">Memuat</p>;
   if (!student) return <p className="text-sm text-destructive text-center py-8">{(info.data && "error" in info.data && info.data.error) || "Data tidak ditemukan."}</p>;
