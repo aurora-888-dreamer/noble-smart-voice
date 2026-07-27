@@ -253,8 +253,8 @@ function HosDashboard({ subrole }: { subrole: AdminSubrole }) {
   const pw = getStoredPassword();
   const classes = useAsync(() => listSchoolClasses({ data: { password: pw } }), [pw]);
   const staff = useAsync(() => listSchoolStaff({ data: { password: pw } }), [pw]);
-  const classList = classes.data && "classes" in classes.data ? classes.data.classes : [];
-  const staffList = staff.data && "staff" in staff.data ? staff.data.staff : [];
+  const classList = classes.data && "classes" in classes.data ? ((classes.data.classes) ?? []) : [];
+  const staffList = staff.data && "staff" in staff.data ? ((staff.data.staff) ?? []) : [];
   const tabs = [
     { id: "overview", label: "Overview" }, { id: "students", label: "Data Murid" },
     { id: "staff", label: "Staff" }, { id: "activity", label: "Semua Activity" }, { id: "announce", label: "Pengumuman" },
@@ -295,7 +295,7 @@ function PrincipalDashboard({ division }: { division: string }) {
   const [tab, setTab] = useState<"overview" | "students" | "classes" | "staff" | "activity" | "announce">("overview");
   const pw = getStoredPassword();
   const classesAll = useAsync(() => listSchoolClasses({ data: { password: pw } }), [pw]);
-  const classes = (classesAll.data && "classes" in classesAll.data ? classesAll.data.classes : []).filter((c: { division: string }) => c.division === division);
+  const classes = (classesAll.data && "classes" in classesAll.data ? ((classesAll.data.classes) ?? []) : []).filter((c: { division: string }) => c.division === division);
   const tabs = [
     { id: "overview", label: "Overview" }, { id: "students", label: "Data Murid" }, { id: "classes", label: "Classes" },
     { id: "staff", label: "Staff" }, { id: "activity", label: "Activity Guru" }, { id: "announce", label: "Pengumuman" },
@@ -363,7 +363,7 @@ function StaffRoster({ canEdit, classes, scopeDivision }: { canEdit: boolean; cl
     await deleteSchoolStaff({ data: { password: pw, id } });
     setReload((x) => x + 1);
   }
-  const list = staff.data && "staff" in staff.data ? staff.data.staff : [];
+  const list = staff.data && "staff" in staff.data ? ((staff.data.staff) ?? []) : [];
   const filtered = scopeDivision ? list.filter((s: { division: string }) => s.division === scopeDivision) : list;
   return (
     <div>
@@ -414,7 +414,7 @@ function StudentRoster({ canEdit, classes }: { canEdit: boolean; classes: { id: 
     await deleteSchoolStudent({ data: { password: pw, id } });
     setReload((x) => x + 1);
   }
-  const list = students.data && "students" in students.data ? students.data.students : [];
+  const list = students.data && "students" in students.data ? ((students.data.students) ?? []) : [];
   return (
     <div>
       <select value={classId} onChange={(e) => setClassId(e.target.value)} className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm mb-3">
@@ -480,7 +480,7 @@ function GuardianEditor({ studentId, canEdit }: { studentId: string; canEdit: bo
     const text = encodeURIComponent("Halo " + g.full_name + "! Kode undangan School Dashboard untuk memantau anak Anda: " + g.invite_code + ". Buka Noble - School Dashboard - Orangtua - masukkan kode ini.");
     window.open("https://wa.me/?text=" + text, "_blank", "noopener");
   }
-  const list = guardians.data && "guardians" in guardians.data ? guardians.data.guardians : [];
+  const list = guardians.data && "guardians" in guardians.data ? ((guardians.data.guardians) ?? []) : [];
   return (
     <div>
       <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Guardians</p>
@@ -583,7 +583,7 @@ function CsvImportPanel({ classes }: { classes: { id: string; name: string }[] }
 function AllActivitiesView({ division }: { division: string | null }) {
   const pw = getStoredPassword();
   const activities = useAsync(() => listAllActivities({ data: { password: pw, division: division || undefined } }), [pw, division]);
-  const list = activities.data && "activities" in activities.data ? activities.data.activities : [];
+  const list = activities.data && "activities" in activities.data ? ((activities.data.activities) ?? []) : [];
   return (
     <ul className="space-y-2">
       {list.map((a: { id: string; title: string; body?: string; activity_date: string; author_name?: string; school_classes?: { name: string } }) => (
@@ -620,7 +620,7 @@ function AnnouncementPanel({ subrole, division, classes }: { subrole: AdminSubro
     if (!res.ok) { setErr(res.error); return; }
     setTitle(""); setBody(""); setReload((x) => x + 1);
   }
-  const items = list.data && "announcements" in list.data ? list.data.announcements : [];
+  const items = list.data && "announcements" in list.data ? ((list.data.announcements) ?? []) : [];
   return (
     <div>
       <div className="rounded-2xl bg-card border border-border p-3 mb-3">
@@ -667,9 +667,9 @@ function TeacherDashboard({ staffName }: { staffName: string }) {
   const [body, setBody] = useState("");
   const [selectedStudent, setSelectedStudent] = useState<{ id: string; full_name: string } | null>(null);
 
-  const classList = classes.data && "classes" in classes.data ? classes.data.classes : [];
-  const studentList = students.data && "students" in students.data ? students.data.students : [];
-  const activityList = activities.data && "activities" in activities.data ? activities.data.activities : [];
+  const classList = classes.data && "classes" in classes.data ? ((classes.data.classes) ?? []) : [];
+  const studentList = students.data && "students" in students.data ? ((students.data.students) ?? []) : [];
+  const activityList = activities.data && "activities" in activities.data ? ((activities.data.activities) ?? []) : [];
 
   async function post() {
     if (!title.trim() || !classId) return;
@@ -739,7 +739,7 @@ function TeacherMessageThread({ studentId, staffName }: { studentId: string; sta
   const [reload, setReload] = useState(0);
   const msgs = usePolling(() => listMessagesForStudent({ data: { password: pw, studentId } }), [pw, studentId, reload], 6000);
   const [body, setBody] = useState("");
-  const list = msgs.data && "messages" in msgs.data ? msgs.data.messages : [];
+  const list = msgs.data && "messages" in msgs.data ? ((msgs.data.messages) ?? []) : [];
   const unread = list.filter((m: { from_side: string; closed_by_teacher: boolean }) => m.from_side === "parent" && !m.closed_by_teacher).length;
 
   async function send() {
@@ -781,7 +781,7 @@ function ParentMessageThread({ code }: { code: string }) {
   const [reload, setReload] = useState(0);
   const msgs = usePolling(() => listMessagesForCode({ data: { code } }), [code, reload], 6000);
   const [body, setBody] = useState("");
-  const list = msgs.data && "messages" in msgs.data ? msgs.data.messages : [];
+  const list = msgs.data && "messages" in msgs.data ? ((msgs.data.messages) ?? []) : [];
   const unread = list.filter((m: { from_side: string; closed_by_parent: boolean }) => m.from_side === "teacher" && !m.closed_by_parent).length;
 
   async function send() {
@@ -825,8 +825,8 @@ function ParentDashboard({ code }: { code: string }) {
   const activities = useAsync(() => listActivitiesForCode({ data: { code } }), [code]);
   const announcements = useAsync(() => listAnnouncementsForCode({ data: { code } }), [code]);
   const student = info.data && "student" in info.data ? info.data.student : null;
-  const activityList = activities.data && "activities" in activities.data ? activities.data.activities : [];
-  const announcementList = announcements.data && "announcements" in announcements.data ? announcements.data.announcements : [];
+  const activityList = activities.data && "activities" in activities.data ? ((activities.data.activities) ?? []) : [];
+  const announcementList = announcements.data && "announcements" in announcements.data ? ((announcements.data.announcements) ?? []) : [];
 
   if (info.loading) return <p className="text-sm text-muted-foreground text-center py-8">Memuat</p>;
   if (!student) return <p className="text-sm text-destructive text-center py-8">{(info.data && "error" in info.data && info.data.error) || "Data tidak ditemukan."}</p>;
