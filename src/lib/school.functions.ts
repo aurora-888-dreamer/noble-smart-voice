@@ -390,26 +390,26 @@ export const deleteSchoolActivity = createServerFn({ method: "POST" })
 export const listActivitiesForClass = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string; classId: string }) => input)
   .handler(async ({ data }): Promise<SchoolActivitiesResult> => {
-    if (!checkSchoolPassword(data.password)) return { ok: false as const, error: "Wrong password." };
+    if (!checkSchoolPassword(data.password)) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Backend School belum dikonfigurasi." };
     const { data: rows, error } = await supabase
       .from("school_activities")
       .select("*")
       .eq("class_id", data.classId)
       .order("activity_date", { ascending: false })
       .limit(20);
-    if (error) return { ok: false as const, error: error.message };
-    return { ok: true as const, activities: rows ?? [] };
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, activities: (rows ?? []) as SchoolActivity[] };
   });
 
 // For HoS / Admin HoS (see everything) and Principal (scoped to their division).
 export const listAllActivities = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string; division?: string }) => input)
-  .handler(async ({ data }) => {
-    if (!checkSchoolPassword(data.password)) return { ok: false as const, error: "Wrong password." };
+  .handler(async ({ data }): Promise<SchoolActivitiesResult> => {
+    if (!checkSchoolPassword(data.password)) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Backend School belum dikonfigurasi." };
     let q = supabase
       .from("school_activities")
       .select("*, school_classes!inner(name, division)")
@@ -417,73 +417,72 @@ export const listAllActivities = createServerFn({ method: "POST" })
       .limit(50);
     if (data.division) q = q.eq("school_classes.division", data.division);
     const { data: rows, error } = await q;
-    if (error) return { ok: false as const, error: error.message };
-    return { ok: true as const, activities: rows ?? [] };
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, activities: (rows ?? []) as SchoolActivity[] };
   });
 
 // ————— Messages (Teacher <-> Parent, per-student thread) —————
 export const postMessageAsTeacher = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string; schoolId: string; studentId: string; body: string; authorName?: string }) => input)
-  .handler(async ({ data }) => {
-    if (!checkSchoolPassword(data.password)) return { ok: false as const, error: "Wrong password." };
+  .handler(async ({ data }): Promise<SchoolOkResult> => {
+    if (!checkSchoolPassword(data.password)) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Backend School belum dikonfigurasi." };
     const { error } = await supabase.from("school_messages").insert({
       school_id: data.schoolId, student_id: data.studentId, from_side: "teacher",
       author_name: data.authorName || null, body: data.body.trim(),
     });
-    if (error) return { ok: false as const, error: error.message };
-    return { ok: true as const };
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
   });
 
 export const postMessageAsParent = createServerFn({ method: "POST" })
   .inputValidator((input: { code: string; body: string; authorName?: string }) => input)
-  .handler(async ({ data }) => {
+  .handler(async ({ data }): Promise<SchoolOkResult> => {
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Backend School belum dikonfigurasi." };
     const { data: guardian, error: gErr } = await supabase
       .from("school_guardians")
       .select("student_id, school_students(school_id)")
       .eq("invite_code", data.code.trim().toUpperCase())
       .maybeSingle();
-    if (gErr) return { ok: false as const, error: gErr.message };
-    if (!guardian) return { ok: false as const, error: "Kode tidak valid." };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const schoolId = (guardian.school_students as any)?.school_id;
+    if (gErr) return { ok: false, error: gErr.message };
+    if (!guardian) return { ok: false, error: "Kode tidak valid." };
+    const schoolId = (guardian.school_students as unknown as { school_id?: string } | null)?.school_id;
     const { error } = await supabase.from("school_messages").insert({
       school_id: schoolId, student_id: guardian.student_id, from_side: "parent",
       author_name: data.authorName || null, body: data.body.trim(),
     });
-    if (error) return { ok: false as const, error: error.message };
-    return { ok: true as const };
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
   });
 
 export const listMessagesForStudent = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string; studentId: string }) => input)
-  .handler(async ({ data }) => {
-    if (!checkSchoolPassword(data.password)) return { ok: false as const, error: "Wrong password." };
+  .handler(async ({ data }): Promise<SchoolMessagesResult> => {
+    if (!checkSchoolPassword(data.password)) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Backend School belum dikonfigurasi." };
     const { data: rows, error } = await supabase.from("school_messages").select("*").eq("student_id", data.studentId).order("created_at");
-    if (error) return { ok: false as const, error: error.message };
-    return { ok: true as const, messages: rows ?? [] };
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, messages: (rows ?? []) as SchoolMessage[] };
   });
 
 export const listMessagesForCode = createServerFn({ method: "POST" })
   .inputValidator((input: { code: string }) => input)
-  .handler(async ({ data }) => {
+  .handler(async ({ data }): Promise<SchoolMessagesResult> => {
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Backend School belum dikonfigurasi." };
     const { data: guardian, error: gErr } = await supabase
       .from("school_guardians")
       .select("student_id")
       .eq("invite_code", data.code.trim().toUpperCase())
       .maybeSingle();
-    if (gErr) return { ok: false as const, error: gErr.message };
-    if (!guardian) return { ok: false as const, error: "Kode tidak valid." };
+    if (gErr) return { ok: false, error: gErr.message };
+    if (!guardian) return { ok: false, error: "Kode tidak valid." };
     const { data: rows, error } = await supabase.from("school_messages").select("*").eq("student_id", guardian.student_id).order("created_at");
-    if (error) return { ok: false as const, error: error.message };
-    return { ok: true as const, messages: rows ?? [] };
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, messages: (rows ?? []) as SchoolMessage[] };
   });
 
 // "Close" = mark every message FROM THE OTHER SIDE as read/dismissed on
@@ -491,29 +490,29 @@ export const listMessagesForCode = createServerFn({ method: "POST" })
 // message arrives again.
 export const closeThreadAsTeacher = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string; studentId: string }) => input)
-  .handler(async ({ data }) => {
-    if (!checkSchoolPassword(data.password)) return { ok: false as const, error: "Wrong password." };
+  .handler(async ({ data }): Promise<SchoolOkResult> => {
+    if (!checkSchoolPassword(data.password)) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Backend School belum dikonfigurasi." };
     const { error } = await supabase.from("school_messages").update({ closed_by_teacher: true }).eq("student_id", data.studentId).eq("from_side", "parent");
-    if (error) return { ok: false as const, error: error.message };
-    return { ok: true as const };
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
   });
 export const closeThreadAsParent = createServerFn({ method: "POST" })
   .inputValidator((input: { code: string }) => input)
-  .handler(async ({ data }) => {
+  .handler(async ({ data }): Promise<SchoolOkResult> => {
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Backend School belum dikonfigurasi." };
     const { data: guardian, error: gErr } = await supabase
       .from("school_guardians")
       .select("student_id")
       .eq("invite_code", data.code.trim().toUpperCase())
       .maybeSingle();
-    if (gErr) return { ok: false as const, error: gErr.message };
-    if (!guardian) return { ok: false as const, error: "Kode tidak valid." };
+    if (gErr) return { ok: false, error: gErr.message };
+    if (!guardian) return { ok: false, error: "Kode tidak valid." };
     const { error } = await supabase.from("school_messages").update({ closed_by_parent: true }).eq("student_id", guardian.student_id).eq("from_side", "teacher");
-    if (error) return { ok: false as const, error: error.message };
-    return { ok: true as const };
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
   });
 
 // ————— Announcements (scope enforced server-side, not just hidden in UI) —————
@@ -531,15 +530,15 @@ export const postAnnouncement = createServerFn({ method: "POST" })
       authorName?: string;
     }) => input,
   )
-  .handler(async ({ data }) => {
-    if (checkSchoolPassword(data.password) !== "admin") return { ok: false as const, error: "Admin access required." };
+  .handler(async ({ data }): Promise<SchoolOkResult> => {
+    if (checkSchoolPassword(data.password) !== "admin") return { ok: false, error: "Admin access required." };
     if (data.scope === "school" && data.subrole !== "hos") {
-      return { ok: false as const, error: "Hanya Head of School yang boleh mengumumkan ke seluruh sekolah." };
+      return { ok: false, error: "Hanya Head of School yang boleh mengumumkan ke seluruh sekolah." };
     }
-    if (data.scope === "division" && !data.division) return { ok: false as const, error: "Divisi wajib diisi." };
-    if (data.scope === "class" && !data.classId) return { ok: false as const, error: "Kelas wajib diisi." };
+    if (data.scope === "division" && !data.division) return { ok: false, error: "Divisi wajib diisi." };
+    if (data.scope === "class" && !data.classId) return { ok: false, error: "Kelas wajib diisi." };
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Backend School belum dikonfigurasi." };
     const { error } = await supabase.from("school_announcements").insert({
       school_id: data.schoolId,
       scope: data.scope,
@@ -549,35 +548,34 @@ export const postAnnouncement = createServerFn({ method: "POST" })
       body: data.body || null,
       author_name: data.authorName || null,
     });
-    if (error) return { ok: false as const, error: error.message };
-    return { ok: true as const };
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
   });
 
 export const listAnnouncements = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string }) => input)
-  .handler(async ({ data }) => {
-    if (!checkSchoolPassword(data.password)) return { ok: false as const, error: "Wrong password." };
+  .handler(async ({ data }): Promise<SchoolAnnouncementResult> => {
+    if (!checkSchoolPassword(data.password)) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Backend School belum dikonfigurasi." };
     const { data: rows, error } = await supabase.from("school_announcements").select("*").order("created_at", { ascending: false }).limit(30);
-    if (error) return { ok: false as const, error: error.message };
-    return { ok: true as const, announcements: rows ?? [] };
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, announcements: (rows ?? []) as SchoolAnnouncement[] };
   });
 
 export const listAnnouncementsForCode = createServerFn({ method: "POST" })
   .inputValidator((input: { code: string }) => input)
-  .handler(async ({ data }) => {
+  .handler(async ({ data }): Promise<SchoolAnnouncementResult> => {
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Backend School belum dikonfigurasi." };
     const { data: guardian, error: gErr } = await supabase
       .from("school_guardians")
       .select("school_students(class_id, school_classes(division))")
       .eq("invite_code", data.code.trim().toUpperCase())
       .maybeSingle();
-    if (gErr) return { ok: false as const, error: gErr.message };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const student = guardian?.school_students as any;
-    if (!student) return { ok: false as const, error: "Kode tidak valid." };
+    if (gErr) return { ok: false, error: gErr.message };
+    const student = guardian?.school_students as unknown as { class_id?: string; school_classes?: { division?: string } } | null;
+    if (!student) return { ok: false, error: "Kode tidak valid." };
     const classId = student.class_id;
     const division = student.school_classes?.division;
     const { data: rows, error } = await supabase
@@ -586,31 +584,30 @@ export const listAnnouncementsForCode = createServerFn({ method: "POST" })
       .or(`scope.eq.school,and(scope.eq.division,division.eq.${division}),and(scope.eq.class,class_id.eq.${classId})`)
       .order("created_at", { ascending: false })
       .limit(30);
-    if (error) return { ok: false as const, error: error.message };
-    return { ok: true as const, announcements: rows ?? [] };
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, announcements: (rows ?? []) as SchoolAnnouncement[] };
   });
 
 // Public: parent's activity feed, resolved from their code (never a raw classId from the client).
 export const listActivitiesForCode = createServerFn({ method: "POST" })
   .inputValidator((input: { code: string }) => input)
-  .handler(async ({ data }) => {
+  .handler(async ({ data }): Promise<SchoolActivitiesResult> => {
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Backend School belum dikonfigurasi." };
     const { data: guardian, error: gErr } = await supabase
       .from("school_guardians")
       .select("school_students(class_id)")
       .eq("invite_code", data.code.trim().toUpperCase())
       .maybeSingle();
-    if (gErr) return { ok: false as const, error: gErr.message };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const classId = (guardian?.school_students as any)?.class_id;
-    if (!classId) return { ok: false as const, error: "Kode tidak valid." };
+    if (gErr) return { ok: false, error: gErr.message };
+    const classId = (guardian?.school_students as unknown as { class_id?: string } | null)?.class_id;
+    if (!classId) return { ok: false, error: "Kode tidak valid." };
     const { data: rows, error } = await supabase
       .from("school_activities")
       .select("*")
       .eq("class_id", classId)
       .order("activity_date", { ascending: false })
       .limit(20);
-    if (error) return { ok: false as const, error: error.message };
-    return { ok: true as const, activities: rows ?? [] };
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, activities: (rows ?? []) as SchoolActivity[] };
   });
