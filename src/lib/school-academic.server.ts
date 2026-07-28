@@ -84,3 +84,21 @@ export async function generateNoteDraft(input: {
     return { ok: false, error: e instanceof Error ? e.message : "AI gagal membuat catatan." };
   }
 }
+
+/** Appends an entry to an agenda's activity timeline. */
+export async function logAgendaTimeline(
+  supabase: Client,
+  agendaId: string,
+  kind: string,
+  authorName: string,
+  body: string,
+  authorRole?: string,
+) {
+  await supabase.from("school_agenda_timeline").insert({
+    agenda_id: agendaId,
+    kind,
+    author_name: authorName || null,
+    author_role: authorRole || null,
+    body: body || null,
+  });
+}
