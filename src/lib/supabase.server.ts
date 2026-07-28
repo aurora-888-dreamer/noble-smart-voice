@@ -5,13 +5,36 @@ import { createClient } from "@supabase/supabase-js";
 // keep the two businesses independent.
 //
 // Add these as environment variables in Lovable/Cloudflare:
-//   SUPABASE_URL              -> Project Settings -> API -> Project URL
-//   SUPABASE_SERVICE_ROLE_KEY -> Project Settings -> API -> service_role key
+//   NOBLE_SUPABASE_URL              -> Project Settings -> API -> Project URL
+//   NOBLE_SUPABASE_SERVICE_ROLE_KEY -> Project Settings -> API -> service_role key
+//
+// NOTE: named with a "NOBLE_" prefix (not "SUPABASE_") because Lovable
+// reserves the plain "SUPABASE_" prefix for its own managed Lovable Cloud
+// integration and won't let you create a secret with that name — this has
+// nothing to do with our own separate Supabase project.
 //
 // IMPORTANT: the service_role key bypasses Row Level Security and must
 // NEVER be used in client code or committed anywhere — only read here,
 // inside a *.server.ts file that TanStack Start keeps off the client bundle.
 export function createNobleSupabase() {
+  const url = process.env.NOBLE_SUPABASE_URL;
+  const key = process.env.NOBLE_SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
+
+// School Dashboard specifically uses Lovable Cloud's own auto-managed
+// Supabase connection (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY — the
+// reserved-prefix secrets Lovable sets itself), NOT the NOBLE_SUPABASE_*
+// pair above. This was discovered the hard way: no matter what the
+// NOBLE_SUPABASE_* secrets were set to, School Dashboard writes kept
+// landing in whatever database Lovable Cloud manages internally — so
+// this makes that the officially intended connection instead of fighting
+// it. Store/voucher features are unaffected and still use
+// createNobleSupabase() -> the separate, user-owned Supabase project.
+export function createLovableSchoolSupabase() {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return null;

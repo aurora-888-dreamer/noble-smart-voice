@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { createNobleSupabase } from "./supabase.server";
+import { createLovableSchoolSupabase } from "./supabase.server";
 
 export type SchoolRole = "hos" | "principal" | "teacher_homeroom" | "teacher_shadow" | "teacher_subject";
 export type StaffTier = "admin" | "teacher";
@@ -24,9 +24,9 @@ function randomCode(n = 8): string {
 // enough to confirm it matches what you just pasted into Secrets).
 // Remove once the connection mismatch is confirmed fixed.
 export const debugSupabaseUrl = createServerFn({ method: "GET" }).handler(async (): Promise<{ url: string | null; keyTail: string | null }> => {
-  const key = process.env.NOBLE_SUPABASE_SERVICE_ROLE_KEY || "";
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
   return {
-    url: process.env.NOBLE_SUPABASE_URL || null,
+    url: process.env.SUPABASE_URL || null,
     keyTail: key ? "..." + key.slice(-6) : null,
   };
 });
@@ -51,7 +51,7 @@ export const listSchoolClasses = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string }) => input)
   .handler(async ({ data }) => {
     if (!checkSchoolPassword(data.password)) return { ok: false as const, error: "Wrong password." };
-    const supabase = createNobleSupabase();
+    const supabase = createLovableSchoolSupabase();
     if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
     const { data: rows, error } = await supabase.from("school_classes").select("*").order("name");
     if (error) return { ok: false as const, error: error.message };
@@ -62,7 +62,7 @@ export const createSchoolClass = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string; schoolId: string; name: string; division: string; level?: string }) => input)
   .handler(async ({ data }) => {
     if (!checkSchoolPassword(data.password)) return { ok: false as const, error: "Wrong password." };
-    const supabase = createNobleSupabase();
+    const supabase = createLovableSchoolSupabase();
     if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
     const { data: row, error } = await supabase
       .from("school_classes")
@@ -79,7 +79,7 @@ export const listSchoolStaff = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const tier = checkSchoolPassword(data.password);
     if (tier !== "admin") return { ok: false as const, error: "Admin access required." };
-    const supabase = createNobleSupabase();
+    const supabase = createLovableSchoolSupabase();
     if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
     const { data: rows, error } = await supabase.from("school_staff").select("*").order("full_name");
     if (error) return { ok: false as const, error: error.message };
@@ -93,7 +93,7 @@ export const createSchoolStaff = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     if (checkSchoolPassword(data.password) !== "admin") return { ok: false as const, error: "Admin access required." };
-    const supabase = createNobleSupabase();
+    const supabase = createLovableSchoolSupabase();
     if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
     const { data: row, error } = await supabase
       .from("school_staff")
@@ -115,7 +115,7 @@ export const deleteSchoolStaff = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string; id: string }) => input)
   .handler(async ({ data }) => {
     if (checkSchoolPassword(data.password) !== "admin") return { ok: false as const, error: "Admin access required." };
-    const supabase = createNobleSupabase();
+    const supabase = createLovableSchoolSupabase();
     if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
     const { error } = await supabase.from("school_staff").delete().eq("id", data.id);
     if (error) return { ok: false as const, error: error.message };
@@ -130,7 +130,7 @@ export const listTeacherStaffPublic = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string }) => input)
   .handler(async ({ data }) => {
     if (!checkSchoolPassword(data.password)) return { ok: false as const, error: "Wrong password." };
-    const supabase = createNobleSupabase();
+    const supabase = createLovableSchoolSupabase();
     if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
     const { data: rows, error } = await supabase
       .from("school_staff")
@@ -146,7 +146,7 @@ export const setTeacherPin = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     if (!checkSchoolPassword(data.password)) return { ok: false as const, error: "Wrong password." };
     if (!/^\d{4,6}$/.test(data.pin)) return { ok: false as const, error: "PIN harus 4-6 angka." };
-    const supabase = createNobleSupabase();
+    const supabase = createLovableSchoolSupabase();
     if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
     const { data: row, error } = await supabase
       .from("school_staff")
@@ -163,7 +163,7 @@ export const setTeacherPin = createServerFn({ method: "POST" })
 export const loginTeacherByPin = createServerFn({ method: "POST" })
   .inputValidator((input: { staffId: string; pin: string }) => input)
   .handler(async ({ data }) => {
-    const supabase = createNobleSupabase();
+    const supabase = createLovableSchoolSupabase();
     if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
     const { data: row, error } = await supabase
       .from("school_staff")
@@ -179,7 +179,7 @@ export const listSchoolStudents = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string; classId?: string }) => input)
   .handler(async ({ data }) => {
     if (!checkSchoolPassword(data.password)) return { ok: false as const, error: "Wrong password." };
-    const supabase = createNobleSupabase();
+    const supabase = createLovableSchoolSupabase();
     if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
     let q = supabase.from("school_students").select("*").order("full_name");
     if (data.classId) q = q.eq("class_id", data.classId);
@@ -213,7 +213,7 @@ export const upsertSchoolStudent = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     if (!checkSchoolPassword(data.password)) return { ok: false as const, error: "Wrong password." };
-    const supabase = createNobleSupabase();
+    const supabase = createLovableSchoolSupabase();
     if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
     const payload = {
       school_id: data.schoolId,
@@ -245,7 +245,7 @@ export const deleteSchoolStudent = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string; id: string }) => input)
   .handler(async ({ data }) => {
     if (checkSchoolPassword(data.password) !== "admin") return { ok: false as const, error: "Admin HoS access required." };
-    const supabase = createNobleSupabase();
+    const supabase = createLovableSchoolSupabase();
     if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
     const { error } = await supabase.from("school_students").delete().eq("id", data.id);
     if (error) return { ok: false as const, error: error.message };
@@ -266,7 +266,7 @@ export const importSchoolStudents = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     if (checkSchoolPassword(data.password) !== "admin") return { ok: false as const, error: "Admin HoS access required." };
-    const supabase = createNobleSupabase();
+    const supabase = createLovableSchoolSupabase();
     if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
 
     const { data: classes, error: classErr } = await supabase.from("school_classes").select("id, name").eq("school_id", data.schoolId);
@@ -321,7 +321,7 @@ export const listGuardians = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string; studentId: string }) => input)
   .handler(async ({ data }) => {
     if (!checkSchoolPassword(data.password)) return { ok: false as const, error: "Wrong password." };
-    const supabase = createNobleSupabase();
+    const supabase = createLovableSchoolSupabase();
     if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
     const { data: rows, error } = await supabase.from("school_guardians").select("*").eq("student_id", data.studentId);
     if (error) return { ok: false as const, error: error.message };
@@ -339,7 +339,7 @@ export const addGuardian = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     if (!checkSchoolPassword(data.password)) return { ok: false as const, error: "Wrong password." };
-    const supabase = createNobleSupabase();
+    const supabase = createLovableSchoolSupabase();
     if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
     const { data: row, error } = await supabase
       .from("school_guardians")
@@ -361,7 +361,7 @@ export const deleteGuardian = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string; id: string }) => input)
   .handler(async ({ data }) => {
     if (!checkSchoolPassword(data.password)) return { ok: false as const, error: "Wrong password." };
-    const supabase = createNobleSupabase();
+    const supabase = createLovableSchoolSupabase();
     if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
     const { error } = await supabase.from("school_guardians").delete().eq("id", data.id);
     if (error) return { ok: false as const, error: error.message };
@@ -372,7 +372,7 @@ export const deleteGuardian = createServerFn({ method: "POST" })
 export const redeemGuardianInvite = createServerFn({ method: "POST" })
   .inputValidator((input: { code: string }) => input)
   .handler(async ({ data }) => {
-    const supabase = createNobleSupabase();
+    const supabase = createLovableSchoolSupabase();
     if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
     const { data: guardian, error } = await supabase
       .from("school_guardians")
@@ -398,7 +398,7 @@ export const redeemGuardianInvite = createServerFn({ method: "POST" })
 export const getStudentForCode = createServerFn({ method: "POST" })
   .inputValidator((input: { code: string }) => input)
   .handler(async ({ data }) => {
-    const supabase = createNobleSupabase();
+    const supabase = createLovableSchoolSupabase();
     if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
     const { data: guardian, error } = await supabase
       .from("school_guardians")
@@ -574,7 +574,7 @@ export const seedStellaMarisPhase1 = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string; schoolId: string }) => input)
   .handler(async ({ data }) => {
     if (checkSchoolPassword(data.password) !== "admin") return { ok: false as const, error: "Admin HoS access required." };
-    const supabase = createNobleSupabase();
+    const supabase = createLovableSchoolSupabase();
     if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
 
     // Debug echo — confirms exactly what schoolId this run used, and what
@@ -655,7 +655,7 @@ export const postSchoolActivity = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string; schoolId: string; classId: string; title: string; body?: string; authorName?: string }) => input)
   .handler(async ({ data }) => {
     if (!checkSchoolPassword(data.password)) return { ok: false as const, error: "Wrong password." };
-    const supabase = createNobleSupabase();
+    const supabase = createLovableSchoolSupabase();
     if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
     const { data: row, error } = await supabase
       .from("school_activities")
@@ -670,7 +670,7 @@ export const deleteSchoolActivity = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string; id: string }) => input)
   .handler(async ({ data }) => {
     if (!checkSchoolPassword(data.password)) return { ok: false as const, error: "Wrong password." };
-    const supabase = createNobleSupabase();
+    const supabase = createLovableSchoolSupabase();
     if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
     const { error } = await supabase.from("school_activities").delete().eq("id", data.id);
     if (error) return { ok: false as const, error: error.message };
@@ -681,7 +681,7 @@ export const listActivitiesForClass = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string; classId: string }) => input)
   .handler(async ({ data }) => {
     if (!checkSchoolPassword(data.password)) return { ok: false as const, error: "Wrong password." };
-    const supabase = createNobleSupabase();
+    const supabase = createLovableSchoolSupabase();
     if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
     const { data: rows, error } = await supabase
       .from("school_activities")
@@ -698,7 +698,7 @@ export const listAllActivities = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string; division?: string }) => input)
   .handler(async ({ data }) => {
     if (!checkSchoolPassword(data.password)) return { ok: false as const, error: "Wrong password." };
-    const supabase = createNobleSupabase();
+    const supabase = createLovableSchoolSupabase();
     if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
     let q = supabase
       .from("school_activities")
@@ -716,7 +716,7 @@ export const postMessageAsTeacher = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string; schoolId: string; studentId: string; body: string; authorName?: string }) => input)
   .handler(async ({ data }) => {
     if (!checkSchoolPassword(data.password)) return { ok: false as const, error: "Wrong password." };
-    const supabase = createNobleSupabase();
+    const supabase = createLovableSchoolSupabase();
     if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
     const { error } = await supabase.from("school_messages").insert({
       school_id: data.schoolId, student_id: data.studentId, from_side: "teacher",
@@ -729,7 +729,7 @@ export const postMessageAsTeacher = createServerFn({ method: "POST" })
 export const postMessageAsParent = createServerFn({ method: "POST" })
   .inputValidator((input: { code: string; body: string; authorName?: string }) => input)
   .handler(async ({ data }) => {
-    const supabase = createNobleSupabase();
+    const supabase = createLovableSchoolSupabase();
     if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
     const { data: guardian, error: gErr } = await supabase
       .from("school_guardians")
@@ -752,7 +752,7 @@ export const listMessagesForStudent = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string; studentId: string }) => input)
   .handler(async ({ data }) => {
     if (!checkSchoolPassword(data.password)) return { ok: false as const, error: "Wrong password." };
-    const supabase = createNobleSupabase();
+    const supabase = createLovableSchoolSupabase();
     if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
     const { data: rows, error } = await supabase.from("school_messages").select("*").eq("student_id", data.studentId).order("created_at");
     if (error) return { ok: false as const, error: error.message };
@@ -762,7 +762,7 @@ export const listMessagesForStudent = createServerFn({ method: "POST" })
 export const listMessagesForCode = createServerFn({ method: "POST" })
   .inputValidator((input: { code: string }) => input)
   .handler(async ({ data }) => {
-    const supabase = createNobleSupabase();
+    const supabase = createLovableSchoolSupabase();
     if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
     const { data: guardian, error: gErr } = await supabase
       .from("school_guardians")
@@ -783,7 +783,7 @@ export const closeThreadAsTeacher = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string; studentId: string }) => input)
   .handler(async ({ data }) => {
     if (!checkSchoolPassword(data.password)) return { ok: false as const, error: "Wrong password." };
-    const supabase = createNobleSupabase();
+    const supabase = createLovableSchoolSupabase();
     if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
     const { error } = await supabase.from("school_messages").update({ closed_by_teacher: true }).eq("student_id", data.studentId).eq("from_side", "parent");
     if (error) return { ok: false as const, error: error.message };
@@ -792,7 +792,7 @@ export const closeThreadAsTeacher = createServerFn({ method: "POST" })
 export const closeThreadAsParent = createServerFn({ method: "POST" })
   .inputValidator((input: { code: string }) => input)
   .handler(async ({ data }) => {
-    const supabase = createNobleSupabase();
+    const supabase = createLovableSchoolSupabase();
     if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
     const { data: guardian, error: gErr } = await supabase
       .from("school_guardians")
@@ -828,7 +828,7 @@ export const postAnnouncement = createServerFn({ method: "POST" })
     }
     if (data.scope === "division" && !data.division) return { ok: false as const, error: "Divisi wajib diisi." };
     if (data.scope === "class" && !data.classId) return { ok: false as const, error: "Kelas wajib diisi." };
-    const supabase = createNobleSupabase();
+    const supabase = createLovableSchoolSupabase();
     if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
     const { error } = await supabase.from("school_announcements").insert({
       school_id: data.schoolId,
@@ -847,7 +847,7 @@ export const listAnnouncements = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string }) => input)
   .handler(async ({ data }) => {
     if (!checkSchoolPassword(data.password)) return { ok: false as const, error: "Wrong password." };
-    const supabase = createNobleSupabase();
+    const supabase = createLovableSchoolSupabase();
     if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
     const { data: rows, error } = await supabase.from("school_announcements").select("*").order("created_at", { ascending: false }).limit(30);
     if (error) return { ok: false as const, error: error.message };
@@ -857,7 +857,7 @@ export const listAnnouncements = createServerFn({ method: "POST" })
 export const listAnnouncementsForCode = createServerFn({ method: "POST" })
   .inputValidator((input: { code: string }) => input)
   .handler(async ({ data }) => {
-    const supabase = createNobleSupabase();
+    const supabase = createLovableSchoolSupabase();
     if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
     const { data: guardian, error: gErr } = await supabase
       .from("school_guardians")
@@ -884,7 +884,7 @@ export const listAnnouncementsForCode = createServerFn({ method: "POST" })
 export const listActivitiesForCode = createServerFn({ method: "POST" })
   .inputValidator((input: { code: string }) => input)
   .handler(async ({ data }) => {
-    const supabase = createNobleSupabase();
+    const supabase = createLovableSchoolSupabase();
     if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
     const { data: guardian, error: gErr } = await supabase
       .from("school_guardians")
