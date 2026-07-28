@@ -182,6 +182,13 @@ export type Database = {
             referencedRelation: "school_agendas"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "school_agenda_classes_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "school_classes"
+            referencedColumns: ["id"]
+          },
         ]
       }
       school_agenda_pic: {
