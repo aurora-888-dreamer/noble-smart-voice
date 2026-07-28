@@ -42,10 +42,16 @@ import { Route as ActivateRouteImport } from './routes/activate'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as StoreIndexRouteImport } from './routes/store.index'
+import { Route as SchoolIndexRouteImport } from './routes/school.index'
 import { Route as StoreTermsRouteImport } from './routes/store.terms'
 import { Route as StorePrivacyRouteImport } from './routes/store.privacy'
 import { Route as StoreOrderRouteImport } from './routes/store.order'
 import { Route as StoreAdminRouteImport } from './routes/store.admin'
+import { Route as SchoolTeacherRouteImport } from './routes/school.teacher'
+import { Route as SchoolPrincipalRouteImport } from './routes/school.principal'
+import { Route as SchoolParentRouteImport } from './routes/school.parent'
+import { Route as SchoolHosRouteImport } from './routes/school.hos'
+import { Route as SchoolAdminHosRouteImport } from './routes/school.admin-hos'
 import { Route as ProjectsIdRouteImport } from './routes/projects.$id'
 
 const UpgradeRoute = UpgradeRouteImport.update({
@@ -213,6 +219,11 @@ const StoreIndexRoute = StoreIndexRouteImport.update({
   path: '/',
   getParentRoute: () => StoreRoute,
 } as any)
+const SchoolIndexRoute = SchoolIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SchoolRoute,
+} as any)
 const StoreTermsRoute = StoreTermsRouteImport.update({
   id: '/terms',
   path: '/terms',
@@ -232,6 +243,31 @@ const StoreAdminRoute = StoreAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
   getParentRoute: () => StoreRoute,
+} as any)
+const SchoolTeacherRoute = SchoolTeacherRouteImport.update({
+  id: '/teacher',
+  path: '/teacher',
+  getParentRoute: () => SchoolRoute,
+} as any)
+const SchoolPrincipalRoute = SchoolPrincipalRouteImport.update({
+  id: '/principal',
+  path: '/principal',
+  getParentRoute: () => SchoolRoute,
+} as any)
+const SchoolParentRoute = SchoolParentRouteImport.update({
+  id: '/parent',
+  path: '/parent',
+  getParentRoute: () => SchoolRoute,
+} as any)
+const SchoolHosRoute = SchoolHosRouteImport.update({
+  id: '/hos',
+  path: '/hos',
+  getParentRoute: () => SchoolRoute,
+} as any)
+const SchoolAdminHosRoute = SchoolAdminHosRouteImport.update({
+  id: '/admin-hos',
+  path: '/admin-hos',
+  getParentRoute: () => SchoolRoute,
 } as any)
 const ProjectsIdRoute = ProjectsIdRouteImport.update({
   id: '/$id',
@@ -263,7 +299,7 @@ export interface FileRoutesByFullPath {
   '/record': typeof RecordRoute
   '/register': typeof RegisterRoute
   '/reminders': typeof RemindersRoute
-  '/school': typeof SchoolRoute
+  '/school': typeof SchoolRouteWithChildren
   '/settings': typeof SettingsRoute
   '/store': typeof StoreRouteWithChildren
   '/sync': typeof SyncRoute
@@ -273,10 +309,16 @@ export interface FileRoutesByFullPath {
   '/trips': typeof TripsRoute
   '/upgrade': typeof UpgradeRoute
   '/projects/$id': typeof ProjectsIdRoute
+  '/school/admin-hos': typeof SchoolAdminHosRoute
+  '/school/hos': typeof SchoolHosRoute
+  '/school/parent': typeof SchoolParentRoute
+  '/school/principal': typeof SchoolPrincipalRoute
+  '/school/teacher': typeof SchoolTeacherRoute
   '/store/admin': typeof StoreAdminRoute
   '/store/order': typeof StoreOrderRoute
   '/store/privacy': typeof StorePrivacyRoute
   '/store/terms': typeof StoreTermsRoute
+  '/school/': typeof SchoolIndexRoute
   '/store/': typeof StoreIndexRoute
 }
 export interface FileRoutesByTo {
@@ -303,7 +345,6 @@ export interface FileRoutesByTo {
   '/record': typeof RecordRoute
   '/register': typeof RegisterRoute
   '/reminders': typeof RemindersRoute
-  '/school': typeof SchoolRoute
   '/settings': typeof SettingsRoute
   '/sync': typeof SyncRoute
   '/tasks': typeof TasksRoute
@@ -312,10 +353,16 @@ export interface FileRoutesByTo {
   '/trips': typeof TripsRoute
   '/upgrade': typeof UpgradeRoute
   '/projects/$id': typeof ProjectsIdRoute
+  '/school/admin-hos': typeof SchoolAdminHosRoute
+  '/school/hos': typeof SchoolHosRoute
+  '/school/parent': typeof SchoolParentRoute
+  '/school/principal': typeof SchoolPrincipalRoute
+  '/school/teacher': typeof SchoolTeacherRoute
   '/store/admin': typeof StoreAdminRoute
   '/store/order': typeof StoreOrderRoute
   '/store/privacy': typeof StorePrivacyRoute
   '/store/terms': typeof StoreTermsRoute
+  '/school': typeof SchoolIndexRoute
   '/store': typeof StoreIndexRoute
 }
 export interface FileRoutesById {
@@ -343,7 +390,7 @@ export interface FileRoutesById {
   '/record': typeof RecordRoute
   '/register': typeof RegisterRoute
   '/reminders': typeof RemindersRoute
-  '/school': typeof SchoolRoute
+  '/school': typeof SchoolRouteWithChildren
   '/settings': typeof SettingsRoute
   '/store': typeof StoreRouteWithChildren
   '/sync': typeof SyncRoute
@@ -353,10 +400,16 @@ export interface FileRoutesById {
   '/trips': typeof TripsRoute
   '/upgrade': typeof UpgradeRoute
   '/projects/$id': typeof ProjectsIdRoute
+  '/school/admin-hos': typeof SchoolAdminHosRoute
+  '/school/hos': typeof SchoolHosRoute
+  '/school/parent': typeof SchoolParentRoute
+  '/school/principal': typeof SchoolPrincipalRoute
+  '/school/teacher': typeof SchoolTeacherRoute
   '/store/admin': typeof StoreAdminRoute
   '/store/order': typeof StoreOrderRoute
   '/store/privacy': typeof StorePrivacyRoute
   '/store/terms': typeof StoreTermsRoute
+  '/school/': typeof SchoolIndexRoute
   '/store/': typeof StoreIndexRoute
 }
 export interface FileRouteTypes {
@@ -395,10 +448,16 @@ export interface FileRouteTypes {
     | '/trips'
     | '/upgrade'
     | '/projects/$id'
+    | '/school/admin-hos'
+    | '/school/hos'
+    | '/school/parent'
+    | '/school/principal'
+    | '/school/teacher'
     | '/store/admin'
     | '/store/order'
     | '/store/privacy'
     | '/store/terms'
+    | '/school/'
     | '/store/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -425,7 +484,6 @@ export interface FileRouteTypes {
     | '/record'
     | '/register'
     | '/reminders'
-    | '/school'
     | '/settings'
     | '/sync'
     | '/tasks'
@@ -434,10 +492,16 @@ export interface FileRouteTypes {
     | '/trips'
     | '/upgrade'
     | '/projects/$id'
+    | '/school/admin-hos'
+    | '/school/hos'
+    | '/school/parent'
+    | '/school/principal'
+    | '/school/teacher'
     | '/store/admin'
     | '/store/order'
     | '/store/privacy'
     | '/store/terms'
+    | '/school'
     | '/store'
   id:
     | '__root__'
@@ -474,10 +538,16 @@ export interface FileRouteTypes {
     | '/trips'
     | '/upgrade'
     | '/projects/$id'
+    | '/school/admin-hos'
+    | '/school/hos'
+    | '/school/parent'
+    | '/school/principal'
+    | '/school/teacher'
     | '/store/admin'
     | '/store/order'
     | '/store/privacy'
     | '/store/terms'
+    | '/school/'
     | '/store/'
   fileRoutesById: FileRoutesById
 }
@@ -505,7 +575,7 @@ export interface RootRouteChildren {
   RecordRoute: typeof RecordRoute
   RegisterRoute: typeof RegisterRoute
   RemindersRoute: typeof RemindersRoute
-  SchoolRoute: typeof SchoolRoute
+  SchoolRoute: typeof SchoolRouteWithChildren
   SettingsRoute: typeof SettingsRoute
   StoreRoute: typeof StoreRouteWithChildren
   SyncRoute: typeof SyncRoute
@@ -749,6 +819,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StoreIndexRouteImport
       parentRoute: typeof StoreRoute
     }
+    '/school/': {
+      id: '/school/'
+      path: '/'
+      fullPath: '/school/'
+      preLoaderRoute: typeof SchoolIndexRouteImport
+      parentRoute: typeof SchoolRoute
+    }
     '/store/terms': {
       id: '/store/terms'
       path: '/terms'
@@ -777,6 +854,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StoreAdminRouteImport
       parentRoute: typeof StoreRoute
     }
+    '/school/teacher': {
+      id: '/school/teacher'
+      path: '/teacher'
+      fullPath: '/school/teacher'
+      preLoaderRoute: typeof SchoolTeacherRouteImport
+      parentRoute: typeof SchoolRoute
+    }
+    '/school/principal': {
+      id: '/school/principal'
+      path: '/principal'
+      fullPath: '/school/principal'
+      preLoaderRoute: typeof SchoolPrincipalRouteImport
+      parentRoute: typeof SchoolRoute
+    }
+    '/school/parent': {
+      id: '/school/parent'
+      path: '/parent'
+      fullPath: '/school/parent'
+      preLoaderRoute: typeof SchoolParentRouteImport
+      parentRoute: typeof SchoolRoute
+    }
+    '/school/hos': {
+      id: '/school/hos'
+      path: '/hos'
+      fullPath: '/school/hos'
+      preLoaderRoute: typeof SchoolHosRouteImport
+      parentRoute: typeof SchoolRoute
+    }
+    '/school/admin-hos': {
+      id: '/school/admin-hos'
+      path: '/admin-hos'
+      fullPath: '/school/admin-hos'
+      preLoaderRoute: typeof SchoolAdminHosRouteImport
+      parentRoute: typeof SchoolRoute
+    }
     '/projects/$id': {
       id: '/projects/$id'
       path: '/$id'
@@ -798,6 +910,27 @@ const ProjectsRouteChildren: ProjectsRouteChildren = {
 const ProjectsRouteWithChildren = ProjectsRoute._addFileChildren(
   ProjectsRouteChildren,
 )
+
+interface SchoolRouteChildren {
+  SchoolAdminHosRoute: typeof SchoolAdminHosRoute
+  SchoolHosRoute: typeof SchoolHosRoute
+  SchoolParentRoute: typeof SchoolParentRoute
+  SchoolPrincipalRoute: typeof SchoolPrincipalRoute
+  SchoolTeacherRoute: typeof SchoolTeacherRoute
+  SchoolIndexRoute: typeof SchoolIndexRoute
+}
+
+const SchoolRouteChildren: SchoolRouteChildren = {
+  SchoolAdminHosRoute: SchoolAdminHosRoute,
+  SchoolHosRoute: SchoolHosRoute,
+  SchoolParentRoute: SchoolParentRoute,
+  SchoolPrincipalRoute: SchoolPrincipalRoute,
+  SchoolTeacherRoute: SchoolTeacherRoute,
+  SchoolIndexRoute: SchoolIndexRoute,
+}
+
+const SchoolRouteWithChildren =
+  SchoolRoute._addFileChildren(SchoolRouteChildren)
 
 interface StoreRouteChildren {
   StoreAdminRoute: typeof StoreAdminRoute
@@ -841,7 +974,7 @@ const rootRouteChildren: RootRouteChildren = {
   RecordRoute: RecordRoute,
   RegisterRoute: RegisterRoute,
   RemindersRoute: RemindersRoute,
-  SchoolRoute: SchoolRoute,
+  SchoolRoute: SchoolRouteWithChildren,
   SettingsRoute: SettingsRoute,
   StoreRoute: StoreRouteWithChildren,
   SyncRoute: SyncRoute,
