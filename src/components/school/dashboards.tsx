@@ -171,7 +171,12 @@ export function PrincipalDashboard({ division }: { division: string }) {
 export function TeacherDashboard({ staffName, role, defaultClassId }: { staffName: string; role: string | null; defaultClassId: string | null }) {
   const pw = getStoredPassword();
   const [reload, setReload] = useState(0);
-  const classList = useClasses();
+  const allClasses = useClasses();
+  const isHomeroom = role === "teacher_homeroom";
+  const isSubject = role === "teacher_subject";
+  // Homeroom teachers are scoped to their assigned class everywhere (Kelas tab,
+  // Attendance, Assessment …) so every tab always shows the same class.
+  const classList = isHomeroom && defaultClassId ? allClasses.filter((c) => c.id === defaultClassId) : allClasses;
   const [classId, setClassId] = useState(defaultClassId ?? "");
   const students = useAsync(() => (classId ? listSchoolStudents({ data: { password: pw, classId } }) : Promise.resolve(null)), [pw, classId, reload]);
   const activities = useAsync(() => (classId ? listActivitiesForClass({ data: { password: pw, classId } }) : Promise.resolve(null)), [pw, classId, reload]);
@@ -182,9 +187,6 @@ export function TeacherDashboard({ staffName, role, defaultClassId }: { staffNam
 
   const studentList = (students.data && "students" in students.data ? (students.data.students ?? []) : []) as { id: string; full_name: string }[];
   const activityList = (activities.data && "activities" in activities.data ? (activities.data.activities ?? []) : []) as { id: string; title: string; body?: string; activity_date: string; author_name?: string }[];
-
-  const isHomeroom = role === "teacher_homeroom";
-  const isSubject = role === "teacher_subject";
 
   async function post() {
     if (!title.trim() || !classId) return;
@@ -201,7 +203,7 @@ export function TeacherDashboard({ staffName, role, defaultClassId }: { staffNam
       <div>
         <button onClick={() => setSelectedStudent(null)} className="text-xs text-muted-foreground underline mb-3">Kembali ke kelas</button>
         <p className="text-sm font-semibold mb-3">{selectedStudent.full_name}</p>
-        <Section title="Guardians dan Undangan" Icon={Users}><GuardianEditor studentId={selectedStudent.id} canEdit /></Section>
+        <Section title="Invite Parent & Akun Wali" Icon={Users}><GuardianEditor studentId={selectedStudent.id} canEdit /></Section>
         <Section title="Pesan dengan Orangtua" Icon={MessageSquare}><TeacherMessageThread studentId={selectedStudent.id} staffName={staffName} /></Section>
       </div>
     );
@@ -210,8 +212,9 @@ export function TeacherDashboard({ staffName, role, defaultClassId }: { staffNam
   const tabs = [
     { id: "kelas", label: "Kelas" }, { id: "calendar", label: "Kalender" }, { id: "timetable", label: "Timetable" },
     { id: "lesson", label: "Lesson Plan" }, { id: "projects", label: "Project & Surat Resmi" },
-    ...(isSubject ? [{ id: "assessment", label: "Assessment" }] : []),
+    { id: "assessment", label: "Assessment" },
     ...(isHomeroom ? [{ id: "attendance", label: "Attendance" }] : []),
+    PIN_TAB,
   ];
 
   return (
@@ -222,8 +225,9 @@ export function TeacherDashboard({ staffName, role, defaultClassId }: { staffNam
       {tab === "timetable" && <TimetablePanel access={{ pw }} classes={classList} canEdit />}
       {tab === "lesson" && <LessonPlanPanel pw={pw} classes={classList} canEdit />}
       {tab === "projects" && <ProjectPanel pw={pw} classes={classList} canSubmit reviewerRole={null} reviewerName={staffName} />}
-      {tab === "assessment" && isSubject && <AssessmentPanel access={{ pw }} classes={classList} canEdit />}
+      {tab === "assessment" && <AssessmentPanel access={{ pw }} classes={classList} canEdit={isSubject || isHomeroom} />}
       {tab === "attendance" && isHomeroom && <AttendancePanel access={{ pw }} classes={classList} canEdit />}
+      {tab === "pin" && <ChangePinPanel />}
 
       {tab === "kelas" && (
         <>
@@ -231,6 +235,7 @@ export function TeacherDashboard({ staffName, role, defaultClassId }: { staffNam
             <option value="">pilih kelas</option>
             {classList.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
+
           {classId && (
             <>
               <Section title="Murid" Icon={Baby}>
