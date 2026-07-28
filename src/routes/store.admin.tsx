@@ -185,7 +185,7 @@ function ForgotPassword({ onDone }: { onDone: () => void }) {
           {err && <p className="text-xs text-destructive">{err}</p>}
           <button
             type="submit"
-            disabled={busy || code.length !== 6 || newPw.trim().length < 8}
+            disabled={busy || code.length !== 6 || newPw.length !== 6}
             className="w-full rounded-full bg-primary text-primary-foreground py-3 text-sm font-semibold disabled:opacity-50"
           >
             {busy ? "Menyimpan…" : "Simpan PIN baru"}
@@ -830,10 +830,8 @@ function SettingsTab({ orders, adminPassword }: { orders: OrderRecord[]; adminPa
       <div className="rounded-2xl bg-card border border-border p-4">
         <h3 className="font-semibold mb-2">Admin access</h3>
         <p className="text-xs text-muted-foreground">
-          Now set via the <code className="font-mono">STORE_ADMIN_PASSWORD</code> environment variable
-          in Lovable — not changeable from this screen anymore, since the password is checked on the
-          server for every admin action (orders, discounts, tools). Update the env var and sign in again
-          with the new value to change it.
+          Login memakai UserID <code className="font-mono">Noble888</code> + PIN 6 angka. PIN bisa
+          direset lewat &ldquo;Lupa PIN?&rdquo; di layar login (kode dikirim ke email admin).
         </p>
       </div>
 
