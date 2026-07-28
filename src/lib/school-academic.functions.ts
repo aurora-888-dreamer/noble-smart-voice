@@ -92,6 +92,33 @@ export const deleteCalendarEvent = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const bulkImportCalendarEvents = createServerFn({ method: "POST" })
+  .inputValidator(
+    (input: {
+      password: string; staffId: string;
+      rows: { title: string; eventDate: string; eventType?: string; description?: string; classId?: string }[];
+    }) => input,
+  )
+  .handler(async ({ data }): Promise<{ ok: true; added: number } | Fail> => {
+    const gate = staffClient(data.password);
+    if (!gate.ok) return gate;
+    const payload = data.rows
+      .filter((r) => r.title?.trim() && r.eventDate?.trim())
+      .map((r) => ({
+        school_id: schoolId(),
+        class_id: r.classId || null,
+        title: r.title.trim(),
+        description: r.description || null,
+        event_date: r.eventDate.trim(),
+        event_type: r.eventType?.trim() || "acara",
+        created_by: data.staffId || null,
+      }));
+    if (payload.length === 0) return { ok: false, error: "Tidak ada baris valid untuk diimport." };
+    const { error } = await gate.supabase.from("school_calendar_events").insert(payload);
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, added: payload.length };
+  });
+
 // ————— 2. Timetable —————
 export const listTimetable = createServerFn({ method: "POST" })
   .inputValidator((input: { password?: string; code?: string; classId?: string }) => input)
