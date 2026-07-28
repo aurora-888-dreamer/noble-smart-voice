@@ -116,6 +116,8 @@ export const createSchoolStaff = createServerFn({ method: "POST" })
         division: data.division,
         email: data.email || null,
         class_id: data.classId || null,
+        pin: "123456",
+        pin_is_default: true,
       })
       .select()
       .single();
@@ -135,9 +137,10 @@ export const deleteSchoolStaff = createServerFn({ method: "POST" })
   });
 
 // ————— Students (readable/writable by admin or teacher tier) —————
-// ————— Teacher device-linking: pick yourself from the roster once, set a
+// ————— Staff device-linking: pick yourself from the roster once, set a
 // PIN, and future visits on this device skip the shared password entirely —
-// just PIN-in. —————
+// just PIN-in. Every staff role appears here (HoS, Admin HoS, Principal and
+// all teachers) — the PIN decides who you are and which dashboard opens.
 export const listTeacherStaffPublic = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string }) => input)
   .handler(async ({ data }) => {
@@ -146,12 +149,16 @@ export const listTeacherStaffPublic = createServerFn({ method: "POST" })
     if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
     const { data: rows, error } = await supabase
       .from("school_staff")
-      .select("id, full_name, role, class_id")
-      .in("role", ["teacher_homeroom", "teacher_shadow", "teacher_subject"])
+      .select("id, full_name, role, class_id, division, pin_is_default")
+      .order("role")
       .order("full_name");
     if (error) return { ok: false as const, error: error.message };
     return { ok: true as const, staff: rows ?? [] };
   });
+
+function passwordForTier(tier: StaffTier): string {
+  return (tier === "admin" ? process.env.SCHOOL_ADMIN_PASSWORD : process.env.SCHOOL_TEACHER_PASSWORD) || "";
+}
 
 export const setTeacherPin = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string; staffId: string; pin: string }) => input)
@@ -162,12 +169,13 @@ export const setTeacherPin = createServerFn({ method: "POST" })
     if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
     const { data: row, error } = await supabase
       .from("school_staff")
-      .update({ pin: data.pin })
+      .update({ pin: data.pin, pin_is_default: false, pin_updated_at: new Date().toISOString() })
       .eq("id", data.staffId)
-      .select("id, full_name, role, class_id")
+      .select("id, full_name, role, class_id, division")
       .single();
     if (error) return { ok: false as const, error: error.message };
-    return { ok: true as const, staff: row };
+    const tier = tierForRole(row.role as string);
+    return { ok: true as const, staff: row, tier, tierPassword: passwordForTier(tier) };
   });
 
 // Public — no shared password needed. The staffId + correct PIN together
@@ -179,12 +187,20 @@ export const loginTeacherByPin = createServerFn({ method: "POST" })
     if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
     const { data: row, error } = await supabase
       .from("school_staff")
-      .select("id, full_name, role, class_id, pin")
+      .select("id, full_name, role, class_id, division, pin")
       .eq("id", data.staffId)
       .maybeSingle();
     if (error) return { ok: false as const, error: error.message };
-    if (!row || !row.pin || row.pin !== data.pin) return { ok: false as const, error: "PIN salah." };
-    return { ok: true as const, staff: { id: row.id, full_name: row.full_name, role: row.role, class_id: row.class_id } };
+    if (!row) return { ok: false as const, error: "Staff tidak ditemukan." };
+    const expected = (row.pin as string | null) || "123456";
+    if (expected !== data.pin) return { ok: false as const, error: "PIN salah." };
+    const tier = tierForRole(row.role as string);
+    return {
+      ok: true as const,
+      staff: { id: row.id, full_name: row.full_name, role: row.role, class_id: row.class_id, division: row.division },
+      tier,
+      tierPassword: passwordForTier(tier),
+    };
   });
 
 export const listSchoolStudents = createServerFn({ method: "POST" })
