@@ -410,7 +410,7 @@ export function ProjectPanel({
         <div className="flex gap-2 mb-3">
           {(["pending", "list"] as const).map((v) => (
             <button key={v} onClick={() => setView(v)} className={"rounded-full px-3 py-1.5 text-xs font-semibold border " + (view === v ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>
-              {v === "pending" ? `Menunggu Approval (${pending.length})` : "Semua Project"}
+              {v === "pending" ? `Menunggu Approval (${pending.length})` : "Riwayat Semua Pengajuan"}
             </button>
           ))}
         </div>
