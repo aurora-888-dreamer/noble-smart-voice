@@ -116,7 +116,7 @@ export function AppShell({
       <div className="flex-1 min-w-0">
         <header className="sticky top-0 z-30 bg-background/80 backdrop-blur border-b border-border">
           <div className={`${wrap} px-4 lg:px-8 py-3 flex items-center gap-2`}>
-            <Link to="/" className="text-xs font-semibold uppercase tracking-widest text-primary lg:hidden" aria-label="Home">
+            <Link to="/" className={"text-xs font-semibold uppercase tracking-widest text-primary" + (fullWidth ? "" : " lg:hidden")} aria-label="Home">
               Noble
             </Link>
             <h1 className="ml-2 lg:ml-0 text-base lg:text-xl font-semibold flex-1 truncate">{title}</h1>
