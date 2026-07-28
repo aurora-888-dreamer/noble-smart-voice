@@ -108,26 +108,99 @@ export function CalendarPanel({ access, classes, canEdit }: { access: Access; cl
           <Err msg={err} />
         </div>
       )}
-      <ul className="space-y-2">
-        {events.map((e) => {
-          const t = EVENT_TYPES.find((x) => x.v === e.event_type) ?? EVENT_TYPES[2];
-          return (
-            <li key={e.id} className="rounded-xl bg-card border border-border p-3">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-semibold">{e.title}</p>
-                <span className={"shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase " + t.cls}>{t.label}</span>
-              </div>
-              <p className="text-xs text-muted-foreground mt-0.5">{new Date(e.event_date).toLocaleDateString()}</p>
-              {e.description && <p className="text-sm mt-1 whitespace-pre-wrap">{e.description}</p>}
-              {canEdit && <button onClick={() => remove(e.id)} className="mt-2 text-xs text-destructive flex items-center gap-1"><Trash2 size={12} /> Hapus</button>}
-            </li>
-          );
-        })}
-        {events.length === 0 && <Hint>Belum ada event di kalender.</Hint>}
-      </ul>
+      <CalendarGrid events={events} canEdit={canEdit} onRemove={remove} />
     </div>
   );
 }
+
+const MONTHS = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+const WEEKDAYS = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
+
+/** Visual month grid with the day cells highlighted when they carry events. */
+function CalendarGrid({ events, canEdit, onRemove }: { events: Row[]; canEdit: boolean; onRemove: (id: string) => void }) {
+  const now = new Date();
+  const [cursor, setCursor] = useState({ y: now.getFullYear(), m: now.getMonth() });
+  const [selected, setSelected] = useState<string | null>(null);
+
+  const byDate = new Map<string, Row[]>();
+  for (const e of events) {
+    const key = String(e.event_date).slice(0, 10);
+    byDate.set(key, [...(byDate.get(key) ?? []), e]);
+  }
+
+  const first = new Date(cursor.y, cursor.m, 1);
+  const daysInMonth = new Date(cursor.y, cursor.m + 1, 0).getDate();
+  const lead = (first.getDay() + 6) % 7; // Monday-first
+  const cells: (number | null)[] = [...Array(lead).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
+  while (cells.length % 7 !== 0) cells.push(null);
+  const key = (d: number) => `${cursor.y}-${String(cursor.m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  const shift = (delta: number) => {
+    const d = new Date(cursor.y, cursor.m + delta, 1);
+    setCursor({ y: d.getFullYear(), m: d.getMonth() });
+    setSelected(null);
+  };
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const selectedEvents = selected ? (byDate.get(selected) ?? []) : [];
+
+  return (
+    <div className="rounded-2xl bg-card border border-border p-3">
+      <div className="flex items-center justify-between mb-2">
+        <button onClick={() => shift(-1)} className="rounded-lg border border-border px-2 py-1 text-xs">‹</button>
+        <p className="text-sm font-semibold">{MONTHS[cursor.m]} {cursor.y}</p>
+        <button onClick={() => shift(1)} className="rounded-lg border border-border px-2 py-1 text-xs">›</button>
+      </div>
+      <div className="grid grid-cols-7 gap-1 text-center text-[10px] uppercase text-muted-foreground mb-1">
+        {WEEKDAYS.map((d) => <div key={d}>{d}</div>)}
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {cells.map((d, i) => {
+          if (d === null) return <div key={i} />;
+          const k = key(d);
+          const dayEvents = byDate.get(k) ?? [];
+          const isToday = k === todayKey;
+          return (
+            <button
+              key={i}
+              onClick={() => setSelected(dayEvents.length ? k : null)}
+              className={
+                "aspect-square rounded-lg text-xs flex flex-col items-center justify-center gap-0.5 border " +
+                (selected === k ? "border-primary bg-primary/15 " : isToday ? "border-primary/60 " : "border-transparent ") +
+                (dayEvents.length ? "bg-secondary font-semibold" : "text-muted-foreground")
+              }
+            >
+              {d}
+              {dayEvents.length > 0 && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-3 border-t border-border pt-3">
+        {selected ? (
+          <ul className="space-y-2">
+            {selectedEvents.map((e) => {
+              const t = EVENT_TYPES.find((x) => x.v === e.event_type) ?? EVENT_TYPES[2];
+              return (
+                <li key={e.id} className="rounded-xl bg-background border border-border p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-semibold">{e.title}</p>
+                    <span className={"shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase " + t.cls}>{t.label}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">{new Date(e.event_date).toLocaleDateString()}</p>
+                  {e.description && <p className="text-sm mt-1 whitespace-pre-wrap">{e.description}</p>}
+                  {canEdit && <button onClick={() => onRemove(e.id)} className="mt-2 text-xs text-destructive flex items-center gap-1"><Trash2 size={12} /> Hapus</button>}
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <Hint>{events.length === 0 ? "Belum ada event di kalender." : "Pilih tanggal bertanda untuk melihat detail event."}</Hint>
+        )}
+      </div>
+    </div>
+  );
+}
+
 
 /* ───────────── 2. Timetable ───────────── */
 const DAYS = [

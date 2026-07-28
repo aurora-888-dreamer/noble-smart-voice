@@ -1,19 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
 import { createLovableSchoolSupabase } from "./supabase.server";
+import { ADMIN_TIER_ROLES, type SchoolRole as Role, type StaffTier as Tier } from "./school-roles";
 
-export type SchoolRole =
-  | "hos"
-  | "admin_hos"
-  | "principal"
-  | "teacher_homeroom"
-  | "teacher_shadow"
-  | "teacher_subject";
-export type StaffTier = "admin" | "teacher";
+export type SchoolRole = Role;
+export type StaffTier = Tier;
 
-const ADMIN_ROLES: string[] = ["hos", "admin_hos", "principal"];
 export function tierForRole(role: string): StaffTier {
-  return ADMIN_ROLES.includes(role) ? "admin" : "teacher";
+  return ADMIN_TIER_ROLES.includes(role) ? "admin" : "teacher";
 }
+
 
 
 function checkSchoolPassword(password: string): StaffTier | null {

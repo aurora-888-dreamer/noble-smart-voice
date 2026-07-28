@@ -4,17 +4,25 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Shield, Users, Trash2, UserPlus, Upload, Send, Megaphone, Bell, X, GraduationCap,
+  KeyRound, Copy, Check, Pencil, Power,
 } from "lucide-react";
-import { getStoredSchoolPassword, type AdminSubrole } from "@/lib/school-store";
+import { getStoredSchoolPassword, changeSchoolPin, useSchoolSession } from "@/lib/school-store";
+import { CREATABLE_ROLES, ROLE_LABELS, roleLabel, type SchoolRole } from "@/lib/school-roles";
 import {
-  listSchoolClasses, createSchoolClass, listSchoolStaff, createSchoolStaff, deleteSchoolStaff,
+  listSchoolClasses, createSchoolClass, listSchoolStaff, deleteSchoolStaff,
   listSchoolStudents, upsertSchoolStudent, deleteSchoolStudent, importSchoolStudents, seedStellaMarisPhase1,
-  listGuardians, addGuardian, deleteGuardian,
+  listGuardians, deleteGuardian,
   listAllActivities, postAnnouncement, listAnnouncements,
   listMessagesForStudent, postMessageAsTeacher, closeThreadAsTeacher,
   listMessagesForCode, postMessageAsParent, closeThreadAsParent,
-  debugSupabaseUrl, type SchoolRole,
+  debugSupabaseUrl,
 } from "@/lib/school.functions";
+import {
+  createStaffAccount, updateStaffAccount, ensureStaffUserId,
+  inviteParentAccount, updateGuardianAccount, listAllPersonnel,
+} from "@/lib/school-accounts.functions";
+
+export type AdminSubrole = "hos" | "admin_hos" | "principal";
 
 export const DIVISIONS = [
   { id: "kindergarten", label: "Kindergarten" },
@@ -24,14 +32,8 @@ export const DIVISIONS = [
   { id: "All Divisions", label: "All Divisions" },
 ];
 
-export const ROLE_LABEL: Record<SchoolRole, string> = {
-  hos: "Head of School",
-  admin_hos: "Admin HoS",
-  principal: "Principal",
-  teacher_homeroom: "Homeroom Teacher",
-  teacher_shadow: "Shadow Teacher",
-  teacher_subject: "Subject Teacher",
-};
+export const ROLE_LABEL = ROLE_LABELS;
+export { roleLabel };
 
 export function getStoredPassword(): string {
   return getStoredSchoolPassword();
@@ -41,6 +43,7 @@ export function getSchoolIdSync(): string {
   if (typeof window === "undefined") return "";
   return sessionStorage.getItem("noble.school.id") || "";
 }
+
 
 /* ───────────── generic hooks / atoms ───────────── */
 export function useAsync<T>(fn: () => Promise<T> | null, deps: unknown[]): { data: T | null; loading: boolean } {
@@ -155,6 +158,32 @@ export function ClassManagerPrincipal({ division, classes }: { division: string;
 }
 
 /* ───────────── staff ───────────── */
+type StaffRow = {
+  id: string; full_name: string; role: SchoolRole; division?: string; class_id?: string | null;
+  user_id?: string | null; pin_is_default?: boolean; is_active?: boolean; subjects?: string[] | null; email?: string | null;
+};
+
+export function CredentialCard({ userId, pin, onDismiss }: { userId: string; pin: string; onDismiss?: () => void }) {
+  const [copied, setCopied] = useState(false);
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(`UserID: ${userId} · PIN: ${pin}`);
+      setCopied(true); setTimeout(() => setCopied(false), 1200);
+    } catch { /* clipboard unavailable */ }
+  }
+  return (
+    <div className="rounded-xl border border-primary/40 bg-primary/10 p-3 text-xs space-y-2">
+      <p className="font-semibold text-primary">Akun berhasil dibuat</p>
+      <p>UserID: <code className="font-mono font-semibold">{userId}</code> · PIN default: <code className="font-mono font-semibold">{pin}</code></p>
+      <p className="text-destructive font-semibold">Segera ganti PIN setelah login pertama.</p>
+      <div className="flex gap-2">
+        <button onClick={copy} className="rounded-lg border border-border px-2 py-1 flex items-center gap-1">{copied ? <Check size={12} /> : <Copy size={12} />} Salin</button>
+        {onDismiss && <button onClick={onDismiss} className="text-muted-foreground underline">Tutup</button>}
+      </div>
+    </div>
+  );
+}
+
 export function StaffRoster({
   canEdit, classes, scopeDivision, roleOptions,
 }: {
@@ -167,81 +196,167 @@ export function StaffRoster({
   const [reload, setReload] = useState(0);
   const staff = useAsync(() => listSchoolStaff({ data: { password: pw } }), [pw, reload]);
   const options: { v: SchoolRole; label: string }[] = roleOptions ?? (scopeDivision
-    ? [{ v: "teacher_homeroom", label: "Homeroom Teacher" }, { v: "teacher_shadow", label: "Shadow Teacher" }, { v: "teacher_subject", label: "Subject Teacher" }]
-    : [{ v: "principal", label: "Principal" }]);
+    ? [{ v: "teacher_homeroom", label: "Homeroom Teacher" }, { v: "teacher_subject", label: "Subject Teacher" }]
+    : CREATABLE_ROLES);
   const [name, setName] = useState("");
   const [role, setRole] = useState<SchoolRole>(options[0]?.v ?? "principal");
   const [division, setDivision] = useState(scopeDivision ?? "kindergarten");
   const [classId, setClassId] = useState("");
+  const [subjects, setSubjects] = useState("");
+  const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [created, setCreated] = useState<{ userId: string; pin: string } | null>(null);
 
-  const isSchoolWide = role === "hos" || role === "admin_hos";
+  const isSchoolWide = role === "hos" || role === "vice_hos" || role === "admin_hos";
+  const isHomeroom = role === "teacher_homeroom";
+  const isSubject = role === "teacher_subject";
 
   async function add() {
     if (!name.trim()) return;
     setBusy(true); setErr(null);
-    const res = await createSchoolStaff({
+    const res = await createStaffAccount({
       data: {
         password: pw, schoolId: getSchoolIdSync(), fullName: name.trim(), role,
         division: isSchoolWide ? "All Divisions" : (scopeDivision ?? division),
-        classId: classId || undefined,
+        email: email || undefined,
+        classId: isHomeroom ? (classId || undefined) : undefined,
+        subjects: isSubject ? subjects.split(",").map((s) => s.trim()).filter(Boolean) : [],
       },
     });
     setBusy(false);
     if (!res.ok) { setErr(res.error); return; }
-    setName(""); setClassId(""); setReload((x) => x + 1);
+    setCreated({ userId: res.userId, pin: res.defaultPin });
+    setName(""); setClassId(""); setSubjects(""); setEmail(""); setReload((x) => x + 1);
   }
   async function remove(id: string) {
     await deleteSchoolStaff({ data: { password: pw, id } });
     setReload((x) => x + 1);
   }
-  const list = (staff.data && "staff" in staff.data ? (staff.data.staff ?? []) : []) as { id: string; full_name: string; role: SchoolRole; division?: string; pin_is_default?: boolean }[];
+  const list = (staff.data && "staff" in staff.data ? (staff.data.staff ?? []) : []) as StaffRow[];
   const filtered = scopeDivision ? list.filter((s) => s.division === scopeDivision) : list;
   return (
     <div>
       {canEdit && (
         <div className="rounded-2xl bg-card border border-border p-3 mb-3 grid gap-2">
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nama lengkap" className="rounded-lg bg-background border border-border px-3 py-1.5 text-sm" />
+          <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email (dipakai untuk reset PIN)" className="rounded-lg bg-background border border-border px-3 py-1.5 text-sm" />
           <div className="grid grid-cols-2 gap-2">
             <select value={role} onChange={(e) => setRole(e.target.value as SchoolRole)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm">
               {options.map((r) => <option key={r.v} value={r.v}>{r.label}</option>)}
             </select>
-            {!scopeDivision && !isSchoolWide && (
+            {!isSchoolWide && !scopeDivision && (
               <select value={division} onChange={(e) => setDivision(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm">
                 {DIVISIONS.filter((d) => d.id !== "All Divisions").map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
               </select>
             )}
-            {scopeDivision && (
+            {isHomeroom && (
               <select value={classId} onChange={(e) => setClassId(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm">
-                <option value="">pilih kelas opsional</option>
+                <option value="">assign kelas (opsional)</option>
                 {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             )}
           </div>
-          <p className="text-[11px] text-muted-foreground">PIN awal <code className="font-mono">123456</code> — diganti sendiri saat login pertama.</p>
-          <button onClick={add} disabled={busy} className="justify-self-start rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-sm font-semibold disabled:opacity-50 flex items-center gap-1"><UserPlus size={13} /> Tambah Staff</button>
+          {isSubject && (
+            <input value={subjects} onChange={(e) => setSubjects(e.target.value)} placeholder="Mata pelajaran, pisahkan dengan koma (mis. Math, Science)" className="rounded-lg bg-background border border-border px-3 py-1.5 text-sm" />
+          )}
+          <p className="text-[11px] text-muted-foreground">UserID dibuat otomatis (5 huruf + 3 angka). PIN awal <code className="font-mono">123456</code> — wajib diganti saat login pertama.</p>
+          <button onClick={add} disabled={busy} className="justify-self-start rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-sm font-semibold disabled:opacity-50 flex items-center gap-1"><UserPlus size={13} /> Buat Akun Staff</button>
           {err && <p className="text-xs text-destructive">{err}</p>}
+          {created && <CredentialCard userId={created.userId} pin={created.pin} onDismiss={() => setCreated(null)} />}
         </div>
       )}
       <ul className="space-y-2">
         {filtered.map((s) => (
-          <li key={s.id} className="rounded-xl bg-card border border-border p-3 text-sm flex justify-between">
-            <div>
-              <p className="font-semibold">{s.full_name}</p>
-              <p className="text-xs text-muted-foreground">
-                {ROLE_LABEL[s.role] ?? s.role}{s.division ? " · " + (DIVISIONS.find((d) => d.id === s.division)?.label ?? s.division) : ""}
-                {s.pin_is_default ? " · PIN default" : ""}
-              </p>
-            </div>
-            {canEdit && <button onClick={() => remove(s.id)} className="text-destructive"><Trash2 size={14} /></button>}
-          </li>
+          <StaffRow key={s.id} staff={s} classes={classes} canEdit={canEdit} onChanged={() => setReload((x) => x + 1)} onRemove={() => remove(s.id)} />
         ))}
         {filtered.length === 0 && <Hint>Belum ada staff.</Hint>}
       </ul>
     </div>
   );
 }
+
+function StaffRow({ staff, classes, canEdit, onChanged, onRemove }: {
+  staff: StaffRow; classes: { id: string; name: string }[]; canEdit: boolean; onChanged: () => void; onRemove: () => void;
+}) {
+  const pw = getStoredPassword();
+  const [open, setOpen] = useState(false);
+  const [classId, setClassId] = useState(staff.class_id ?? "");
+  const [subjects, setSubjects] = useState((staff.subjects ?? []).join(", "));
+  const [msg, setMsg] = useState<string | null>(null);
+  const isHomeroom = staff.role === "teacher_homeroom";
+  const isSubject = staff.role === "teacher_subject";
+
+  async function save() {
+    await updateStaffAccount({
+      data: {
+        password: pw, id: staff.id,
+        classId: isHomeroom ? (classId || null) : undefined,
+        subjects: isSubject ? subjects.split(",").map((s) => s.trim()).filter(Boolean) : undefined,
+      },
+    });
+    setMsg("Tersimpan.");
+    onChanged();
+  }
+  async function toggleActive() {
+    await updateStaffAccount({ data: { password: pw, id: staff.id, isActive: staff.is_active === false } });
+    onChanged();
+  }
+  async function resetPin() {
+    await updateStaffAccount({ data: { password: pw, id: staff.id, resetPin: true } });
+    setMsg("PIN dikembalikan ke 123456.");
+    onChanged();
+  }
+  async function makeUserId() {
+    const res = await ensureStaffUserId({ data: { password: pw, id: staff.id } });
+    setMsg(res.ok ? `UserID: ${res.userId} · PIN 123456` : res.error);
+    onChanged();
+  }
+
+  return (
+    <li className="rounded-xl bg-card border border-border p-3 text-sm">
+      <div className="flex justify-between gap-2">
+        <div>
+          <p className="font-semibold">{staff.full_name}{staff.is_active === false && <span className="ml-2 text-[10px] text-destructive">nonaktif</span>}</p>
+          <p className="text-xs text-muted-foreground">
+            {roleLabel(staff.role)}{staff.division ? " · " + (DIVISIONS.find((d) => d.id === staff.division)?.label ?? staff.division) : ""}
+          </p>
+          <p className="text-[11px] text-muted-foreground">
+            UserID: <code className="font-mono">{staff.user_id || "belum ada"}</code>{staff.pin_is_default ? " · PIN default" : ""}
+          </p>
+          {isSubject && (staff.subjects?.length ?? 0) > 0 && <p className="text-[11px] text-muted-foreground">Subjects: {staff.subjects!.join(", ")}</p>}
+        </div>
+        {canEdit && (
+          <div className="flex items-start gap-2">
+            <button onClick={() => setOpen((v) => !v)} className="text-muted-foreground" aria-label="Edit"><Pencil size={14} /></button>
+            <button onClick={onRemove} className="text-destructive" aria-label="Hapus"><Trash2 size={14} /></button>
+          </div>
+        )}
+      </div>
+      {canEdit && open && (
+        <div className="mt-3 pt-3 border-t border-border grid gap-2">
+          {isHomeroom && (
+            <select value={classId} onChange={(e) => setClassId(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm">
+              <option value="">tanpa kelas</option>
+              {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          )}
+          {isSubject && (
+            <input value={subjects} onChange={(e) => setSubjects(e.target.value)} placeholder="Mata pelajaran (pisahkan koma)" className="rounded-lg bg-background border border-border px-3 py-1.5 text-sm" />
+          )}
+          <div className="flex gap-2 flex-wrap">
+            {(isHomeroom || isSubject) && <button onClick={save} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold">Simpan</button>}
+            <button onClick={toggleActive} className="rounded-lg border border-border px-3 py-1.5 text-xs flex items-center gap-1"><Power size={12} /> {staff.is_active === false ? "Aktifkan" : "Nonaktifkan"}</button>
+            <button onClick={resetPin} className="rounded-lg border border-border px-3 py-1.5 text-xs flex items-center gap-1"><KeyRound size={12} /> Reset PIN</button>
+            {!staff.user_id && <button onClick={makeUserId} className="rounded-lg border border-border px-3 py-1.5 text-xs">Buatkan UserID</button>}
+          </div>
+          {msg && <p className="text-xs text-primary">{msg}</p>}
+        </div>
+      )}
+    </li>
+  );
+}
+
 
 /* ───────────── students ───────────── */
 export function StudentRoster({ canEdit, classes }: { canEdit: boolean; classes: { id: string; name: string }[] }) {
@@ -307,6 +422,7 @@ function StudentRow({ student, canEdit, onDelete }: { student: { id: string; ful
   );
 }
 
+/** Invite Parent — creates a login account (UserID + default PIN) for a guardian. */
 export function GuardianEditor({ studentId, canEdit }: { studentId: string; canEdit: boolean }) {
   const pw = getStoredPassword();
   const [reload, setReload] = useState(0);
@@ -314,34 +430,57 @@ export function GuardianEditor({ studentId, canEdit }: { studentId: string; canE
   const [name, setName] = useState("");
   const [relation, setRelation] = useState<"father" | "mother" | "guardian">("mother");
   const [wa, setWa] = useState("");
-  async function add() {
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [created, setCreated] = useState<{ userId: string; pin: string } | null>(null);
+
+  async function invite() {
     if (!name.trim()) return;
-    await addGuardian({ data: { password: pw, studentId, fullName: name.trim(), relation, whatsapp: wa || undefined } });
-    setName(""); setWa(""); setReload((x) => x + 1);
+    setBusy(true); setErr(null);
+    const res = await inviteParentAccount({
+      data: { password: pw, studentId, fullName: name.trim(), relation, whatsapp: wa || undefined, email: email || undefined },
+    });
+    setBusy(false);
+    if (!res.ok) { setErr(res.error); return; }
+    setCreated({ userId: res.userId, pin: res.defaultPin });
+    setName(""); setWa(""); setEmail(""); setReload((x) => x + 1);
   }
   async function remove(id: string) {
     await deleteGuardian({ data: { password: pw, id } });
     setReload((x) => x + 1);
   }
-  function shareCode(g: { invite_code: string; full_name: string }) {
-    const text = encodeURIComponent("Halo " + g.full_name + "! Kode undangan School Dashboard untuk memantau anak Anda: " + g.invite_code + ". Buka Noble - School Dashboard - Orangtua - masukkan kode ini.");
+  async function resetPin(id: string) {
+    await updateGuardianAccount({ data: { password: pw, id, resetPin: true } });
+    setReload((x) => x + 1);
+  }
+  function shareAccount(g: { full_name: string; user_id?: string | null; invite_code: string }) {
+    const text = encodeURIComponent(
+      `Halo ${g.full_name}! Akun School Dashboard Anda sudah aktif.\nUserID: ${g.user_id || g.invite_code}\nPIN sementara: 123456\n\nPENTING: segera ganti PIN setelah login pertama (menu Ganti PIN).`,
+    );
     window.open("https://wa.me/?text=" + text, "_blank", "noopener");
   }
-  const list = (guardians.data && "guardians" in guardians.data ? (guardians.data.guardians ?? []) : []) as { id: string; full_name: string; relation: string; whatsapp?: string; invite_code: string; invite_used_at?: string }[];
+  const list = (guardians.data && "guardians" in guardians.data ? (guardians.data.guardians ?? []) : []) as {
+    id: string; full_name: string; relation: string; whatsapp?: string; email?: string | null;
+    invite_code: string; invite_used_at?: string; user_id?: string | null; pin_is_default?: boolean;
+  }[];
+
   return (
     <div>
-      <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Guardians</p>
+      <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Orangtua / Wali</p>
       <ul className="space-y-2 mb-3">
         {list.map((g) => (
           <li key={g.id} className="rounded-lg bg-secondary/50 p-2 text-xs">
             <div className="flex items-center justify-between gap-2">
               <span>{g.full_name} - {g.relation}{g.whatsapp ? " - " + g.whatsapp : ""}</span>
-              {canEdit && <button onClick={() => remove(g.id)} className="text-destructive shrink-0"><Trash2 size={12} /></button>}
+              {canEdit && <button onClick={() => remove(g.id)} className="text-destructive shrink-0" aria-label="Hapus wali"><Trash2 size={12} /></button>}
             </div>
-            <div className="flex items-center gap-2 mt-1">
-              <code className="font-mono bg-background rounded px-1.5 py-0.5">{g.invite_code}</code>
-              {g.invite_used_at && <span className="text-primary">sudah dibuka</span>}
-              <button onClick={() => shareCode(g)} className="ml-auto text-primary flex items-center gap-1"><Send size={11} /> Kirim WA</button>
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
+              <code className="font-mono bg-background rounded px-1.5 py-0.5">{g.user_id || "belum ada UserID"}</code>
+              {g.pin_is_default && <span className="text-destructive">PIN masih default</span>}
+              {g.invite_used_at && <span className="text-primary">sudah login</span>}
+              {canEdit && <button onClick={() => resetPin(g.id)} className="text-muted-foreground flex items-center gap-1"><KeyRound size={11} /> Reset PIN</button>}
+              <button onClick={() => shareAccount(g)} className="ml-auto text-primary flex items-center gap-1"><Send size={11} /> Kirim WA</button>
             </div>
           </li>
         ))}
@@ -353,13 +492,19 @@ export function GuardianEditor({ studentId, canEdit }: { studentId: string; canE
           <select value={relation} onChange={(e) => setRelation(e.target.value as "father" | "mother" | "guardian")} className="rounded-lg bg-background border border-border px-2 py-1 text-xs">
             <option value="mother">Ibu</option><option value="father">Ayah</option><option value="guardian">Wali</option>
           </select>
-          <input value={wa} onChange={(e) => setWa(e.target.value)} placeholder="No. WhatsApp" className="col-span-2 rounded-lg bg-background border border-border px-2 py-1 text-xs" />
-          <button onClick={add} className="col-span-2 rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold">Tambah Wali</button>
+          <input value={wa} onChange={(e) => setWa(e.target.value)} placeholder="No. WhatsApp" className="rounded-lg bg-background border border-border px-2 py-1 text-xs" />
+          <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email (untuk reset PIN)" className="rounded-lg bg-background border border-border px-2 py-1 text-xs" />
+          <button onClick={invite} disabled={busy} className="col-span-2 rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold disabled:opacity-50 flex items-center justify-center gap-1">
+            <UserPlus size={12} /> {busy ? "Membuat akun…" : "Invite Parent (buat UserID + PIN)"}
+          </button>
+          {err && <p className="col-span-2 text-xs text-destructive">{err}</p>}
+          {created && <div className="col-span-2"><CredentialCard userId={created.userId} pin={created.pin} onDismiss={() => setCreated(null)} /></div>}
         </div>
       )}
     </div>
   );
 }
+
 
 /* ───────────── import ───────────── */
 export function CsvImportPanel({ classes }: { classes: { id: string; name: string }[] }) {
@@ -614,3 +759,161 @@ export function ParentMessageThread({ code }: { code: string }) {
 
 /* re-exported so dashboards can render quick stats without extra imports */
 export const StatIcons = { Users, GraduationCap };
+
+/* ───────────── Ganti PIN (all roles) ───────────── */
+export function ChangePinPanel() {
+  const { session } = useSchoolSession();
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function submit() {
+    setErr(null); setMsg(null);
+    if (!/^\d{6}$/.test(next)) { setErr("PIN baru harus 6 digit angka."); return; }
+    if (next !== confirm) { setErr("Konfirmasi PIN tidak cocok."); return; }
+    if (next === "123456") { setErr("Jangan gunakan PIN default."); return; }
+    setBusy(true);
+    const res = await changeSchoolPin(current, next);
+    setBusy(false);
+    if (!res.ok) { setErr(res.error); return; }
+    setCurrent(""); setNext(""); setConfirm("");
+    setMsg("PIN berhasil diganti.");
+  }
+
+  return (
+    <div className="rounded-2xl bg-card border border-border p-4 grid gap-2 max-w-sm">
+      <p className="text-sm font-semibold flex items-center gap-2"><KeyRound size={14} /> Ganti PIN</p>
+      <p className="text-xs text-muted-foreground">UserID Anda: <code className="font-mono">{session?.userId ?? "-"}</code></p>
+      {session?.pinIsDefault && <p className="text-xs text-destructive font-semibold">PIN Anda masih default — segera ganti.</p>}
+      <input value={current} onChange={(e) => setCurrent(e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" placeholder="PIN saat ini" className="rounded-lg bg-background border border-border px-3 py-2 text-sm tracking-widest" />
+      <input value={next} onChange={(e) => setNext(e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" placeholder="PIN baru (6 digit)" className="rounded-lg bg-background border border-border px-3 py-2 text-sm tracking-widest" />
+      <input value={confirm} onChange={(e) => setConfirm(e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" placeholder="Ulangi PIN baru" className="rounded-lg bg-background border border-border px-3 py-2 text-sm tracking-widest" />
+      <button onClick={submit} disabled={busy} className="justify-self-start rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold disabled:opacity-50">{busy ? "Menyimpan…" : "Simpan PIN"}</button>
+      {err && <p className="text-xs text-destructive">{err}</p>}
+      {msg && <p className="text-xs text-primary">{msg}</p>}
+    </div>
+  );
+}
+
+/* ───────────── Kelola Personil (Admin HoS) ───────────── */
+type PersonnelStaff = {
+  id: string; full_name: string; role: SchoolRole; division?: string | null; class_id?: string | null;
+  email?: string | null; user_id?: string | null; pin_is_default?: boolean; is_active?: boolean; subjects?: string[] | null;
+};
+type PersonnelStudent = { id: string; full_name: string; student_number?: string | null; class_id?: string | null; status?: string | null };
+type PersonnelGuardian = {
+  id: string; full_name: string; relation: string; email?: string | null; whatsapp?: string | null;
+  user_id?: string | null; pin_is_default?: boolean; is_active?: boolean; student_id: string;
+};
+
+export function PersonnelManager({ classes }: { classes: { id: string; name: string }[] }) {
+  const pw = getStoredPassword();
+  const [reload, setReload] = useState(0);
+  const [group, setGroup] = useState<"staff" | "students" | "parents">("staff");
+  const data = useAsync(() => listAllPersonnel({ data: { password: pw } }), [pw, reload]);
+  const payload = data.data && "staff" in data.data ? data.data : null;
+  const staff = (payload?.staff ?? []) as PersonnelStaff[];
+  const students = (payload?.students ?? []) as PersonnelStudent[];
+  const guardians = (payload?.guardians ?? []) as PersonnelGuardian[];
+  const className = (id?: string | null) => classes.find((c) => c.id === id)?.name ?? "-";
+
+  async function staffAction(id: string, patch: { isActive?: boolean; resetPin?: boolean }) {
+    await updateStaffAccount({ data: { password: pw, id, ...patch } });
+    setReload((x) => x + 1);
+  }
+  async function guardianAction(id: string, patch: { isActive?: boolean; resetPin?: boolean }) {
+    await updateGuardianAccount({ data: { password: pw, id, ...patch } });
+    setReload((x) => x + 1);
+  }
+  async function removeStaff(id: string) {
+    await deleteSchoolStaff({ data: { password: pw, id } });
+    setReload((x) => x + 1);
+  }
+  async function removeGuardian(id: string) {
+    await deleteGuardian({ data: { password: pw, id } });
+    setReload((x) => x + 1);
+  }
+  async function removeStudent(id: string) {
+    await deleteSchoolStudent({ data: { password: pw, id } });
+    setReload((x) => x + 1);
+  }
+
+  if (data.loading) return <Hint>Memuat data personil…</Hint>;
+  if (!payload) return <Hint>{(data.data && "error" in data.data && data.data.error) || "Tidak dapat memuat personil."}</Hint>;
+
+  return (
+    <div>
+      <Tabs
+        tabs={[
+          { id: "staff", label: `Staff (${staff.length})` },
+          { id: "students", label: `Student (${students.length})` },
+          { id: "parents", label: `Parent (${guardians.length})` },
+        ]}
+        tab={group}
+        onChange={(id) => setGroup(id as "staff" | "students" | "parents")}
+      />
+
+      {group === "staff" && (
+        <ul className="space-y-2">
+          {staff.map((s) => (
+            <li key={s.id} className="rounded-xl bg-card border border-border p-3 text-sm">
+              <div className="flex justify-between gap-2">
+                <div>
+                  <p className="font-semibold">{s.full_name}{s.is_active === false && <span className="ml-2 text-[10px] text-destructive">nonaktif</span>}</p>
+                  <p className="text-xs text-muted-foreground">{roleLabel(s.role)}{s.division ? " · " + s.division : ""}{s.class_id ? " · " + className(s.class_id) : ""}</p>
+                  <p className="text-[11px] text-muted-foreground">UserID: <code className="font-mono">{s.user_id || "belum ada"}</code>{s.pin_is_default ? " · PIN default" : ""}</p>
+                </div>
+                <button onClick={() => removeStaff(s.id)} className="text-destructive shrink-0" aria-label="Hapus"><Trash2 size={14} /></button>
+              </div>
+              <div className="flex gap-2 mt-2 flex-wrap">
+                <button onClick={() => staffAction(s.id, { isActive: s.is_active === false })} className="rounded-lg border border-border px-2 py-1 text-xs flex items-center gap-1"><Power size={11} /> {s.is_active === false ? "Aktifkan" : "Nonaktifkan"}</button>
+                <button onClick={() => staffAction(s.id, { resetPin: true })} className="rounded-lg border border-border px-2 py-1 text-xs flex items-center gap-1"><KeyRound size={11} /> Reset PIN</button>
+              </div>
+            </li>
+          ))}
+          {staff.length === 0 && <Hint>Belum ada staff.</Hint>}
+        </ul>
+      )}
+
+      {group === "students" && (
+        <ul className="space-y-2">
+          {students.map((s) => (
+            <li key={s.id} className="rounded-xl bg-card border border-border p-3 text-sm flex justify-between gap-2">
+              <div>
+                <p className="font-semibold">{s.full_name}</p>
+                <p className="text-xs text-muted-foreground">{className(s.class_id)}{s.student_number ? " · " + s.student_number : ""}{s.status ? " · " + s.status : ""}</p>
+              </div>
+              <button onClick={() => removeStudent(s.id)} className="text-destructive shrink-0" aria-label="Hapus"><Trash2 size={14} /></button>
+            </li>
+          ))}
+          {students.length === 0 && <Hint>Belum ada murid.</Hint>}
+        </ul>
+      )}
+
+      {group === "parents" && (
+        <ul className="space-y-2">
+          {guardians.map((g) => (
+            <li key={g.id} className="rounded-xl bg-card border border-border p-3 text-sm">
+              <div className="flex justify-between gap-2">
+                <div>
+                  <p className="font-semibold">{g.full_name}{g.is_active === false && <span className="ml-2 text-[10px] text-destructive">nonaktif</span>}</p>
+                  <p className="text-xs text-muted-foreground">{g.relation}{g.whatsapp ? " · " + g.whatsapp : ""}{g.email ? " · " + g.email : ""}</p>
+                  <p className="text-[11px] text-muted-foreground">UserID: <code className="font-mono">{g.user_id || "belum ada"}</code>{g.pin_is_default ? " · PIN default" : ""}</p>
+                </div>
+                <button onClick={() => removeGuardian(g.id)} className="text-destructive shrink-0" aria-label="Hapus"><Trash2 size={14} /></button>
+              </div>
+              <div className="flex gap-2 mt-2 flex-wrap">
+                <button onClick={() => guardianAction(g.id, { isActive: g.is_active === false })} className="rounded-lg border border-border px-2 py-1 text-xs flex items-center gap-1"><Power size={11} /> {g.is_active === false ? "Aktifkan" : "Nonaktifkan"}</button>
+                <button onClick={() => guardianAction(g.id, { resetPin: true })} className="rounded-lg border border-border px-2 py-1 text-xs flex items-center gap-1"><KeyRound size={11} /> Reset PIN</button>
+              </div>
+            </li>
+          ))}
+          {guardians.length === 0 && <Hint>Belum ada akun orangtua.</Hint>}
+        </ul>
+      )}
+    </div>
+  );
+}

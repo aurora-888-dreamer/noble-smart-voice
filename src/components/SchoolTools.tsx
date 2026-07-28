@@ -11,19 +11,20 @@ type Tool = "voice" | "camera" | "translate" | "calc" | null;
 
 export function SchoolTools() {
   const [open, setOpen] = useState<Tool>(null);
-  const btn = "grid place-items-center w-10 h-10 rounded-full border border-border bg-card text-foreground active:scale-95";
+  const btn = "grid place-items-center w-9 h-9 rounded-full border border-border bg-card text-foreground active:scale-95";
   return (
     <>
-      <div className="flex items-center gap-2 mb-3">
-        <button className={btn} title="Voice capture" onClick={() => setOpen("voice")}><Mic size={17} /></button>
-        <button className={btn} title="Camera" onClick={() => setOpen("camera")}><Camera size={17} /></button>
-        <button className={btn} title="Translator" onClick={() => setOpen("translate")}><Languages size={17} /></button>
-        <button className={btn} title="Calculator" onClick={() => setOpen("calc")}><CalcIcon size={17} /></button>
+      <div className="flex items-center gap-1.5">
+        <button className={btn} title="Voice capture" aria-label="Voice capture" onClick={() => setOpen("voice")}><Mic size={16} /></button>
+        <button className={btn} title="Camera" aria-label="Camera" onClick={() => setOpen("camera")}><Camera size={16} /></button>
+        <button className={btn} title="Translator" aria-label="Translator" onClick={() => setOpen("translate")}><Languages size={16} /></button>
+        <button className={btn} title="Calculator" aria-label="Calculator" onClick={() => setOpen("calc")}><CalcIcon size={16} /></button>
       </div>
       {open && <ToolModal tool={open} onClose={() => setOpen(null)} />}
     </>
   );
 }
+
 
 function ToolModal({ tool, onClose }: { tool: Exclude<Tool, null>; onClose: () => void }) {
   return (

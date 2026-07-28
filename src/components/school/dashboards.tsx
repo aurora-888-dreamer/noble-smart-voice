@@ -12,12 +12,13 @@ import {
   DIVISIONS, ROLE_LABEL, Hint, Section, StatCard, Tabs, ReadOnlyNote, useAsync, useClasses,
   getStoredPassword, getSchoolIdSync, StaffRoster, StudentRoster, GuardianEditor, CsvImportPanel,
   AllActivitiesView, AnnouncementPanel, TeacherMessageThread, ParentMessageThread,
+  ChangePinPanel, PersonnelManager,
 } from "./shared";
 import {
   listSchoolStaff, listSchoolStudents, postSchoolActivity, deleteSchoolActivity, listActivitiesForClass,
   getStudentForCode, listActivitiesForCode, listAnnouncementsForCode, type SchoolRole,
 } from "@/lib/school.functions";
-import { schoolLogout, clearTeacherDevice, parentLogout, type TeacherDevice } from "@/lib/school-store";
+import { schoolLogout, type SchoolSession } from "@/lib/school-store";
 
 const ACADEMIC_TABS = [
   { id: "calendar", label: "Kalender" }, { id: "timetable", label: "Timetable" },
@@ -25,25 +26,32 @@ const ACADEMIC_TABS = [
   { id: "assessment", label: "Assessment" }, { id: "attendance", label: "Attendance" },
 ];
 
-export function StaffHeader({ device }: { device: TeacherDevice }) {
+const PIN_TAB = { id: "pin", label: "Ganti PIN" };
+
+export function StaffHeader({ session }: { session: SchoolSession }) {
   const navigate = useNavigate();
-  const divisionLabel = device.division ? (DIVISIONS.find((d) => d.id === device.division)?.label ?? device.division) : null;
+  const divisionLabel = session.division ? (DIVISIONS.find((d) => d.id === session.division)?.label ?? session.division) : null;
   return (
-    <div className="flex items-center justify-between mb-4">
-      <div>
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">Signed in as</p>
-        <p className="text-sm font-semibold">{device.name}</p>
-        <p className="text-[11px] text-muted-foreground">
-          {device.role ? ROLE_LABEL[device.role as SchoolRole] ?? device.role : ""}{divisionLabel ? " · " + divisionLabel : ""}
+    <div className="mb-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Signed in as</p>
+          <p className="text-sm font-semibold">{session.name}</p>
+          <p className="text-[11px] text-muted-foreground">
+            {session.role ? ROLE_LABEL[session.role as SchoolRole] ?? session.role : ""}{divisionLabel ? " · " + divisionLabel : ""} · <code className="font-mono">{session.userId}</code>
+          </p>
+        </div>
+        <button onClick={() => { schoolLogout(); navigate({ to: "/" }); }} className="text-xs rounded-full border border-border px-3 py-1.5 flex items-center gap-1"><LogOut size={12} /> Keluar</button>
+      </div>
+      {session.pinIsDefault && (
+        <p className="mt-2 rounded-lg bg-destructive/10 text-destructive text-[11px] px-3 py-2">
+          PIN Anda masih default (123456). Segera ganti lewat tab “Ganti PIN”.
         </p>
-      </div>
-      <div className="flex items-center gap-2">
-        <button onClick={() => { schoolLogout(); navigate({ to: "/school" }); }} className="text-xs rounded-full border border-border px-3 py-1.5 flex items-center gap-1"><LogOut size={12} /> Keluar</button>
-        <button onClick={() => { clearTeacherDevice(); navigate({ to: "/school" }); }} className="text-xs text-muted-foreground underline">Bukan Anda?</button>
-      </div>
+      )}
     </div>
   );
 }
+
 
 /** Read-only academic viewer shared by HoS / Admin HoS / Principal. */
 function AcademicReadOnly({ tab, classes, reviewerRole, reviewerName }: {
@@ -76,7 +84,7 @@ export function HosDashboard() {
   const staffList = (staff.data && "staff" in staff.data ? (staff.data.staff ?? []) : []) as unknown[];
   const tabs = [
     { id: "overview", label: "Overview" }, { id: "staff", label: "Staff" }, { id: "roles", label: "Kelola Role" },
-    { id: "activity", label: "Teacher Activity" }, { id: "announce", label: "Pengumuman" }, ...ACADEMIC_TABS,
+    { id: "activity", label: "Teacher Activity" }, { id: "announce", label: "Pengumuman" }, ...ACADEMIC_TABS, PIN_TAB,
   ];
   return (
     <div>
@@ -87,32 +95,26 @@ export function HosDashboard() {
           <StatCard label="Staff" value={staffList.length} Icon={Users} />
         </div>
       )}
-      {tab === "staff" && (
-        <StaffRoster
-          canEdit classes={classes} scopeDivision={null}
-          roleOptions={[{ v: "admin_hos", label: "Admin HoS" }, { v: "principal", label: "Principal" }]}
-        />
-      )}
+      {tab === "staff" && <StaffRoster canEdit classes={classes} scopeDivision={null} />}
       {tab === "roles" && <RoleManager classes={classes} />}
       {tab === "activity" && <AllActivitiesView division={null} />}
       {tab === "announce" && <AnnouncementPanel subrole="hos" division={null} classes={classes} />}
+      {tab === "pin" && <ChangePinPanel />}
       <AcademicReadOnly tab={tab} classes={classes} reviewerRole="hos" reviewerName="Head of School" />
     </div>
   );
 }
 
-/** HoS-only: create Admin HoS / Principal accounts with the default PIN. */
+/** HoS-only: create any school account (Vice HoS, Admin HoS, Principal, Vice/Admin Principal, Teachers). */
 export function RoleManager({ classes }: { classes: { id: string; name: string }[] }) {
   return (
     <div>
       <p className="text-xs text-muted-foreground mb-3">
-        Tambah akun baru untuk Admin HoS atau Principal. PIN awal <code className="font-mono">123456</code> — staff wajib menggantinya sendiri saat login pertama.
-        Role yang mencakup semua divisi otomatis diberi divisi <span className="font-semibold">All Divisions</span>.
+        Buat akun baru: Vice HoS, Admin HoS, Principal, Vice Principal, Admin Principal, Homeroom Teacher (bisa assign/lepas kelas)
+        dan Subject Teacher (bisa assign/lepas mata pelajaran). UserID dibuat otomatis, PIN awal <code className="font-mono">123456</code> —
+        wajib diganti saat login pertama. Role yang mencakup semua divisi otomatis diberi divisi <span className="font-semibold">All Divisions</span>.
       </p>
-      <StaffRoster
-        canEdit classes={classes} scopeDivision={null}
-        roleOptions={[{ v: "admin_hos", label: "Admin HoS" }, { v: "principal", label: "Principal" }]}
-      />
+      <StaffRoster canEdit classes={classes} scopeDivision={null} />
     </div>
   );
 }
@@ -123,25 +125,18 @@ export function AdminHosDashboard() {
   const classes = useClasses();
   const tabs = [
     { id: "import", label: "Import Data" }, { id: "students", label: "Data Murid" },
-    { id: "staff", label: "Staff" }, { id: "announce", label: "Pengumuman" }, ...ACADEMIC_TABS,
+    { id: "staff", label: "Staff" }, { id: "personnel", label: "Kelola Personil" },
+    { id: "announce", label: "Pengumuman" }, ...ACADEMIC_TABS, PIN_TAB,
   ];
   return (
     <div>
       <Tabs tabs={tabs} tab={tab} onChange={setTab} />
       {tab === "import" && <CsvImportPanel classes={classes} />}
       {tab === "students" && <StudentRoster canEdit classes={classes} />}
-      {tab === "staff" && (
-        <StaffRoster
-          canEdit classes={classes} scopeDivision={null}
-          roleOptions={[
-            { v: "principal", label: "Principal" },
-            { v: "teacher_homeroom", label: "Homeroom Teacher" },
-            { v: "teacher_shadow", label: "Shadow Teacher" },
-            { v: "teacher_subject", label: "Subject Teacher" },
-          ]}
-        />
-      )}
+      {tab === "staff" && <StaffRoster canEdit classes={classes} scopeDivision={null} />}
+      {tab === "personnel" && <PersonnelManager classes={classes} />}
       {tab === "announce" && <AnnouncementPanel subrole="admin_hos" division={null} classes={classes} />}
+      {tab === "pin" && <ChangePinPanel />}
       <AcademicReadOnly tab={tab} classes={classes} reviewerRole={null} />
     </div>
   );
@@ -154,7 +149,7 @@ export function PrincipalDashboard({ division }: { division: string }) {
   const tabs = [
     { id: "overview", label: "Overview" }, { id: "students", label: "Murid & Guru" },
     { id: "staff", label: "Staff" }, { id: "activity", label: "Teacher Activity" },
-    { id: "announce", label: "Pengumuman" }, ...ACADEMIC_TABS,
+    { id: "announce", label: "Pengumuman" }, ...ACADEMIC_TABS, PIN_TAB,
   ];
   return (
     <div>
@@ -165,16 +160,23 @@ export function PrincipalDashboard({ division }: { division: string }) {
       {tab === "staff" && <StaffRoster canEdit classes={classes} scopeDivision={division} />}
       {tab === "activity" && <AllActivitiesView division={division} />}
       {tab === "announce" && <AnnouncementPanel subrole="principal" division={division} classes={classes} />}
+      {tab === "pin" && <ChangePinPanel />}
       <AcademicReadOnly tab={tab} classes={classes} reviewerRole="principal" reviewerName="Principal" />
     </div>
   );
 }
 
+
 /* ───────────── Teacher ───────────── */
 export function TeacherDashboard({ staffName, role, defaultClassId }: { staffName: string; role: string | null; defaultClassId: string | null }) {
   const pw = getStoredPassword();
   const [reload, setReload] = useState(0);
-  const classList = useClasses();
+  const allClasses = useClasses();
+  const isHomeroom = role === "teacher_homeroom";
+  const isSubject = role === "teacher_subject";
+  // Homeroom teachers are scoped to their assigned class everywhere (Kelas tab,
+  // Attendance, Assessment …) so every tab always shows the same class.
+  const classList = isHomeroom && defaultClassId ? allClasses.filter((c) => c.id === defaultClassId) : allClasses;
   const [classId, setClassId] = useState(defaultClassId ?? "");
   const students = useAsync(() => (classId ? listSchoolStudents({ data: { password: pw, classId } }) : Promise.resolve(null)), [pw, classId, reload]);
   const activities = useAsync(() => (classId ? listActivitiesForClass({ data: { password: pw, classId } }) : Promise.resolve(null)), [pw, classId, reload]);
@@ -185,9 +187,6 @@ export function TeacherDashboard({ staffName, role, defaultClassId }: { staffNam
 
   const studentList = (students.data && "students" in students.data ? (students.data.students ?? []) : []) as { id: string; full_name: string }[];
   const activityList = (activities.data && "activities" in activities.data ? (activities.data.activities ?? []) : []) as { id: string; title: string; body?: string; activity_date: string; author_name?: string }[];
-
-  const isHomeroom = role === "teacher_homeroom";
-  const isSubject = role === "teacher_subject";
 
   async function post() {
     if (!title.trim() || !classId) return;
@@ -204,7 +203,7 @@ export function TeacherDashboard({ staffName, role, defaultClassId }: { staffNam
       <div>
         <button onClick={() => setSelectedStudent(null)} className="text-xs text-muted-foreground underline mb-3">Kembali ke kelas</button>
         <p className="text-sm font-semibold mb-3">{selectedStudent.full_name}</p>
-        <Section title="Guardians dan Undangan" Icon={Users}><GuardianEditor studentId={selectedStudent.id} canEdit /></Section>
+        <Section title="Invite Parent & Akun Wali" Icon={Users}><GuardianEditor studentId={selectedStudent.id} canEdit /></Section>
         <Section title="Pesan dengan Orangtua" Icon={MessageSquare}><TeacherMessageThread studentId={selectedStudent.id} staffName={staffName} /></Section>
       </div>
     );
@@ -213,8 +212,9 @@ export function TeacherDashboard({ staffName, role, defaultClassId }: { staffNam
   const tabs = [
     { id: "kelas", label: "Kelas" }, { id: "calendar", label: "Kalender" }, { id: "timetable", label: "Timetable" },
     { id: "lesson", label: "Lesson Plan" }, { id: "projects", label: "Project & Surat Resmi" },
-    ...(isSubject ? [{ id: "assessment", label: "Assessment" }] : []),
+    { id: "assessment", label: "Assessment" },
     ...(isHomeroom ? [{ id: "attendance", label: "Attendance" }] : []),
+    PIN_TAB,
   ];
 
   return (
@@ -225,8 +225,9 @@ export function TeacherDashboard({ staffName, role, defaultClassId }: { staffNam
       {tab === "timetable" && <TimetablePanel access={{ pw }} classes={classList} canEdit />}
       {tab === "lesson" && <LessonPlanPanel pw={pw} classes={classList} canEdit />}
       {tab === "projects" && <ProjectPanel pw={pw} classes={classList} canSubmit reviewerRole={null} reviewerName={staffName} />}
-      {tab === "assessment" && isSubject && <AssessmentPanel access={{ pw }} classes={classList} canEdit />}
+      {tab === "assessment" && <AssessmentPanel access={{ pw }} classes={classList} canEdit={isSubject || isHomeroom} />}
       {tab === "attendance" && isHomeroom && <AttendancePanel access={{ pw }} classes={classList} canEdit />}
+      {tab === "pin" && <ChangePinPanel />}
 
       {tab === "kelas" && (
         <>
@@ -234,6 +235,7 @@ export function TeacherDashboard({ staffName, role, defaultClassId }: { staffNam
             <option value="">pilih kelas</option>
             {classList.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
+
           {classId && (
             <>
               <Section title="Murid" Icon={Baby}>
@@ -289,8 +291,11 @@ export function ParentDashboard({ code }: { code: string }) {
     <div>
       <div className="flex items-center justify-between mb-4">
         <div className="rounded-full bg-primary/15 text-primary px-3 py-1.5 text-sm font-semibold flex items-center gap-1.5"><Baby size={14} /> {student.nickname || student.full_name}</div>
-        <button onClick={() => { parentLogout(); navigate({ to: "/school" }); }} className="text-xs rounded-full border border-border px-3 py-1.5 flex items-center gap-1"><LogOut size={12} /> Keluar</button>
+        <button onClick={() => { schoolLogout(); navigate({ to: "/" }); }} className="text-xs rounded-full border border-border px-3 py-1.5 flex items-center gap-1"><LogOut size={12} /> Keluar</button>
       </div>
+
+      <Section title="Ganti PIN" Icon={Shield}><ChangePinPanel /></Section>
+
 
       <Section title="Pengumuman" Icon={Megaphone}>
         <ul className="space-y-2">
