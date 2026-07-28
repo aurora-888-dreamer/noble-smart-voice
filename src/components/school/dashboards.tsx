@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
-  CalendarPanel, TimetablePanel, LessonPlanPanel, ProjectPanel, AssessmentPanel, AttendancePanel, AgendaPanel, StaffMessagePanel, CasePanel, EvaluationPanel,
+  CalendarPanel, TimetablePanel, LessonPlanPanel, ProjectPanel, AssessmentPanel, AttendancePanel, AgendaPanel, StaffMessagePanel, CasePanel, CompetencyManager,
 } from "./SchoolAcademic";
 import {
   DIVISIONS, ROLE_LABEL, Hint, Section, StatCard, Tabs, ReadOnlyNote, useAsync, useClasses,
@@ -56,13 +56,14 @@ export function StaffHeader({ session }: { session: SchoolSession }) {
 /** Read-only academic viewer shared by HoS / Admin HoS / Principal — except
  * Calendar, which HoS and Principal can edit for their OWN agenda entries
  * (everyone still sees everyone else's, per the "stay in sync" rule). */
-function AcademicReadOnly({ tab, classes, reviewerRole, reviewerName, calendarStaffId, timetableStaffId }: {
+function AcademicReadOnly({ tab, classes, reviewerRole, reviewerName, calendarStaffId, timetableStaffId, staffId }: {
   tab: string;
   classes: { id: string; name: string }[];
   reviewerRole: "principal" | "hos" | null;
   reviewerName?: string;
   calendarStaffId?: string | null;
   timetableStaffId?: string | null;
+  staffId?: string | null;
 }) {
   const pw = getStoredPassword();
   if (!ACADEMIC_TABS.some((t) => t.id === tab)) return null;
@@ -71,6 +72,18 @@ function AcademicReadOnly({ tab, classes, reviewerRole, reviewerName, calendarSt
   }
   if (tab === "timetable" && reviewerRole === "principal" && timetableStaffId) {
     return <TimetablePanel access={{ pw }} classes={classes} canEdit staffId={timetableStaffId} />;
+  }
+  if (tab === "projects" && reviewerRole === "principal") {
+    return <ProjectPanel pw={pw} classes={classes} canSubmit staffId={staffId} reviewerRole={reviewerRole} reviewerName={reviewerName} />;
+  }
+  if (tab === "assessment" && reviewerRole === "principal" && staffId) {
+    return (
+      <div>
+        <CompetencyManager pw={pw} staffId={staffId} />
+        <ReadOnlyNote />
+        <AssessmentPanel access={{ pw }} classes={classes} canEdit={false} />
+      </div>
+    );
   }
   return (
     <div>
@@ -95,7 +108,7 @@ export function HosDashboard({ staffId }: { staffId: string }) {
   const tabs = [
     { id: "overview", label: "Overview" }, { id: "staff", label: "Staff & Role" }, { id: "agenda", label: "Agenda" },
     { id: "message", label: "Message" }, { id: "laporan", label: "Report" },
-    { id: "activity", label: "Teacher Activity" }, { id: "announce", label: "Announcements" }, ...ACADEMIC_TABS, PIN_TAB, { id: "evaluation", label: "Evaluation" },
+    { id: "activity", label: "Teacher Activity" }, { id: "announce", label: "Announcements" }, ...ACADEMIC_TABS, PIN_TAB,
   ];
   return (
     <div>
@@ -107,10 +120,9 @@ export function HosDashboard({ staffId }: { staffId: string }) {
           </div>
         )}
         {tab === "staff" && <RoleManager classes={classes} />}
-        {tab === "agenda" && <AgendaPanel pw={pw} staffId={staffId} />}
+        {tab === "agenda" && <AgendaPanel pw={pw} role="hos" staffId={staffId} staffName="Head of School" classes={classes} />}
         {tab === "message" && <StaffMessagePanel pw={pw} staffId={staffId} />}
         {tab === "laporan" && <CasePanel access={{ pw }} role="hos" staffId={staffId} staffName="Head of School" classes={classes} />}
-        {tab === "evaluation" && <EvaluationPanel pw={pw} role="hos" />}
         {tab === "activity" && <AllActivitiesView division={null} />}
         {tab === "announce" && <AnnouncementPanel subrole="hos" division={null} classes={classes} />}
         {tab === "pin" && <ChangePinPanel />}
@@ -166,7 +178,7 @@ export function PrincipalDashboard({ division, staffId, staffName }: { division:
   const tabs = [
     { id: "overview", label: "Overview" }, { id: "students", label: "Student" },
     { id: "staff", label: "Staff" }, { id: "message", label: "Message" }, { id: "agenda", label: "Agenda" }, { id: "laporan", label: "Report" }, { id: "activity", label: "Teacher Activity" },
-    { id: "announce", label: "Announcements" }, ...ACADEMIC_TABS, PIN_TAB, { id: "evaluation", label: "Evaluation" },
+    { id: "announce", label: "Announcements" }, ...ACADEMIC_TABS, PIN_TAB,
   ];
   return (
     <div>
@@ -176,13 +188,12 @@ export function PrincipalDashboard({ division, staffId, staffName }: { division:
         {tab === "students" && <StudentRoster canEdit classes={classes} />}
         {tab === "staff" && <StaffRoster canEdit classes={classes} scopeDivision={division} />}
         {tab === "message" && <StaffMessagePanel pw={pw} staffId={staffId} />}
-        {tab === "agenda" && <AgendaPanel pw={pw} staffId={staffId} />}
+        {tab === "agenda" && <AgendaPanel pw={pw} role="principal" staffId={staffId} staffName={staffName} division={division} classes={classes} />}
         {tab === "laporan" && <CasePanel access={{ pw }} role="principal" staffId={staffId} staffName={staffName} division={division} classes={classes} />}
-        {tab === "evaluation" && <EvaluationPanel pw={pw} role="principal" staffId={staffId} division={division} />}
         {tab === "activity" && <AllActivitiesView division={division} />}
         {tab === "announce" && <AnnouncementPanel subrole="principal" division={division} classes={classes} />}
         {tab === "pin" && <ChangePinPanel />}
-        <AcademicReadOnly tab={tab} classes={classes} reviewerRole="principal" reviewerName="Principal" calendarStaffId={staffId} timetableStaffId={staffId} />
+        <AcademicReadOnly tab={tab} classes={classes} reviewerRole="principal" reviewerName="Principal" calendarStaffId={staffId} timetableStaffId={staffId} staffId={staffId} />
       </Tabs>
     </div>
   );
@@ -237,6 +248,7 @@ export function TeacherDashboard({ staffId, staffName, role, defaultClassId }: {
     { id: "assessment", label: "Assessment" },
     ...(isHomeroom ? [{ id: "attendance", label: "Attendance" }] : []),
     { id: "message", label: "Message" },
+    { id: "agenda", label: "Agenda" },
     { id: "laporan", label: "Report" },
     PIN_TAB,
   ];
@@ -251,6 +263,7 @@ export function TeacherDashboard({ staffId, staffName, role, defaultClassId }: {
         {tab === "assessment" && <AssessmentPanel access={{ pw }} classes={classList} canEdit={isSubject || isHomeroom} />}
         {tab === "attendance" && isHomeroom && <AttendancePanel access={{ pw }} classes={classList} canEdit />}
         {tab === "message" && <StaffMessagePanel pw={pw} staffId={staffId} />}
+        {tab === "agenda" && <AgendaPanel pw={pw} role="teacher" staffId={staffId} staffName={staffName} classes={classList} />}
         {tab === "laporan" && <CasePanel access={{ pw }} role="teacher" staffId={staffId} staffName={staffName} classes={classList} />}
         {tab === "pin" && <ChangePinPanel />}
 

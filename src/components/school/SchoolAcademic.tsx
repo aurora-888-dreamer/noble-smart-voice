@@ -10,12 +10,17 @@ import {
   listLessonPlans, saveLessonPlan, deleteLessonPlan,
   listProjects, saveProject, reviewProject, listProjectReviews,
   listAssessments, saveAssessment, deleteAssessment, draftAssessmentNote,
+  listCompetencies, saveCompetency, deleteCompetency,
   listAttendance, saveAttendance,
 } from "@/lib/school-academic.functions";
-import { listAgendas, saveAgenda, deleteAgenda, addAgendaPic, removeAgendaPic } from "@/lib/school-agenda.functions";
+import {
+  listAgendas, saveAgenda, deleteAgenda, addAgendaPic, removeAgendaPic,
+  submitAgendaForApproval, reviewAgenda, startAgendaExecution, closeAgenda,
+  listAgendaTimeline, addAgendaComment,
+} from "@/lib/school-agenda.functions";
 import { listMessagingContacts, listStaffConversation, sendStaffMessage } from "@/lib/school-staff-messages.functions";
 import {
-  reportCaseAsTeacher, reportCaseAsParent, listCases, listCasesForParent,
+  reportCaseAsTeacher, reportCaseAsParent, reportCaseAsPrincipal, listCases, listCasesForParent,
   listCaseTimeline, listCaseTimelineForParent, addCaseComment, addCaseCommentAsParent,
   listCaseParticipants, addCaseParticipant, escalateCaseToHos, closeCase, reopenCase,
 } from "@/lib/school-case.functions";
@@ -147,7 +152,7 @@ export function CalendarPanel({ access, classes, canEdit, compact }: { access: A
           <p className="text-[11px] text-muted-foreground">Anda hanya bisa mengubah/menghapus agenda yang Anda buat sendiri — agenda milik orang lain tetap bisa dilihat. Atau langsung klik tanggal di kalender di bawah untuk isi cepat.</p>
           <div className="flex items-center gap-2 pt-1 border-t border-border mt-1">
             <button onClick={() => fileRef.current?.click()} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold">Import Agenda Tahunan (CSV)</button>
-            <input ref={fileRef} type="file" accept=".csv,text/csv" onChange={handleImportFile} className="hidden" />
+            <input ref={fileRef} type="file" accept=".csv,text/csv,text/plain,application/vnd.ms-excel,text/comma-separated-values" onChange={handleImportFile} className="hidden" />
             <span className="text-[10px] text-muted-foreground">Kolom: title, eventDate (YYYY-MM-DD), eventType, description, className (opsional)</span>
           </div>
           {importMsg && <p className="text-xs">{importMsg}</p>}
@@ -395,7 +400,7 @@ export function TimetablePanel({ access, classes, canEdit, staffId }: { access: 
           <Err msg={err} />
           <div className="flex items-center gap-2 pt-1 border-t border-border mt-1">
             <button onClick={() => fileRef.current?.click()} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold">Import Timetable (CSV)</button>
-            <input ref={fileRef} type="file" accept=".csv,text/csv" onChange={handleImportFile} className="hidden" />
+            <input ref={fileRef} type="file" accept=".csv,text/csv,text/plain,application/vnd.ms-excel,text/comma-separated-values" onChange={handleImportFile} className="hidden" />
             <span className="text-[10px] text-muted-foreground">Kolom: className, dayOfWeek (1-5), subject, startTime, endTime</span>
           </div>
           {importMsg && <p className="text-xs">{importMsg}</p>}
@@ -559,7 +564,7 @@ export function ProjectPanel({
   async function submit(asDraft: boolean) {
     if (!title.trim() || !classId) return;
     setBusy(true); setErr(null);
-    const r = await saveProject({ data: { password: pw, id: editingId || undefined, classId, teacherId: staffId || undefined, title, description, submit: !asDraft, requiresHos } });
+    const r = await saveProject({ data: { password: pw, id: editingId || undefined, classId, teacherId: staffId || undefined, submitterRole: reviewerRole === "principal" ? "principal" : "teacher", title, description, submit: !asDraft, requiresHos } });
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     setTitle(""); setDescription(""); setEditingId(null); setReload((x) => x + 1);
@@ -577,7 +582,7 @@ export function ProjectPanel({
         </div>
       )}
 
-      {canSubmit && view === "list" && (
+      {canSubmit && (reviewerRole || view === "list") && (
         <div className={card + " mb-3 grid gap-2"}>
           {editingId && <p className="text-xs text-primary font-semibold">Mengedit project yang diminta revisi — ajukan ulang setelah diperbaiki.</p>}
           <select value={classId} onChange={(e) => setClassId(e.target.value)} className={field}>
@@ -717,6 +722,13 @@ export function AssessmentPanel({ access, classes, canEdit, staffId }: { access:
   const [busy, setBusy] = useState(false);
   const [drafting, setDrafting] = useState(false);
 
+  const compRes = useAsync(() => (canEdit && access.pw && subject.trim() ? listCompetencies({ data: { password: access.pw, subject: subject.trim() } }) : Promise.resolve(null)), [access.pw, canEdit, subject]);
+  const templateCompetencies: Row[] = compRes.data && compRes.data.ok ? compRes.data.competencies : [];
+  function loadTemplateCompetencies() {
+    if (templateCompetencies.length === 0) return;
+    setForms(templateCompetencies.map((c) => ({ competency: c.title, achieved: false, rating: 3 })));
+  }
+
   const studentsRes = useAsync(
     () => (access.pw && classId ? listSchoolStudents({ data: { password: access.pw, classId } }) : Promise.resolve(null)),
     [access.pw, classId],
@@ -790,7 +802,12 @@ export function AssessmentPanel({ access, classes, canEdit, staffId }: { access:
             <input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} className={field} />
           </div>
 
-          <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold mt-1">Checklist Kompetensi</p>
+          <div className="flex items-center justify-between mt-1">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Checklist Kompetensi</p>
+            {templateCompetencies.length > 0 && (
+              <button onClick={loadTemplateCompetencies} className="text-xs text-primary underline">Load Competencies ({templateCompetencies.length}) from Principal</button>
+            )}
+          </div>
           <ul className="space-y-2">
             {forms.map((f, i) => (
               <li key={i} className="rounded-lg bg-secondary/40 p-2 grid gap-2">
@@ -1095,8 +1112,18 @@ export function AttendancePanel({ access, classes, canEdit, staffId }: { access:
   );
 }
 
-/* ───────────── 7. Agenda Sekolah (HoS only) ───────────── */
-export function AgendaPanel({ pw, staffId }: { pw: string; staffId: string }) {
+/* ───────────── 7. Agenda (HoS: school-wide; Principal: division/classes w/ HoS approval; Teacher: own class) ───────────── */
+const AGENDA_STATUS: Record<string, { label: string; cls: string }> = {
+  draft: { label: "Draft", cls: "bg-muted text-muted-foreground" },
+  submitted: { label: "Awaiting HoS Approval", cls: "bg-yellow-500/20 text-yellow-700" },
+  revision_requested: { label: "Revision Requested", cls: "bg-blue-500/15 text-blue-600" },
+  approved: { label: "Approved", cls: "bg-emerald-500/15 text-emerald-600" },
+  rejected: { label: "Rejected", cls: "bg-red-500/15 text-red-600" },
+};
+
+export function AgendaPanel({ pw, role, staffId, staffName, division, classes }: {
+  pw: string; role: "hos" | "principal" | "teacher"; staffId: string; staffName?: string; division?: string; classes?: ClassOpt[];
+}) {
   const [reload, setReload] = useState(0);
   const [open, setOpen] = useState<string | null>(null);
   const [title, setTitle] = useState("");
@@ -1104,22 +1131,34 @@ export function AgendaPanel({ pw, staffId }: { pw: string; staffId: string }) {
   const [theme, setTheme] = useState("");
   const [startDate, setStartDate] = useState(today());
   const [endDate, setEndDate] = useState(today());
+  const [scopeLevel, setScopeLevel] = useState<"school" | "division" | "class">(role === "hos" ? "school" : role === "teacher" ? "class" : "division");
+  const [classIds, setClassIds] = useState<string[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const res = useAsync(() => listAgendas({ data: { password: pw } }), [pw, reload]);
+  const res = useAsync(() => listAgendas({ data: { password: pw, role, staffId, division } }), [pw, role, staffId, division, reload]);
   const agendas: Row[] = res.data && res.data.ok ? res.data.agendas : [];
 
   const staffRes = useAsync(() => listSchoolStaff({ data: { password: pw } }), [pw]);
   const staffList: Row[] = staffRes.data && "staff" in staffRes.data ? (staffRes.data.staff ?? []) : [];
 
+  function toggleClass(id: string) {
+    setClassIds((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]));
+  }
+
   async function create() {
     if (!title.trim()) return;
     setBusy(true); setErr(null);
-    const r = await saveAgenda({ data: { password: pw, staffId, title, purpose, theme, startDate, endDate } });
+    const r = await saveAgenda({
+      data: {
+        password: pw, staffId, role, title, purpose, theme, startDate, endDate,
+        scopeLevel: role === "teacher" ? "class" : scopeLevel, division,
+        classIds: role === "teacher" ? (classes?.[0] ? [classes[0].id] : []) : classIds,
+      },
+    });
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
-    setTitle(""); setPurpose(""); setTheme(""); setReload((x) => x + 1);
+    setTitle(""); setPurpose(""); setTheme(""); setClassIds([]); setReload((x) => x + 1);
   }
   async function remove(id: string) {
     await deleteAgenda({ data: { password: pw, id } });
@@ -1129,38 +1168,65 @@ export function AgendaPanel({ pw, staffId }: { pw: string; staffId: string }) {
   return (
     <div>
       <div className={card + " mb-3 grid gap-2"}>
-        <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Agenda Sekolah Baru</p>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Judul" className={field} />
-        <input value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="Tujuan" className={field} />
-        <input value={theme} onChange={(e) => setTheme(e.target.value)} placeholder="Tema" className={field} />
+        <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">New Agenda</p>
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" className={field} />
+        <input value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="Purpose" className={field} />
+        <input value={theme} onChange={(e) => setTheme(e.target.value)} placeholder="Theme" className={field} />
         <div className="flex gap-2 flex-wrap items-center">
-          <label className="text-xs text-muted-foreground">Mulai</label>
+          <label className="text-xs text-muted-foreground">Start</label>
           <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm" />
-          <label className="text-xs text-muted-foreground">Selesai</label>
+          <label className="text-xs text-muted-foreground">End</label>
           <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm" />
         </div>
-        <button onClick={create} disabled={busy} className={btn + " justify-self-start"}><Plus size={13} /> Buat Agenda</button>
+        {role === "principal" && (
+          <div>
+            <div className="flex gap-2 mb-2">
+              <button onClick={() => setScopeLevel("division")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (scopeLevel === "division" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Whole Division</button>
+              <button onClick={() => setScopeLevel("class")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (scopeLevel === "class" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Specific Classes</button>
+            </div>
+            {scopeLevel === "class" && (
+              <div className="flex gap-1.5 flex-wrap">
+                {(classes ?? []).map((c) => (
+                  <button key={c.id} onClick={() => toggleClass(c.id)} className={"rounded-full px-2.5 py-1 text-xs border " + (classIds.includes(c.id) ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>{c.name}</button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        <button onClick={create} disabled={busy} className={btn + " justify-self-start"}><Plus size={13} /> Create Agenda</button>
+        {role === "principal" && <p className="text-[11px] text-muted-foreground">New agendas start as Draft — use "Deliver to HoS for Approval" below once ready.</p>}
         <Err msg={err} />
       </div>
 
       <ul className="space-y-2">
         {agendas.map((a) => (
-          <AgendaRow key={a.id} agenda={a} pw={pw} staffList={staffList} open={open === a.id} onToggle={() => setOpen(open === a.id ? null : a.id)} onRemove={() => remove(a.id)} onChanged={() => setReload((x) => x + 1)} />
+          <AgendaRow key={a.id} agenda={a} pw={pw} role={role} staffName={staffName ?? ""} staffList={staffList} open={open === a.id} onToggle={() => setOpen(open === a.id ? null : a.id)} onRemove={() => remove(a.id)} onChanged={() => setReload((x) => x + 1)} />
         ))}
-        {agendas.length === 0 && <Hint>Belum ada agenda sekolah.</Hint>}
+        {agendas.length === 0 && <Hint>No agendas yet.</Hint>}
       </ul>
     </div>
   );
 }
 
-function AgendaRow({ agenda, pw, staffList, open, onToggle, onRemove, onChanged }: {
-  agenda: Row; pw: string; staffList: Row[]; open: boolean; onToggle: () => void; onRemove: () => void; onChanged: () => void;
+function AgendaRow({ agenda, pw, role, staffName, staffList, open, onToggle, onRemove, onChanged }: {
+  agenda: Row; pw: string; role: "hos" | "principal" | "teacher"; staffName: string; staffList: Row[];
+  open: boolean; onToggle: () => void; onRemove: () => void; onChanged: () => void;
 }) {
   const [picStaffId, setPicStaffId] = useState("");
   const [extName, setExtName] = useState("");
   const [extContact, setExtContact] = useState("");
   const [addingExternal, setAddingExternal] = useState(false);
+  const [reviewNotes, setReviewNotes] = useState("");
+  const [comment, setComment] = useState("");
+  const [finalReport, setFinalReport] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
   const picList: Row[] = agenda.school_agenda_pic ?? [];
+  const badge = AGENDA_STATUS[agenda.approval_status] ?? AGENDA_STATUS.draft;
+  const classNames: string = (agenda.school_agenda_classes ?? []).map((c: Row) => c.school_classes?.name).filter(Boolean).join(", ");
+
+  const timelineRes = useAsync(() => (open ? listAgendaTimeline({ data: { password: pw, agendaId: agenda.id } }) : Promise.resolve(null)), [open, pw, agenda.id]);
+  const timeline: Row[] = timelineRes.data && timelineRes.data.ok ? timelineRes.data.entries : [];
 
   async function addInternal() {
     if (!picStaffId) return;
@@ -1176,17 +1242,50 @@ function AgendaRow({ agenda, pw, staffList, open, onToggle, onRemove, onChanged 
     await removeAgendaPic({ data: { password: pw, id } });
     onChanged();
   }
+  async function submitForApproval() {
+    setBusy(true); setErr(null);
+    const r = await submitAgendaForApproval({ data: { password: pw, agendaId: agenda.id, actorName: staffName } });
+    setBusy(false);
+    if (!r.ok) { setErr(r.error); return; }
+    onChanged();
+  }
+  async function review(decision: "approve" | "reject" | "revise") {
+    setBusy(true); setErr(null);
+    const r = await reviewAgenda({ data: { password: pw, agendaId: agenda.id, actorName: staffName, decision, notes: reviewNotes } });
+    setBusy(false);
+    if (!r.ok) { setErr(r.error); return; }
+    setReviewNotes(""); onChanged();
+  }
+  async function startExecution() {
+    const r = await startAgendaExecution({ data: { password: pw, agendaId: agenda.id, actorName: staffName } });
+    if (!r.ok) { setErr(r.error); return; }
+    onChanged();
+  }
+  async function sendComment() {
+    if (!comment.trim()) return;
+    await addAgendaComment({ data: { password: pw, agendaId: agenda.id, authorName: staffName, authorRole: role, body: comment } });
+    setComment(""); onChanged();
+  }
+  async function close() {
+    setBusy(true); setErr(null);
+    const r = await closeAgenda({ data: { password: pw, agendaId: agenda.id, actorName: staffName, finalReport } });
+    setBusy(false);
+    if (!r.ok) { setErr(r.error); return; }
+    setFinalReport(""); onChanged();
+  }
 
   return (
     <li className="rounded-xl bg-card border border-border p-3">
       <button onClick={onToggle} className="w-full text-left">
         <div className="flex items-center justify-between gap-2">
           <p className="text-sm font-semibold">{agenda.title}</p>
-          <span className="text-[10px] uppercase text-muted-foreground shrink-0">{agenda.status}</span>
+          <span className={"shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase " + badge.cls}>{badge.label}</span>
         </div>
         <p className="text-xs text-muted-foreground mt-0.5">
-          {agenda.theme ? agenda.theme + " · " : ""}
+          {agenda.scope_level === "school" ? "Whole School" : agenda.scope_level === "division" ? "Whole Division" : classNames || "Class"}
+          {" · "}{agenda.theme ? agenda.theme + " · " : ""}
           {agenda.start_date ? new Date(agenda.start_date).toLocaleDateString() : ""}{agenda.end_date ? " – " + new Date(agenda.end_date).toLocaleDateString() : ""}
+          {agenda.execution_status === "closed" ? " · Closed" : agenda.execution_status === "in_progress" ? " · In Progress" : ""}
         </p>
         {picList.length > 0 && (
           <p className="text-[11px] text-muted-foreground mt-1">
@@ -1196,43 +1295,115 @@ function AgendaRow({ agenda, pw, staffList, open, onToggle, onRemove, onChanged 
       </button>
       {open && (
         <div className="mt-3 pt-3 border-t border-border space-y-3">
-          {agenda.purpose && <p className="text-sm"><span className="text-muted-foreground">Tujuan: </span>{agenda.purpose}</p>}
+          {agenda.purpose && <p className="text-sm"><span className="text-muted-foreground">Purpose: </span>{agenda.purpose}</p>}
+          {agenda.last_review_notes && <p className="text-xs rounded-lg bg-secondary/50 p-2"><span className="text-muted-foreground">HoS notes: </span>{agenda.last_review_notes}</p>}
+          {agenda.final_report && <p className="text-xs rounded-lg bg-emerald-500/10 p-2"><span className="text-muted-foreground">Final Report: </span>{agenda.final_report}</p>}
 
-          <div>
-            <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">PIC (Person in Charge)</p>
-            <ul className="space-y-1.5 mb-2">
-              {picList.map((p) => (
-                <li key={p.id} className="flex items-center justify-between text-sm rounded-lg bg-secondary/40 px-2 py-1.5">
-                  <span>{p.is_external ? p.external_name + " (eksternal)" : p.school_staff?.full_name}</span>
-                  <button onClick={() => removePic(p.id)} className="text-destructive"><Trash2 size={13} /></button>
-                </li>
-              ))}
-              {picList.length === 0 && <Hint>Belum ada PIC ditunjuk.</Hint>}
-            </ul>
-            <div className="flex gap-2 flex-wrap">
-              <select value={picStaffId} onChange={(e) => setPicStaffId(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm">
-                <option value="">pilih staff internal</option>
-                {staffList.map((s) => <option key={s.id} value={s.id}>{s.full_name}</option>)}
-              </select>
-              <button onClick={addInternal} disabled={!picStaffId} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold disabled:opacity-40">Tambah PIC Internal</button>
-              <button onClick={() => setAddingExternal((v) => !v)} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold">+ PIC Eksternal</button>
-            </div>
-            {addingExternal && (
-              <div className="mt-2 flex gap-2 flex-wrap">
-                <input value={extName} onChange={(e) => setExtName(e.target.value)} placeholder="Nama PIC eksternal" className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm" />
-                <input value={extContact} onChange={(e) => setExtContact(e.target.value)} placeholder="Kontak (opsional)" className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm" />
-                <button onClick={addExternal} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold">Tambah</button>
+          {role === "principal" && agenda.approval_status === "draft" && (
+            <button onClick={submitForApproval} disabled={busy} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold">Deliver to HoS for Approval</button>
+          )}
+          {role === "principal" && agenda.approval_status === "revision_requested" && (
+            <p className="text-xs text-blue-600">HoS asked for revision — edit details above and deliver again once ready.</p>
+          )}
+
+          {role === "hos" && agenda.approval_status === "submitted" && (
+            <div className="grid gap-2">
+              <textarea value={reviewNotes} onChange={(e) => setReviewNotes(e.target.value)} rows={2} placeholder="Notes for Principal (optional)" className={field} />
+              <div className="flex gap-2 flex-wrap">
+                <button onClick={() => review("approve")} disabled={busy} className="rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-xs font-semibold">Approve</button>
+                <button onClick={() => review("revise")} disabled={busy} className="rounded-lg bg-blue-600 text-white px-3 py-1.5 text-xs font-semibold">Request Revision</button>
+                <button onClick={() => review("reject")} disabled={busy} className="rounded-lg bg-destructive text-destructive-foreground px-3 py-1.5 text-xs font-semibold">Reject</button>
               </div>
-            )}
-            <p className="text-[11px] text-muted-foreground mt-1.5">PIC eksternal cuma dicatat nama & kontak — tidak bisa login untuk mengisi timeline sendiri.</p>
-          </div>
+            </div>
+          )}
 
-          <button onClick={onRemove} className="text-xs text-destructive flex items-center gap-1"><Trash2 size={12} /> Hapus Agenda</button>
+          {agenda.approval_status === "approved" && agenda.execution_status !== "closed" && (
+            <>
+              <div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">PIC (Person in Charge)</p>
+                <ul className="space-y-1.5 mb-2">
+                  {picList.map((p) => (
+                    <li key={p.id} className="flex items-center justify-between text-sm rounded-lg bg-secondary/40 px-2 py-1.5">
+                      <span>{p.is_external ? p.external_name + " (external)" : p.school_staff?.full_name}</span>
+                      <button onClick={() => removePic(p.id)} className="text-destructive"><Trash2 size={13} /></button>
+                    </li>
+                  ))}
+                  {picList.length === 0 && <Hint>No PIC assigned yet.</Hint>}
+                </ul>
+                <div className="flex gap-2 flex-wrap">
+                  <select value={picStaffId} onChange={(e) => setPicStaffId(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm">
+                    <option value="">pick internal staff</option>
+                    {staffList.map((s) => <option key={s.id} value={s.id}>{s.full_name}</option>)}
+                  </select>
+                  <button onClick={addInternal} disabled={!picStaffId} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold disabled:opacity-40">Add Internal PIC</button>
+                  <button onClick={() => setAddingExternal((v) => !v)} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold">+ External PIC</button>
+                </div>
+                {addingExternal && (
+                  <div className="mt-2 flex gap-2 flex-wrap">
+                    <input value={extName} onChange={(e) => setExtName(e.target.value)} placeholder="External PIC name" className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm" />
+                    <input value={extContact} onChange={(e) => setExtContact(e.target.value)} placeholder="Contact (optional)" className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm" />
+                    <button onClick={addExternal} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold">Add</button>
+                  </div>
+                )}
+              </div>
+
+              {agenda.execution_status === "not_started" && role !== "hos" && (
+                <button onClick={startExecution} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold">Start Execution</button>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Timeline</p>
+                  <ul className="space-y-1.5 max-h-56 overflow-y-auto">
+                    {timeline.map((t) => (
+                      <li key={t.id} className={"text-xs rounded-lg p-2 " + (t.entry_type === "system" ? "bg-secondary/40 text-muted-foreground italic" : "bg-secondary/60")}>
+                        <span className="font-semibold not-italic">{t.author_name}</span>{t.author_role ? " (" + t.author_role + ")" : ""}: {t.body}
+                        <span className="block text-[10px] opacity-60 mt-0.5">{new Date(t.created_at).toLocaleString()}</span>
+                      </li>
+                    ))}
+                    {timeline.length === 0 && <Hint>No timeline entries yet.</Hint>}
+                  </ul>
+                </div>
+                <div className="grid gap-2 content-start">
+                  {role !== "hos" && agenda.execution_status === "in_progress" && (
+                    <>
+                      <textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={2} placeholder="Add a timeline note…" className={field} />
+                      <button onClick={sendComment} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold justify-self-start">Add Note</button>
+                    </>
+                  )}
+                  {role === "principal" && agenda.execution_status === "in_progress" && (
+                    <div className="grid gap-2 pt-2 border-t border-border">
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Close with Evaluation / Final Report</p>
+                      <textarea value={finalReport} onChange={(e) => setFinalReport(e.target.value)} rows={3} placeholder="Evaluation summary — sent to HoS as the Final Report" className={field} />
+                      <button onClick={close} disabled={busy} className="rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-xs font-semibold justify-self-start">Close & Send Final Report</button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+
+          {agenda.execution_status === "closed" && timeline.length > 0 && (
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Timeline</p>
+              <ul className="space-y-1.5 max-h-56 overflow-y-auto">
+                {timeline.map((t) => (
+                  <li key={t.id} className={"text-xs rounded-lg p-2 " + (t.entry_type === "system" ? "bg-secondary/40 text-muted-foreground italic" : "bg-secondary/60")}>
+                    <span className="font-semibold not-italic">{t.author_name}</span>{t.author_role ? " (" + t.author_role + ")" : ""}: {t.body}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <Err msg={err} />
+          <button onClick={onRemove} className="text-xs text-destructive flex items-center gap-1"><Trash2 size={12} /> Delete Agenda</button>
         </div>
       )}
     </li>
   );
 }
+
 
 /* ───────────── 8. Staff Messaging (HoS<->Principal, Principal<->Teacher) ───────────── */
 export function StaffMessagePanel({ pw, staffId }: { pw: string; staffId: string }) {
@@ -1352,7 +1523,9 @@ export function CasePanel({
     setBusy(true); setErr(null);
     const r = access.code
       ? await reportCaseAsParent({ data: { code: access.code, title, description } })
-      : await reportCaseAsTeacher({ data: { password: access.pw!, staffId: staffId ?? "", staffName: staffName ?? "", classId: classId || undefined, division, title, description } });
+      : role === "principal"
+        ? await reportCaseAsPrincipal({ data: { password: access.pw!, staffId: staffId ?? "", staffName: staffName ?? "", classId: classId || undefined, division, title, description } })
+        : await reportCaseAsTeacher({ data: { password: access.pw!, staffId: staffId ?? "", staffName: staffName ?? "", classId: classId || undefined, division, title, description } });
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     setTitle(""); setDescription(""); setReload((x) => x + 1);
@@ -1360,10 +1533,10 @@ export function CasePanel({
 
   return (
     <div>
-      {(role === "teacher" || role === "parent") && (
+      {(role === "teacher" || role === "parent" || role === "principal") && (
         <div className={card + " mb-3 grid gap-2"}>
-          <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Lapor Kasus Baru ke Principal</p>
-          {role === "teacher" && (
+          <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">{role === "principal" ? "Open New Case" : "Lapor Kasus Baru ke Principal"}</p>
+          {(role === "teacher" || role === "principal") && (
             <select value={classId} onChange={(e) => setClassId(e.target.value)} className={field}>
               <option value="">kelas terkait (opsional)</option>
               {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -1600,6 +1773,79 @@ export function EvaluationPanel({ pw, role, staffId, division }: { pw: string; r
         ))}
         {evaluations.length === 0 && <Hint>No evaluations yet.</Hint>}
       </ul>
+    </div>
+  );
+}
+
+/* ───────────── 5c. Competency Manager (Principal only) ───────────── */
+export function CompetencyManager({ pw, staffId }: { pw: string; staffId: string }) {
+  const [reload, setReload] = useState(0);
+  const [subject, setSubject] = useState("");
+  const [title, setTitle] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+
+  const res = useAsync(() => listCompetencies({ data: { password: pw } }), [pw, reload]);
+  const all: Row[] = res.data && res.data.ok ? res.data.competencies : [];
+  const general = all.filter((c) => !c.subject);
+  const bySubject = new Map<string, Row[]>();
+  for (const c of all) {
+    if (!c.subject) continue;
+    bySubject.set(c.subject, [...(bySubject.get(c.subject) ?? []), c]);
+  }
+
+  async function add() {
+    if (!title.trim()) return;
+    setErr(null);
+    const r = await saveCompetency({ data: { password: pw, staffId, subject: subject.trim() || undefined, title } });
+    if (!r.ok) { setErr(r.error); return; }
+    setTitle(""); setReload((x) => x + 1);
+  }
+  async function remove(id: string) {
+    await deleteCompetency({ data: { password: pw, id } });
+    setReload((x) => x + 1);
+  }
+
+  return (
+    <div className="mb-4">
+      <div className={card + " grid gap-2 mb-3"}>
+        <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Add Competency</p>
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Competency name" className={field} />
+        <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject (leave empty = general, for all Homeroom classes)" className={field} />
+        <button onClick={add} className={btn + " justify-self-start"}><Plus size={13} /> Add</button>
+        <Err msg={err} />
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        <div>
+          <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">General (all Homeroom classes)</p>
+          <ul className="space-y-1.5">
+            {general.map((c) => (
+              <li key={c.id} className="flex items-center justify-between text-sm rounded-lg bg-secondary/40 px-2 py-1.5">
+                <span>{c.title}</span>
+                <button onClick={() => remove(c.id)} className="text-destructive"><Trash2 size={13} /></button>
+              </li>
+            ))}
+            {general.length === 0 && <Hint>None yet.</Hint>}
+          </ul>
+        </div>
+        <div>
+          <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">By Subject</p>
+          {Array.from(bySubject.entries()).map(([subj, comps]) => (
+            <div key={subj} className="mb-2">
+              <p className="text-xs font-semibold mb-1">{subj}</p>
+              <ul className="space-y-1.5">
+                {comps.map((c) => (
+                  <li key={c.id} className="flex items-center justify-between text-sm rounded-lg bg-secondary/40 px-2 py-1.5">
+                    <span>{c.title}</span>
+                    <button onClick={() => remove(c.id)} className="text-destructive"><Trash2 size={13} /></button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+          {bySubject.size === 0 && <Hint>None yet.</Hint>}
+        </div>
+      </div>
     </div>
   );
 }

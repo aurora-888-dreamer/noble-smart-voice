@@ -629,7 +629,7 @@ export function CsvImportPanel({ classes }: { classes: { id: string; name: strin
         <p className="text-xs text-muted-foreground mb-3">Kolom wajib: <code className="font-mono">fullName, className</code>. Opsional: <code className="font-mono">studentNumber, nickname, gender</code>.</p>
         <p className="text-[11px] text-muted-foreground mb-3">Kelas tersedia: {classes.map((c) => c.name).join(", ") || "(belum ada)"}</p>
         <button onClick={() => fileRef.current?.click()} disabled={busy} className="rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold flex items-center gap-2 disabled:opacity-50"><Upload size={15} /> {busy ? "Mengimpor" : "Pilih File CSV"}</button>
-        <input ref={fileRef} type="file" accept=".csv,text/csv" onChange={handleFile} className="hidden" />
+        <input ref={fileRef} type="file" accept=".csv,text/csv,text/plain,application/vnd.ms-excel,text/comma-separated-values" onChange={handleFile} className="hidden" />
         {result && <p className="text-xs mt-3 whitespace-pre-wrap">{result}</p>}
       </div>
     </div>
@@ -639,22 +639,39 @@ export function CsvImportPanel({ classes }: { classes: { id: string; name: strin
 /* ───────────── activities & announcements ───────────── */
 export function AllActivitiesView({ division }: { division: string | null }) {
   const pw = getStoredPassword();
+  const [teacherId, setTeacherId] = useState("");
   const activities = useAsync(() => listAllActivities({ data: { password: pw, division: division || undefined } }), [pw, division]);
-  const list = (activities.data && "activities" in activities.data ? (activities.data.activities ?? []) : []) as { id: string; title: string; body?: string; activity_date: string; author_name?: string; school_classes?: { name: string } }[];
+  const staffRes = useAsync(() => listSchoolStaff({ data: { password: pw } }), [pw]);
+  const teacherList = ((staffRes.data && "staff" in staffRes.data ? (staffRes.data.staff ?? []) : []) as { id: string; full_name: string; role: string; division?: string }[])
+    .filter((s) => s.role === "teacher_homeroom" || s.role === "teacher_subject")
+    .filter((s) => !division || s.division === division);
+  const selectedTeacher = teacherList.find((t) => t.id === teacherId);
+  const list = ((activities.data && "activities" in activities.data ? (activities.data.activities ?? []) : []) as { id: string; title: string; body?: string; activity_date: string; author_name?: string; school_classes?: { name: string } }[])
+    .filter((a) => !selectedTeacher || a.author_name === selectedTeacher.full_name);
   return (
-    <ul className="space-y-2">
-      {list.map((a) => (
-        <li key={a.id} className="rounded-xl bg-card border border-border p-3">
-          <div className="flex justify-between text-sm">
-            <p className="font-semibold">{a.title}</p>
-            <span className="text-xs text-muted-foreground">{a.school_classes?.name}</span>
-          </div>
-          <p className="text-xs text-muted-foreground mt-0.5">{new Date(a.activity_date).toLocaleDateString()}{a.author_name ? " - " + a.author_name : ""}</p>
-          {a.body && <p className="text-sm mt-2 whitespace-pre-wrap">{a.body}</p>}
-        </li>
-      ))}
-      {list.length === 0 && <Hint>Belum ada activity.</Hint>}
-    </ul>
+    <div>
+      <select value={teacherId} onChange={(e) => setTeacherId(e.target.value)} className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm mb-3">
+        <option value="">Select Teacher</option>
+        {teacherList.map((t) => <option key={t.id} value={t.id}>{t.full_name} ({t.role === "teacher_homeroom" ? "Homeroom" : "Subject"})</option>)}
+      </select>
+      {!teacherId ? (
+        <Hint>Pick a teacher above to see their activity.</Hint>
+      ) : (
+        <ul className="space-y-2">
+          {list.map((a) => (
+            <li key={a.id} className="rounded-xl bg-card border border-border p-3">
+              <div className="flex justify-between text-sm">
+                <p className="font-semibold">{a.title}</p>
+                <span className="text-xs text-muted-foreground">{a.school_classes?.name}</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">{new Date(a.activity_date).toLocaleDateString()}{a.author_name ? " - " + a.author_name : ""}</p>
+              {a.body && <p className="text-sm mt-2 whitespace-pre-wrap">{a.body}</p>}
+            </li>
+          ))}
+          {list.length === 0 && <Hint>Belum ada activity.</Hint>}
+        </ul>
+      )}
+    </div>
   );
 }
 
