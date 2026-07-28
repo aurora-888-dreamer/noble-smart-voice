@@ -83,7 +83,7 @@ export function HosDashboard() {
   const staff = useAsync(() => listSchoolStaff({ data: { password: pw } }), [pw]);
   const staffList = (staff.data && "staff" in staff.data ? (staff.data.staff ?? []) : []) as unknown[];
   const tabs = [
-    { id: "overview", label: "Overview" }, { id: "staff", label: "Staff" }, { id: "roles", label: "Kelola Role" },
+    { id: "overview", label: "Overview" }, { id: "staff", label: "Staff & Role" },
     { id: "activity", label: "Teacher Activity" }, { id: "announce", label: "Pengumuman" }, ...ACADEMIC_TABS, PIN_TAB,
   ];
   return (
@@ -95,8 +95,7 @@ export function HosDashboard() {
           <StatCard label="Staff" value={staffList.length} Icon={Users} />
         </div>
       )}
-      {tab === "staff" && <StaffRoster canEdit classes={classes} scopeDivision={null} />}
-      {tab === "roles" && <RoleManager classes={classes} />}
+      {tab === "staff" && <RoleManager classes={classes} />}
       {tab === "activity" && <AllActivitiesView division={null} />}
       {tab === "announce" && <AnnouncementPanel subrole="hos" division={null} classes={classes} />}
       {tab === "pin" && <ChangePinPanel />}

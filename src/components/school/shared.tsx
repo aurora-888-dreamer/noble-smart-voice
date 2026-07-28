@@ -281,16 +281,26 @@ function StaffRow({ staff, classes, canEdit, onChanged, onRemove }: {
 }) {
   const pw = getStoredPassword();
   const [open, setOpen] = useState(false);
+  const [role, setRole] = useState<SchoolRole>(staff.role as SchoolRole);
+  const [division, setDivision] = useState(staff.division ?? "kindergarten");
   const [classId, setClassId] = useState(staff.class_id ?? "");
   const [subjects, setSubjects] = useState((staff.subjects ?? []).join(", "));
   const [msg, setMsg] = useState<string | null>(null);
-  const isHomeroom = staff.role === "teacher_homeroom";
-  const isSubject = staff.role === "teacher_subject";
+  // Reflect the role/division picked in THIS edit panel, not the staff's
+  // original role — so switching e.g. Vice Principal → Principal in the
+  // dropdown immediately shows the right fields (class/subject pickers etc).
+  const isHomeroom = role === "teacher_homeroom";
+  const isSubject = role === "teacher_subject";
+  const isSchoolWide = role === "hos" || role === "vice_hos" || role === "admin_hos";
+  const roleChanged = role !== staff.role;
+  const divisionChanged = !isSchoolWide && division !== (staff.division ?? "kindergarten");
 
   async function save() {
     await updateStaffAccount({
       data: {
         password: pw, id: staff.id,
+        role: roleChanged ? role : undefined,
+        division: roleChanged || divisionChanged ? (isSchoolWide ? "All Divisions" : division) : undefined,
         classId: isHomeroom ? (classId || null) : undefined,
         subjects: isSubject ? subjects.split(",").map((s) => s.trim()).filter(Boolean) : undefined,
       },
@@ -335,6 +345,17 @@ function StaffRow({ staff, classes, canEdit, onChanged, onRemove }: {
       </div>
       {canEdit && open && (
         <div className="mt-3 pt-3 border-t border-border grid gap-2">
+          <div>
+            <label className="text-[11px] text-muted-foreground">Role (bisa diubah kapan saja, misal penempatan berubah)</label>
+            <select value={role} onChange={(e) => setRole(e.target.value as SchoolRole)} className="w-full mt-1 rounded-lg bg-background border border-border px-2 py-1.5 text-sm">
+              {CREATABLE_ROLES.map((r) => <option key={r.v} value={r.v}>{r.label}</option>)}
+            </select>
+          </div>
+          {!isSchoolWide && (
+            <select value={division} onChange={(e) => setDivision(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm">
+              {DIVISIONS.filter((d) => d.id !== "All Divisions").map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
+            </select>
+          )}
           {isHomeroom && (
             <select value={classId} onChange={(e) => setClassId(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm">
               <option value="">tanpa kelas</option>
@@ -344,8 +365,13 @@ function StaffRow({ staff, classes, canEdit, onChanged, onRemove }: {
           {isSubject && (
             <input value={subjects} onChange={(e) => setSubjects(e.target.value)} placeholder="Mata pelajaran (pisahkan koma)" className="rounded-lg bg-background border border-border px-3 py-1.5 text-sm" />
           )}
+          {roleChanged && (
+            <p className="text-[11px] rounded-lg bg-primary/10 text-primary px-3 py-2">
+              Role akan berubah dari <span className="font-semibold">{roleLabel(staff.role)}</span> menjadi <span className="font-semibold">{roleLabel(role)}</span>.
+            </p>
+          )}
           <div className="flex gap-2 flex-wrap">
-            {(isHomeroom || isSubject) && <button onClick={save} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold">Simpan</button>}
+            <button onClick={save} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold">Simpan</button>
             <button onClick={toggleActive} className="rounded-lg border border-border px-3 py-1.5 text-xs flex items-center gap-1"><Power size={12} /> {staff.is_active === false ? "Aktifkan" : "Nonaktifkan"}</button>
             <button onClick={resetPin} className="rounded-lg border border-border px-3 py-1.5 text-xs flex items-center gap-1"><KeyRound size={12} /> Reset PIN</button>
             {!staff.user_id && <button onClick={makeUserId} className="rounded-lg border border-border px-3 py-1.5 text-xs">Buatkan UserID</button>}
