@@ -25,7 +25,7 @@ function TeacherPage() {
   return (
     <div>
       <StaffHeader session={session} />
-      <TeacherDashboard staffName={session.name} role={session.role ?? null} defaultClassId={session.classId} />
+      <TeacherDashboard staffId={session.id} staffName={session.name} role={session.role ?? null} defaultClassId={session.classId} />
     </div>
   );
 }

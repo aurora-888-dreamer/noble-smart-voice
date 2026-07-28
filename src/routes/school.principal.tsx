@@ -23,7 +23,7 @@ function PrincipalPage() {
   return (
     <div>
       <StaffHeader session={session} />
-      <PrincipalDashboard division={session.division || "kindergarten"} />
+      <PrincipalDashboard division={session.division || "kindergarten"} staffId={session.id} />
     </div>
   );
 }

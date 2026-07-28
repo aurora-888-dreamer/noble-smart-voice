@@ -23,7 +23,7 @@ function HosPage() {
   return (
     <div>
       <StaffHeader session={session} />
-      <HosDashboard />
+      <HosDashboard staffId={session.id} />
     </div>
   );
 }
