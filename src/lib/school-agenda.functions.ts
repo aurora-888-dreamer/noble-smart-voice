@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { staffClient, schoolId } from "./school-academic.server";
+import { staffClient, schoolId, logAgendaTimeline as logTimeline } from "./school-academic.server";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = Record<string, any>;
@@ -128,23 +128,6 @@ export const removeAgendaPic = createServerFn({ method: "POST" })
   });
 
 // ————— Approval & execution workflow —————
-
-async function logTimeline(
-  supabase: ReturnType<typeof staffClient> extends never ? never : NonNullable<Extract<ReturnType<typeof staffClient>, { ok: true }>["supabase"]>,
-  agendaId: string,
-  kind: string,
-  authorName: string,
-  body: string,
-  authorRole?: string,
-) {
-  await supabase.from("school_agenda_timeline").insert({
-    agenda_id: agendaId,
-    kind,
-    author_name: authorName || null,
-    author_role: authorRole || null,
-    body: body || null,
-  });
-}
 
 export const submitAgendaForApproval = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string; agendaId: string; actorName?: string }) => input)
