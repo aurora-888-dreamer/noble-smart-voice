@@ -267,7 +267,7 @@ export const reviewProject = createServerFn({ method: "POST" })
       project_id: data.id,
       reviewer_name: data.reviewerName || null,
       reviewer_role: data.reviewerRole,
-      decision: data.decision === "approve" ? "disetujui" : "ditolak",
+      decision: data.decision,
       notes: data.notes || null,
     });
     if (revErr) return { ok: false, error: revErr.message };
