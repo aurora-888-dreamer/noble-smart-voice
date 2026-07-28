@@ -7,7 +7,8 @@ import {
   type ProjectStatus,
 } from "./school-academic.server";
 
-type Row = Record<string, unknown>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Row = Record<string, any>;
 type Fail = { ok: false; error: string };
 
 // ————— 1. Academic calendar —————
