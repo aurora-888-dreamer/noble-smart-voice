@@ -183,6 +183,33 @@ export const deleteTimetableSlot = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const bulkImportTimetable = createServerFn({ method: "POST" })
+  .inputValidator(
+    (input: {
+      password: string;
+      rows: { classId: string; dayOfWeek: number; subject: string; startTime: string; endTime: string; teacherId?: string }[];
+    }) => input,
+  )
+  .handler(async ({ data }): Promise<{ ok: true; added: number } | Fail> => {
+    const gate = staffClient(data.password);
+    if (!gate.ok) return gate;
+    const payload = data.rows
+      .filter((r) => r.classId && r.subject?.trim() && r.startTime && r.endTime)
+      .map((r) => ({
+        school_id: schoolId(),
+        class_id: r.classId,
+        day_of_week: r.dayOfWeek,
+        subject: r.subject.trim(),
+        teacher_id: r.teacherId || null,
+        start_time: r.startTime,
+        end_time: r.endTime,
+      }));
+    if (payload.length === 0) return { ok: false, error: "Tidak ada baris valid untuk diimport." };
+    const { error } = await gate.supabase.from("school_timetable").insert(payload);
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, added: payload.length };
+  });
+
 // ————— 3. Lesson plans —————
 export const listLessonPlans = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string; classId?: string; weekOf?: string }) => input)
