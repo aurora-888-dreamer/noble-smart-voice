@@ -404,14 +404,16 @@ function StatCard({ label, value, Icon }: { label: string; value: number; Icon: 
 }
 
 function PrincipalDashboard({ division }: { division: string }) {
-  const [tab, setTab] = useState<"overview" | "students" | "classes" | "staff" | "activity" | "announce">("overview");
+  const [tab, setTab] = useState<string>("overview");
   const pw = getStoredPassword();
   const classesAll = useAsync(() => listSchoolClasses({ data: { password: pw } }), [pw]);
   const classes = (classesAll.data && "classes" in classesAll.data ? (classesAll.data.classes ?? []) : []).filter((c: { division: string }) => c.division === division);
   const tabs = [
     { id: "overview", label: "Overview" }, { id: "students", label: "Data Murid" }, { id: "classes", label: "Classes" },
     { id: "staff", label: "Staff" }, { id: "activity", label: "Activity Guru" }, { id: "announce", label: "Pengumuman" },
-  ] as const;
+    { id: "calendar", label: "Kalender" }, { id: "timetable", label: "Timetable" }, { id: "lesson", label: "Lesson Plan" },
+    { id: "projects", label: "Project & Surat Resmi" }, { id: "assessment", label: "Assessment" }, { id: "attendance", label: "Attendance" },
+  ];
   return (
     <div>
       <p className="text-xs text-muted-foreground mb-3">Principal - {DIVISIONS.find((d) => d.id === division)?.label}</p>
@@ -426,6 +428,12 @@ function PrincipalDashboard({ division }: { division: string }) {
       {tab === "staff" && <StaffRoster canEdit classes={classes} scopeDivision={division} />}
       {tab === "activity" && <AllActivitiesView division={division} />}
       {tab === "announce" && <AnnouncementPanel subrole="principal" division={division} classes={classes} />}
+      {tab === "calendar" && <CalendarPanel access={{ pw }} classes={classes} canEdit />}
+      {tab === "timetable" && <TimetablePanel access={{ pw }} classes={classes} canEdit />}
+      {tab === "lesson" && <LessonPlanPanel pw={pw} classes={classes} canEdit />}
+      {tab === "projects" && <ProjectPanel pw={pw} classes={classes} canSubmit={false} reviewerRole="principal" reviewerName="Principal" />}
+      {tab === "assessment" && <AssessmentPanel access={{ pw }} classes={classes} canEdit={false} />}
+      {tab === "attendance" && <AttendancePanel access={{ pw }} classes={classes} canEdit={false} />}
     </div>
   );
 }
