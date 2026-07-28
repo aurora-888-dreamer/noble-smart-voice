@@ -14,6 +14,103 @@ export type Database = {
   }
   public: {
     Tables: {
+      school_access: {
+        Row: {
+          class_id: string | null
+          created_at: string
+          created_by: string | null
+          division: string | null
+          full_name: string
+          id: string
+          is_active: boolean
+          linked_guardian_id: string | null
+          linked_staff_id: string | null
+          linked_student_id: string | null
+          pin_hash: string
+          pin_is_default: boolean
+          role: string
+          school_id: string
+          updated_at: string
+        }
+        Insert: {
+          class_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          division?: string | null
+          full_name: string
+          id?: string
+          is_active?: boolean
+          linked_guardian_id?: string | null
+          linked_staff_id?: string | null
+          linked_student_id?: string | null
+          pin_hash: string
+          pin_is_default?: boolean
+          role: string
+          school_id: string
+          updated_at?: string
+        }
+        Update: {
+          class_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          division?: string | null
+          full_name?: string
+          id?: string
+          is_active?: boolean
+          linked_guardian_id?: string | null
+          linked_staff_id?: string | null
+          linked_student_id?: string | null
+          pin_hash?: string
+          pin_is_default?: boolean
+          role?: string
+          school_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_access_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "school_classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_access_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "school_access"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_access_linked_guardian_id_fkey"
+            columns: ["linked_guardian_id"]
+            isOneToOne: false
+            referencedRelation: "school_guardians"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_access_linked_staff_id_fkey"
+            columns: ["linked_staff_id"]
+            isOneToOne: false
+            referencedRelation: "school_staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_access_linked_student_id_fkey"
+            columns: ["linked_student_id"]
+            isOneToOne: false
+            referencedRelation: "school_students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_access_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "school_schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       school_activities: {
         Row: {
           activity_date: string
@@ -477,6 +574,41 @@ export type Database = {
           },
         ]
       }
+      school_pin_resets: {
+        Row: {
+          access_id: string
+          expires_at: string
+          id: string
+          requested_at: string
+          reset_token: string
+          used_at: string | null
+        }
+        Insert: {
+          access_id: string
+          expires_at: string
+          id?: string
+          requested_at?: string
+          reset_token: string
+          used_at?: string | null
+        }
+        Update: {
+          access_id?: string
+          expires_at?: string
+          id?: string
+          requested_at?: string
+          reset_token?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_pin_resets_access_id_fkey"
+            columns: ["access_id"]
+            isOneToOne: false
+            referencedRelation: "school_access"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       school_project_reviews: {
         Row: {
           decision: string
@@ -599,34 +731,52 @@ export type Database = {
       }
       school_staff: {
         Row: {
+          bio: string | null
           class_id: string | null
           created_at: string
           division: string
           email: string | null
           full_name: string
           id: string
+          phone: string | null
+          photo_url: string | null
+          pin: string | null
+          pin_is_default: boolean
+          pin_updated_at: string | null
           role: string
           school_id: string
           updated_at: string
         }
         Insert: {
+          bio?: string | null
           class_id?: string | null
           created_at?: string
           division: string
           email?: string | null
           full_name: string
           id?: string
+          phone?: string | null
+          photo_url?: string | null
+          pin?: string | null
+          pin_is_default?: boolean
+          pin_updated_at?: string | null
           role: string
           school_id: string
           updated_at?: string
         }
         Update: {
+          bio?: string | null
           class_id?: string | null
           created_at?: string
           division?: string
           email?: string | null
           full_name?: string
           id?: string
+          phone?: string | null
+          photo_url?: string | null
+          pin?: string | null
+          pin_is_default?: boolean
+          pin_updated_at?: string | null
           role?: string
           school_id?: string
           updated_at?: string
@@ -641,14 +791,53 @@ export type Database = {
           },
         ]
       }
+      school_staff_pin_resets: {
+        Row: {
+          expires_at: string
+          id: string
+          requested_at: string
+          reset_token: string
+          staff_id: string
+          used_at: string | null
+        }
+        Insert: {
+          expires_at: string
+          id?: string
+          requested_at?: string
+          reset_token: string
+          staff_id: string
+          used_at?: string | null
+        }
+        Update: {
+          expires_at?: string
+          id?: string
+          requested_at?: string
+          reset_token?: string
+          staff_id?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_staff_pin_resets_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "school_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       school_students: {
         Row: {
           address: string | null
           allergies: string | null
+          blood_type: string | null
           certificates: string[]
           class_id: string | null
           created_at: string
+          date_of_birth: string | null
           dob: string | null
+          emergency_contact: string | null
+          external_student_code: string | null
           extracurriculars: string[]
           full_name: string
           gender: string | null
@@ -656,6 +845,7 @@ export type Database = {
           joined_at: string | null
           nickname: string | null
           notes: string | null
+          photo_url: string | null
           pob: string | null
           religion: string | null
           school_id: string
@@ -666,10 +856,14 @@ export type Database = {
         Insert: {
           address?: string | null
           allergies?: string | null
+          blood_type?: string | null
           certificates?: string[]
           class_id?: string | null
           created_at?: string
+          date_of_birth?: string | null
           dob?: string | null
+          emergency_contact?: string | null
+          external_student_code?: string | null
           extracurriculars?: string[]
           full_name: string
           gender?: string | null
@@ -677,6 +871,7 @@ export type Database = {
           joined_at?: string | null
           nickname?: string | null
           notes?: string | null
+          photo_url?: string | null
           pob?: string | null
           religion?: string | null
           school_id: string
@@ -687,10 +882,14 @@ export type Database = {
         Update: {
           address?: string | null
           allergies?: string | null
+          blood_type?: string | null
           certificates?: string[]
           class_id?: string | null
           created_at?: string
+          date_of_birth?: string | null
           dob?: string | null
+          emergency_contact?: string | null
+          external_student_code?: string | null
           extracurriculars?: string[]
           full_name?: string
           gender?: string | null
@@ -698,6 +897,7 @@ export type Database = {
           joined_at?: string | null
           nickname?: string | null
           notes?: string | null
+          photo_url?: string | null
           pob?: string | null
           religion?: string | null
           school_id?: string
@@ -826,6 +1026,68 @@ export type Database = {
             columns: ["teacher_id"]
             isOneToOne: false
             referencedRelation: "school_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      school_year_assignments: {
+        Row: {
+          academic_year: string
+          class_id: string | null
+          created_at: string
+          id: string
+          role_in_class: string | null
+          school_id: string
+          staff_id: string | null
+          student_id: string | null
+        }
+        Insert: {
+          academic_year: string
+          class_id?: string | null
+          created_at?: string
+          id?: string
+          role_in_class?: string | null
+          school_id: string
+          staff_id?: string | null
+          student_id?: string | null
+        }
+        Update: {
+          academic_year?: string
+          class_id?: string | null
+          created_at?: string
+          id?: string
+          role_in_class?: string | null
+          school_id?: string
+          staff_id?: string | null
+          student_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_year_assignments_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "school_classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_year_assignments_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "school_schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_year_assignments_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "school_staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_year_assignments_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "school_students"
             referencedColumns: ["id"]
           },
         ]
