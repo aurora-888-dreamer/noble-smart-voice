@@ -36,6 +36,7 @@ function AdminPage() {
 }
 
 function AdminLogin() {
+  const [userId, setUserId] = useState("");
   const [pw, setPw] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
@@ -45,9 +46,9 @@ function AdminLogin() {
     e.preventDefault();
     setErr(null);
     setChecking(true);
-    const ok = await adminLogin(pw);
+    const ok = await adminLogin(userId, pw);
     setChecking(false);
-    if (!ok) setErr("Incorrect password");
+    if (!ok) setErr("UserID atau PIN salah");
   }
 
   if (forgot) return <ForgotPassword onDone={() => setForgot(false)} />;
@@ -60,16 +61,25 @@ function AdminLogin() {
       </div>
       <form onSubmit={submit} className="space-y-3">
         <input
-          type="password"
-          value={pw}
-          onChange={(e) => setPw(e.target.value)}
-          placeholder="Admin password"
+          value={userId}
+          onChange={(e) => setUserId(e.target.value)}
+          placeholder="UserID"
+          autoCapitalize="none"
           className="w-full rounded-xl bg-secondary px-4 py-3 text-sm outline-none"
+        />
+        <input
+          type="password"
+          inputMode="numeric"
+          maxLength={6}
+          value={pw}
+          onChange={(e) => setPw(e.target.value.replace(/\D/g, ""))}
+          placeholder="PIN 6 angka"
+          className="w-full rounded-xl bg-secondary px-4 py-3 text-sm outline-none tracking-[0.4em]"
         />
         {err && <p className="text-xs text-destructive">{err}</p>}
         <button
           type="submit"
-          disabled={checking || !pw.trim()}
+          disabled={checking || !userId.trim() || pw.length !== 6}
           className="w-full rounded-full bg-primary text-primary-foreground py-3 text-sm font-semibold disabled:opacity-50"
         >
           {checking ? "Checking…" : "Sign in"}
@@ -79,7 +89,7 @@ function AdminLogin() {
           onClick={() => setForgot(true)}
           className="w-full text-xs text-muted-foreground underline pt-1"
         >
-          Lupa password?
+          Lupa PIN?
         </button>
       </form>
     </div>
@@ -118,7 +128,7 @@ function ForgotPassword({ onDone }: { onDone: () => void }) {
     if (!res.ok) return setErr(res.error);
     const ok = await adminLogin(newPw);
     if (!ok) {
-      setNote("Password berhasil diubah. Silakan masuk dengan password baru.");
+      setNote("PIN berhasil diubah. Silakan masuk dengan PIN baru.");
       onDone();
     }
   }
@@ -127,13 +137,13 @@ function ForgotPassword({ onDone }: { onDone: () => void }) {
     <div className="max-w-sm mx-auto mt-16 rounded-2xl bg-card border border-border p-6">
       <div className="flex items-center gap-2 mb-4">
         <KeyRound className="text-primary" size={20} />
-        <h1 className="text-xl font-semibold">Reset Password</h1>
+        <h1 className="text-xl font-semibold">Reset PIN</h1>
       </div>
 
       {step === "email" ? (
         <form onSubmit={sendCode} className="space-y-3">
           <p className="text-xs text-muted-foreground">
-            Masukkan email admin. Kami akan mengirim kode 6 digit untuk mengatur ulang password.
+            Masukkan email admin. Kami akan mengirim kode 6 digit untuk mengatur ulang PIN.
           </p>
           <input
             type="email"
@@ -165,9 +175,11 @@ function ForgotPassword({ onDone }: { onDone: () => void }) {
           />
           <input
             type="password"
+            inputMode="numeric"
+            maxLength={6}
             value={newPw}
             onChange={(e) => setNewPw(e.target.value)}
-            placeholder="Password baru (min. 8 karakter)"
+            placeholder="PIN baru (6 angka)"
             className="w-full rounded-xl bg-secondary px-4 py-3 text-sm outline-none"
           />
           {err && <p className="text-xs text-destructive">{err}</p>}
@@ -176,7 +188,7 @@ function ForgotPassword({ onDone }: { onDone: () => void }) {
             disabled={busy || code.length !== 6 || newPw.trim().length < 8}
             className="w-full rounded-full bg-primary text-primary-foreground py-3 text-sm font-semibold disabled:opacity-50"
           >
-            {busy ? "Menyimpan…" : "Simpan password baru"}
+            {busy ? "Menyimpan…" : "Simpan PIN baru"}
           </button>
         </form>
       )}
@@ -816,7 +828,7 @@ function SettingsTab({ orders, adminPassword }: { orders: OrderRecord[]; adminPa
   return (
     <div className="max-w-lg space-y-4">
       <div className="rounded-2xl bg-card border border-border p-4">
-        <h3 className="font-semibold mb-2">Admin password</h3>
+        <h3 className="font-semibold mb-2">Admin access</h3>
         <p className="text-xs text-muted-foreground">
           Now set via the <code className="font-mono">STORE_ADMIN_PASSWORD</code> environment variable
           in Lovable — not changeable from this screen anymore, since the password is checked on the

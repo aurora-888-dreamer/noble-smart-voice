@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { createNobleSupabase } from "./supabase.server";
 import {
-  ADMIN_USER_ID,
   adminEmail,
   isAdminUserId,
   generateResetCode,
@@ -58,8 +57,6 @@ export const storeAdminLogin = createServerFn({ method: "POST" })
     if (!(await verifyAdminPassword(pin))) return { ok: false, error: "UserID atau PIN salah." };
     return { ok: true, pin };
   });
-
-export const ADMIN_LOGIN_USER_ID = ADMIN_USER_ID;
 
 // Redeem the code and set a new PIN.
 export const resetStoreAdminPassword = createServerFn({ method: "POST" })
