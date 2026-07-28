@@ -9,199 +9,54 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as UpgradeRouteImport } from './routes/upgrade'
-import { Route as TripsRouteImport } from './routes/trips'
-import { Route as TranslateRouteImport } from './routes/translate'
-import { Route as TermsRouteImport } from './routes/terms'
-import { Route as TasksRouteImport } from './routes/tasks'
-import { Route as SyncRouteImport } from './routes/sync'
-import { Route as StoreRouteImport } from './routes/store'
-import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as SchoolRouteImport } from './routes/school'
-import { Route as RemindersRouteImport } from './routes/reminders'
-import { Route as RegisterRouteImport } from './routes/register'
-import { Route as RecordRouteImport } from './routes/record'
-import { Route as ReceiveRouteImport } from './routes/receive'
-import { Route as ProjectsRouteImport } from './routes/projects'
-import { Route as PrivacyRouteImport } from './routes/privacy'
-import { Route as OnboardingRouteImport } from './routes/onboarding'
-import { Route as NotesRouteImport } from './routes/notes'
-import { Route as MessagesRouteImport } from './routes/messages'
-import { Route as MeetingsRouteImport } from './routes/meetings'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as GuideRouteImport } from './routes/guide'
-import { Route as DiaryRouteImport } from './routes/diary'
-import { Route as ContactsRouteImport } from './routes/contacts'
-import { Route as CameraRouteImport } from './routes/camera'
-import { Route as CalendarRouteImport } from './routes/calendar'
-import { Route as CalculatorRouteImport } from './routes/calculator'
-import { Route as BackupRouteImport } from './routes/backup'
-import { Route as AppointmentsRouteImport } from './routes/appointments'
-import { Route as AdminRouteImport } from './routes/admin'
-import { Route as ActivateRouteImport } from './routes/activate'
-import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as StoreIndexRouteImport } from './routes/store.index'
-import { Route as SchoolIndexRouteImport } from './routes/school.index'
-import { Route as StoreTermsRouteImport } from './routes/store.terms'
-import { Route as StorePrivacyRouteImport } from './routes/store.privacy'
-import { Route as StoreOrderRouteImport } from './routes/store.order'
-import { Route as StoreAdminRouteImport } from './routes/store.admin'
-import { Route as SchoolTeacherRouteImport } from './routes/school.teacher'
-import { Route as SchoolPrincipalRouteImport } from './routes/school.principal'
-import { Route as SchoolParentRouteImport } from './routes/school.parent'
-import { Route as SchoolHosRouteImport } from './routes/school.hos'
-import { Route as SchoolAdminHosRouteImport } from './routes/school.admin-hos'
+import { Route as AboutRouteImport } from './routes/about'
+import { Route as ActivateRouteImport } from './routes/activate'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AppointmentsRouteImport } from './routes/appointments'
+import { Route as BackupRouteImport } from './routes/backup'
+import { Route as CalculatorRouteImport } from './routes/calculator'
+import { Route as CalendarRouteImport } from './routes/calendar'
+import { Route as CameraRouteImport } from './routes/camera'
+import { Route as ContactsRouteImport } from './routes/contacts'
+import { Route as DiaryRouteImport } from './routes/diary'
+import { Route as GuideRouteImport } from './routes/guide'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as MeetingsRouteImport } from './routes/meetings'
+import { Route as MessagesRouteImport } from './routes/messages'
+import { Route as NotesRouteImport } from './routes/notes'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as ProjectsRouteImport } from './routes/projects'
+import { Route as ReceiveRouteImport } from './routes/receive'
+import { Route as RecordRouteImport } from './routes/record'
+import { Route as RegisterRouteImport } from './routes/register'
+import { Route as RemindersRouteImport } from './routes/reminders'
+import { Route as SchoolRouteImport } from './routes/school'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as StoreRouteImport } from './routes/store'
+import { Route as SyncRouteImport } from './routes/sync'
+import { Route as TasksRouteImport } from './routes/tasks'
+import { Route as TermsRouteImport } from './routes/terms'
+import { Route as TranslateRouteImport } from './routes/translate'
+import { Route as TripsRouteImport } from './routes/trips'
+import { Route as UpgradeRouteImport } from './routes/upgrade'
 import { Route as ProjectsIdRouteImport } from './routes/projects.$id'
+import { Route as SchoolIndexRouteImport } from './routes/school.index'
+import { Route as SchoolAdminHosRouteImport } from './routes/school.admin-hos'
+import { Route as SchoolHosRouteImport } from './routes/school.hos'
+import { Route as SchoolParentRouteImport } from './routes/school.parent'
+import { Route as SchoolPrincipalRouteImport } from './routes/school.principal'
+import { Route as SchoolTeacherRouteImport } from './routes/school.teacher'
+import { Route as StoreIndexRouteImport } from './routes/store.index'
+import { Route as StoreAdminRouteImport } from './routes/store.admin'
+import { Route as StoreOrderRouteImport } from './routes/store.order'
+import { Route as StorePrivacyRouteImport } from './routes/store.privacy'
+import { Route as StoreTermsRouteImport } from './routes/store.terms'
 
-const UpgradeRoute = UpgradeRouteImport.update({
-  id: '/upgrade',
-  path: '/upgrade',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TripsRoute = TripsRouteImport.update({
-  id: '/trips',
-  path: '/trips',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TranslateRoute = TranslateRouteImport.update({
-  id: '/translate',
-  path: '/translate',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TermsRoute = TermsRouteImport.update({
-  id: '/terms',
-  path: '/terms',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TasksRoute = TasksRouteImport.update({
-  id: '/tasks',
-  path: '/tasks',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SyncRoute = SyncRouteImport.update({
-  id: '/sync',
-  path: '/sync',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const StoreRoute = StoreRouteImport.update({
-  id: '/store',
-  path: '/store',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SchoolRoute = SchoolRouteImport.update({
-  id: '/school',
-  path: '/school',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RemindersRoute = RemindersRouteImport.update({
-  id: '/reminders',
-  path: '/reminders',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RegisterRoute = RegisterRouteImport.update({
-  id: '/register',
-  path: '/register',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RecordRoute = RecordRouteImport.update({
-  id: '/record',
-  path: '/record',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ReceiveRoute = ReceiveRouteImport.update({
-  id: '/receive',
-  path: '/receive',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ProjectsRoute = ProjectsRouteImport.update({
-  id: '/projects',
-  path: '/projects',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PrivacyRoute = PrivacyRouteImport.update({
-  id: '/privacy',
-  path: '/privacy',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OnboardingRoute = OnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const NotesRoute = NotesRouteImport.update({
-  id: '/notes',
-  path: '/notes',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MessagesRoute = MessagesRouteImport.update({
-  id: '/messages',
-  path: '/messages',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MeetingsRoute = MeetingsRouteImport.update({
-  id: '/meetings',
-  path: '/meetings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const GuideRoute = GuideRouteImport.update({
-  id: '/guide',
-  path: '/guide',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DiaryRoute = DiaryRouteImport.update({
-  id: '/diary',
-  path: '/diary',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ContactsRoute = ContactsRouteImport.update({
-  id: '/contacts',
-  path: '/contacts',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CameraRoute = CameraRouteImport.update({
-  id: '/camera',
-  path: '/camera',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CalendarRoute = CalendarRouteImport.update({
-  id: '/calendar',
-  path: '/calendar',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CalculatorRoute = CalculatorRouteImport.update({
-  id: '/calculator',
-  path: '/calculator',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const BackupRoute = BackupRouteImport.update({
-  id: '/backup',
-  path: '/backup',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AppointmentsRoute = AppointmentsRouteImport.update({
-  id: '/appointments',
-  path: '/appointments',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminRoute = AdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ActivateRoute = ActivateRouteImport.update({
-  id: '/activate',
-  path: '/activate',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AboutRoute = AboutRouteImport.update({
@@ -209,59 +64,164 @@ const AboutRoute = AboutRouteImport.update({
   path: '/about',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const ActivateRoute = ActivateRouteImport.update({
+  id: '/activate',
+  path: '/activate',
   getParentRoute: () => rootRouteImport,
 } as any)
-const StoreIndexRoute = StoreIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => StoreRoute,
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppointmentsRoute = AppointmentsRouteImport.update({
+  id: '/appointments',
+  path: '/appointments',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BackupRoute = BackupRouteImport.update({
+  id: '/backup',
+  path: '/backup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CalculatorRoute = CalculatorRouteImport.update({
+  id: '/calculator',
+  path: '/calculator',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CalendarRoute = CalendarRouteImport.update({
+  id: '/calendar',
+  path: '/calendar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CameraRoute = CameraRouteImport.update({
+  id: '/camera',
+  path: '/camera',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContactsRoute = ContactsRouteImport.update({
+  id: '/contacts',
+  path: '/contacts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DiaryRoute = DiaryRouteImport.update({
+  id: '/diary',
+  path: '/diary',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuideRoute = GuideRouteImport.update({
+  id: '/guide',
+  path: '/guide',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MeetingsRoute = MeetingsRouteImport.update({
+  id: '/meetings',
+  path: '/meetings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MessagesRoute = MessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotesRoute = NotesRouteImport.update({
+  id: '/notes',
+  path: '/notes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProjectsRoute = ProjectsRouteImport.update({
+  id: '/projects',
+  path: '/projects',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReceiveRoute = ReceiveRouteImport.update({
+  id: '/receive',
+  path: '/receive',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecordRoute = RecordRouteImport.update({
+  id: '/record',
+  path: '/record',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RemindersRoute = RemindersRouteImport.update({
+  id: '/reminders',
+  path: '/reminders',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SchoolRoute = SchoolRouteImport.update({
+  id: '/school',
+  path: '/school',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StoreRoute = StoreRouteImport.update({
+  id: '/store',
+  path: '/store',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SyncRoute = SyncRouteImport.update({
+  id: '/sync',
+  path: '/sync',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TasksRoute = TasksRouteImport.update({
+  id: '/tasks',
+  path: '/tasks',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TranslateRoute = TranslateRouteImport.update({
+  id: '/translate',
+  path: '/translate',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TripsRoute = TripsRouteImport.update({
+  id: '/trips',
+  path: '/trips',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UpgradeRoute = UpgradeRouteImport.update({
+  id: '/upgrade',
+  path: '/upgrade',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProjectsIdRoute = ProjectsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ProjectsRoute,
 } as any)
 const SchoolIndexRoute = SchoolIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => SchoolRoute,
-} as any)
-const StoreTermsRoute = StoreTermsRouteImport.update({
-  id: '/terms',
-  path: '/terms',
-  getParentRoute: () => StoreRoute,
-} as any)
-const StorePrivacyRoute = StorePrivacyRouteImport.update({
-  id: '/privacy',
-  path: '/privacy',
-  getParentRoute: () => StoreRoute,
-} as any)
-const StoreOrderRoute = StoreOrderRouteImport.update({
-  id: '/order',
-  path: '/order',
-  getParentRoute: () => StoreRoute,
-} as any)
-const StoreAdminRoute = StoreAdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
-  getParentRoute: () => StoreRoute,
-} as any)
-const SchoolTeacherRoute = SchoolTeacherRouteImport.update({
-  id: '/teacher',
-  path: '/teacher',
-  getParentRoute: () => SchoolRoute,
-} as any)
-const SchoolPrincipalRoute = SchoolPrincipalRouteImport.update({
-  id: '/principal',
-  path: '/principal',
-  getParentRoute: () => SchoolRoute,
-} as any)
-const SchoolParentRoute = SchoolParentRouteImport.update({
-  id: '/parent',
-  path: '/parent',
-  getParentRoute: () => SchoolRoute,
-} as any)
-const SchoolHosRoute = SchoolHosRouteImport.update({
-  id: '/hos',
-  path: '/hos',
   getParentRoute: () => SchoolRoute,
 } as any)
 const SchoolAdminHosRoute = SchoolAdminHosRouteImport.update({
@@ -269,10 +229,50 @@ const SchoolAdminHosRoute = SchoolAdminHosRouteImport.update({
   path: '/admin-hos',
   getParentRoute: () => SchoolRoute,
 } as any)
-const ProjectsIdRoute = ProjectsIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => ProjectsRoute,
+const SchoolHosRoute = SchoolHosRouteImport.update({
+  id: '/hos',
+  path: '/hos',
+  getParentRoute: () => SchoolRoute,
+} as any)
+const SchoolParentRoute = SchoolParentRouteImport.update({
+  id: '/parent',
+  path: '/parent',
+  getParentRoute: () => SchoolRoute,
+} as any)
+const SchoolPrincipalRoute = SchoolPrincipalRouteImport.update({
+  id: '/principal',
+  path: '/principal',
+  getParentRoute: () => SchoolRoute,
+} as any)
+const SchoolTeacherRoute = SchoolTeacherRouteImport.update({
+  id: '/teacher',
+  path: '/teacher',
+  getParentRoute: () => SchoolRoute,
+} as any)
+const StoreIndexRoute = StoreIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => StoreRoute,
+} as any)
+const StoreAdminRoute = StoreAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => StoreRoute,
+} as any)
+const StoreOrderRoute = StoreOrderRouteImport.update({
+  id: '/order',
+  path: '/order',
+  getParentRoute: () => StoreRoute,
+} as any)
+const StorePrivacyRoute = StorePrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => StoreRoute,
+} as any)
+const StoreTermsRoute = StoreTermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => StoreRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -588,214 +588,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/upgrade': {
-      id: '/upgrade'
-      path: '/upgrade'
-      fullPath: '/upgrade'
-      preLoaderRoute: typeof UpgradeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/trips': {
-      id: '/trips'
-      path: '/trips'
-      fullPath: '/trips'
-      preLoaderRoute: typeof TripsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/translate': {
-      id: '/translate'
-      path: '/translate'
-      fullPath: '/translate'
-      preLoaderRoute: typeof TranslateRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/terms': {
-      id: '/terms'
-      path: '/terms'
-      fullPath: '/terms'
-      preLoaderRoute: typeof TermsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/tasks': {
-      id: '/tasks'
-      path: '/tasks'
-      fullPath: '/tasks'
-      preLoaderRoute: typeof TasksRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sync': {
-      id: '/sync'
-      path: '/sync'
-      fullPath: '/sync'
-      preLoaderRoute: typeof SyncRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/store': {
-      id: '/store'
-      path: '/store'
-      fullPath: '/store'
-      preLoaderRoute: typeof StoreRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/school': {
-      id: '/school'
-      path: '/school'
-      fullPath: '/school'
-      preLoaderRoute: typeof SchoolRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/reminders': {
-      id: '/reminders'
-      path: '/reminders'
-      fullPath: '/reminders'
-      preLoaderRoute: typeof RemindersRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/register': {
-      id: '/register'
-      path: '/register'
-      fullPath: '/register'
-      preLoaderRoute: typeof RegisterRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/record': {
-      id: '/record'
-      path: '/record'
-      fullPath: '/record'
-      preLoaderRoute: typeof RecordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/receive': {
-      id: '/receive'
-      path: '/receive'
-      fullPath: '/receive'
-      preLoaderRoute: typeof ReceiveRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/projects': {
-      id: '/projects'
-      path: '/projects'
-      fullPath: '/projects'
-      preLoaderRoute: typeof ProjectsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/privacy': {
-      id: '/privacy'
-      path: '/privacy'
-      fullPath: '/privacy'
-      preLoaderRoute: typeof PrivacyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/onboarding': {
-      id: '/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof OnboardingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/notes': {
-      id: '/notes'
-      path: '/notes'
-      fullPath: '/notes'
-      preLoaderRoute: typeof NotesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/messages': {
-      id: '/messages'
-      path: '/messages'
-      fullPath: '/messages'
-      preLoaderRoute: typeof MessagesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/meetings': {
-      id: '/meetings'
-      path: '/meetings'
-      fullPath: '/meetings'
-      preLoaderRoute: typeof MeetingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/guide': {
-      id: '/guide'
-      path: '/guide'
-      fullPath: '/guide'
-      preLoaderRoute: typeof GuideRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/diary': {
-      id: '/diary'
-      path: '/diary'
-      fullPath: '/diary'
-      preLoaderRoute: typeof DiaryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/contacts': {
-      id: '/contacts'
-      path: '/contacts'
-      fullPath: '/contacts'
-      preLoaderRoute: typeof ContactsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/camera': {
-      id: '/camera'
-      path: '/camera'
-      fullPath: '/camera'
-      preLoaderRoute: typeof CameraRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/calendar': {
-      id: '/calendar'
-      path: '/calendar'
-      fullPath: '/calendar'
-      preLoaderRoute: typeof CalendarRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/calculator': {
-      id: '/calculator'
-      path: '/calculator'
-      fullPath: '/calculator'
-      preLoaderRoute: typeof CalculatorRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/backup': {
-      id: '/backup'
-      path: '/backup'
-      fullPath: '/backup'
-      preLoaderRoute: typeof BackupRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/appointments': {
-      id: '/appointments'
-      path: '/appointments'
-      fullPath: '/appointments'
-      preLoaderRoute: typeof AppointmentsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin': {
-      id: '/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AdminRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/activate': {
-      id: '/activate'
-      path: '/activate'
-      fullPath: '/activate'
-      preLoaderRoute: typeof ActivateRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/about': {
@@ -805,81 +602,228 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AboutRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/activate': {
+      id: '/activate'
+      path: '/activate'
+      fullPath: '/activate'
+      preLoaderRoute: typeof ActivateRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/store/': {
-      id: '/store/'
-      path: '/'
-      fullPath: '/store/'
-      preLoaderRoute: typeof StoreIndexRouteImport
-      parentRoute: typeof StoreRoute
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/appointments': {
+      id: '/appointments'
+      path: '/appointments'
+      fullPath: '/appointments'
+      preLoaderRoute: typeof AppointmentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/backup': {
+      id: '/backup'
+      path: '/backup'
+      fullPath: '/backup'
+      preLoaderRoute: typeof BackupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/calculator': {
+      id: '/calculator'
+      path: '/calculator'
+      fullPath: '/calculator'
+      preLoaderRoute: typeof CalculatorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/calendar': {
+      id: '/calendar'
+      path: '/calendar'
+      fullPath: '/calendar'
+      preLoaderRoute: typeof CalendarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/camera': {
+      id: '/camera'
+      path: '/camera'
+      fullPath: '/camera'
+      preLoaderRoute: typeof CameraRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contacts': {
+      id: '/contacts'
+      path: '/contacts'
+      fullPath: '/contacts'
+      preLoaderRoute: typeof ContactsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/diary': {
+      id: '/diary'
+      path: '/diary'
+      fullPath: '/diary'
+      preLoaderRoute: typeof DiaryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guide': {
+      id: '/guide'
+      path: '/guide'
+      fullPath: '/guide'
+      preLoaderRoute: typeof GuideRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/meetings': {
+      id: '/meetings'
+      path: '/meetings'
+      fullPath: '/meetings'
+      preLoaderRoute: typeof MeetingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/messages': {
+      id: '/messages'
+      path: '/messages'
+      fullPath: '/messages'
+      preLoaderRoute: typeof MessagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notes': {
+      id: '/notes'
+      path: '/notes'
+      fullPath: '/notes'
+      preLoaderRoute: typeof NotesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/projects': {
+      id: '/projects'
+      path: '/projects'
+      fullPath: '/projects'
+      preLoaderRoute: typeof ProjectsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/receive': {
+      id: '/receive'
+      path: '/receive'
+      fullPath: '/receive'
+      preLoaderRoute: typeof ReceiveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/record': {
+      id: '/record'
+      path: '/record'
+      fullPath: '/record'
+      preLoaderRoute: typeof RecordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reminders': {
+      id: '/reminders'
+      path: '/reminders'
+      fullPath: '/reminders'
+      preLoaderRoute: typeof RemindersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/school': {
+      id: '/school'
+      path: '/school'
+      fullPath: '/school'
+      preLoaderRoute: typeof SchoolRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/store': {
+      id: '/store'
+      path: '/store'
+      fullPath: '/store'
+      preLoaderRoute: typeof StoreRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sync': {
+      id: '/sync'
+      path: '/sync'
+      fullPath: '/sync'
+      preLoaderRoute: typeof SyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tasks': {
+      id: '/tasks'
+      path: '/tasks'
+      fullPath: '/tasks'
+      preLoaderRoute: typeof TasksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/translate': {
+      id: '/translate'
+      path: '/translate'
+      fullPath: '/translate'
+      preLoaderRoute: typeof TranslateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/trips': {
+      id: '/trips'
+      path: '/trips'
+      fullPath: '/trips'
+      preLoaderRoute: typeof TripsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/upgrade': {
+      id: '/upgrade'
+      path: '/upgrade'
+      fullPath: '/upgrade'
+      preLoaderRoute: typeof UpgradeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/projects/$id': {
+      id: '/projects/$id'
+      path: '/$id'
+      fullPath: '/projects/$id'
+      preLoaderRoute: typeof ProjectsIdRouteImport
+      parentRoute: typeof ProjectsRoute
     }
     '/school/': {
       id: '/school/'
       path: '/'
       fullPath: '/school/'
       preLoaderRoute: typeof SchoolIndexRouteImport
-      parentRoute: typeof SchoolRoute
-    }
-    '/store/terms': {
-      id: '/store/terms'
-      path: '/terms'
-      fullPath: '/store/terms'
-      preLoaderRoute: typeof StoreTermsRouteImport
-      parentRoute: typeof StoreRoute
-    }
-    '/store/privacy': {
-      id: '/store/privacy'
-      path: '/privacy'
-      fullPath: '/store/privacy'
-      preLoaderRoute: typeof StorePrivacyRouteImport
-      parentRoute: typeof StoreRoute
-    }
-    '/store/order': {
-      id: '/store/order'
-      path: '/order'
-      fullPath: '/store/order'
-      preLoaderRoute: typeof StoreOrderRouteImport
-      parentRoute: typeof StoreRoute
-    }
-    '/store/admin': {
-      id: '/store/admin'
-      path: '/admin'
-      fullPath: '/store/admin'
-      preLoaderRoute: typeof StoreAdminRouteImport
-      parentRoute: typeof StoreRoute
-    }
-    '/school/teacher': {
-      id: '/school/teacher'
-      path: '/teacher'
-      fullPath: '/school/teacher'
-      preLoaderRoute: typeof SchoolTeacherRouteImport
-      parentRoute: typeof SchoolRoute
-    }
-    '/school/principal': {
-      id: '/school/principal'
-      path: '/principal'
-      fullPath: '/school/principal'
-      preLoaderRoute: typeof SchoolPrincipalRouteImport
-      parentRoute: typeof SchoolRoute
-    }
-    '/school/parent': {
-      id: '/school/parent'
-      path: '/parent'
-      fullPath: '/school/parent'
-      preLoaderRoute: typeof SchoolParentRouteImport
-      parentRoute: typeof SchoolRoute
-    }
-    '/school/hos': {
-      id: '/school/hos'
-      path: '/hos'
-      fullPath: '/school/hos'
-      preLoaderRoute: typeof SchoolHosRouteImport
       parentRoute: typeof SchoolRoute
     }
     '/school/admin-hos': {
@@ -889,12 +833,68 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SchoolAdminHosRouteImport
       parentRoute: typeof SchoolRoute
     }
-    '/projects/$id': {
-      id: '/projects/$id'
-      path: '/$id'
-      fullPath: '/projects/$id'
-      preLoaderRoute: typeof ProjectsIdRouteImport
-      parentRoute: typeof ProjectsRoute
+    '/school/hos': {
+      id: '/school/hos'
+      path: '/hos'
+      fullPath: '/school/hos'
+      preLoaderRoute: typeof SchoolHosRouteImport
+      parentRoute: typeof SchoolRoute
+    }
+    '/school/parent': {
+      id: '/school/parent'
+      path: '/parent'
+      fullPath: '/school/parent'
+      preLoaderRoute: typeof SchoolParentRouteImport
+      parentRoute: typeof SchoolRoute
+    }
+    '/school/principal': {
+      id: '/school/principal'
+      path: '/principal'
+      fullPath: '/school/principal'
+      preLoaderRoute: typeof SchoolPrincipalRouteImport
+      parentRoute: typeof SchoolRoute
+    }
+    '/school/teacher': {
+      id: '/school/teacher'
+      path: '/teacher'
+      fullPath: '/school/teacher'
+      preLoaderRoute: typeof SchoolTeacherRouteImport
+      parentRoute: typeof SchoolRoute
+    }
+    '/store/': {
+      id: '/store/'
+      path: '/'
+      fullPath: '/store/'
+      preLoaderRoute: typeof StoreIndexRouteImport
+      parentRoute: typeof StoreRoute
+    }
+    '/store/admin': {
+      id: '/store/admin'
+      path: '/admin'
+      fullPath: '/store/admin'
+      preLoaderRoute: typeof StoreAdminRouteImport
+      parentRoute: typeof StoreRoute
+    }
+    '/store/order': {
+      id: '/store/order'
+      path: '/order'
+      fullPath: '/store/order'
+      preLoaderRoute: typeof StoreOrderRouteImport
+      parentRoute: typeof StoreRoute
+    }
+    '/store/privacy': {
+      id: '/store/privacy'
+      path: '/privacy'
+      fullPath: '/store/privacy'
+      preLoaderRoute: typeof StorePrivacyRouteImport
+      parentRoute: typeof StoreRoute
+    }
+    '/store/terms': {
+      id: '/store/terms'
+      path: '/terms'
+      fullPath: '/store/terms'
+      preLoaderRoute: typeof StoreTermsRouteImport
+      parentRoute: typeof StoreRoute
     }
   }
 }
