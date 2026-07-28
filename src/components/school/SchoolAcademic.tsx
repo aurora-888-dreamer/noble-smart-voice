@@ -2,11 +2,11 @@
 // Pure presentation + calls into src/lib/school-academic.functions.ts.
 // Style matches the existing /school tabs (rounded-2xl cards, pill tabs).
 import { useEffect, useRef, useState } from "react";
-import { Trash2, Save, Sparkles, Plus, Check, X, BarChart3 } from "lucide-react";
+import { Trash2, Save, Sparkles, Plus, Check, X, BarChart3, Pencil } from "lucide-react";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell } from "recharts";
 import {
   listCalendarEvents, saveCalendarEvent, deleteCalendarEvent, bulkImportCalendarEvents,
-  listTimetable, saveTimetableSlot, deleteTimetableSlot,
+  listTimetable, saveTimetableSlot, deleteTimetableSlot, bulkImportTimetable,
   listLessonPlans, saveLessonPlan, deleteLessonPlan,
   listProjects, saveProject, reviewProject, listProjectReviews,
   listAssessments, saveAssessment, deleteAssessment, draftAssessmentNote,
@@ -19,6 +19,7 @@ import {
   listCaseTimeline, listCaseTimelineForParent, addCaseComment, addCaseCommentAsParent,
   listCaseParticipants, addCaseParticipant, escalateCaseToHos, closeCase, reopenCase,
 } from "@/lib/school-case.functions";
+import { listEvaluations, saveEvaluation, deleteEvaluation } from "@/lib/school-evaluation.functions";
 import { listSchoolStudents, listSchoolStaff } from "@/lib/school.functions";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -310,12 +311,15 @@ const DAYS = [
 export function TimetablePanel({ access, classes, canEdit, staffId }: { access: Access; classes: ClassOpt[]; canEdit: boolean; staffId?: string | null }) {
   const [classId, setClassId] = useState(classes[0]?.id ?? "");
   const [reload, setReload] = useState(0);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [day, setDay] = useState(1);
   const [subject, setSubject] = useState("");
   const [start, setStart] = useState("07:30");
   const [end, setEnd] = useState("08:30");
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [importMsg, setImportMsg] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const res = useAsync(
     () => listTimetable({ data: access.code ? { code: access.code } : { password: access.pw, classId: classId || undefined } }),
@@ -326,15 +330,49 @@ export function TimetablePanel({ access, classes, canEdit, staffId }: { access: 
   async function add() {
     if (!subject.trim() || !classId || !access.pw) return;
     setBusy(true); setErr(null);
-    const r = await saveTimetableSlot({ data: { password: access.pw, classId, dayOfWeek: day, subject, teacherId: staffId || undefined, startTime: start, endTime: end } });
+    const r = await saveTimetableSlot({ data: { password: access.pw, id: editingId || undefined, classId, dayOfWeek: day, subject, teacherId: staffId || undefined, startTime: start, endTime: end } });
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
-    setSubject(""); setReload((x) => x + 1);
+    setSubject(""); setEditingId(null); setReload((x) => x + 1);
+  }
+  function startEdit(s: Row) {
+    setEditingId(s.id);
+    setDay(s.day_of_week);
+    setSubject(s.subject);
+    setStart(String(s.start_time).slice(0, 5));
+    setEnd(String(s.end_time).slice(0, 5));
   }
   async function remove(id: string) {
     if (!access.pw) return;
     await deleteTimetableSlot({ data: { password: access.pw, id } });
+    if (editingId === id) { setEditingId(null); setSubject(""); }
     setReload((x) => x + 1);
+  }
+
+  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !access.pw) return;
+    setImportMsg(null);
+    const text = await file.text();
+    const lines = text.split(/\r?\n/).filter((l) => l.trim());
+    const headers = (lines[0] ?? "").split(",").map((h) => h.trim().toLowerCase());
+    const idx = (k: string) => headers.indexOf(k);
+    const rows = lines.slice(1).map((line) => {
+      const cols = line.split(",").map((c) => c.trim());
+      const className = cols[idx("classname")] ?? "";
+      const matchedClass = classes.find((c) => c.name.toLowerCase() === className.toLowerCase());
+      return {
+        classId: matchedClass?.id ?? "",
+        dayOfWeek: Number(cols[idx("dayofweek")] ?? 1),
+        subject: cols[idx("subject")] ?? "",
+        startTime: cols[idx("starttime")] ?? "",
+        endTime: cols[idx("endtime")] ?? "",
+      };
+    });
+    const r = await bulkImportTimetable({ data: { password: access.pw, rows } });
+    setImportMsg(r.ok ? `${r.added} slot berhasil diimport.` : `Gagal: ${r.error}`);
+    if (r.ok) setReload((x) => x + 1);
+    if (fileRef.current) fileRef.current.value = "";
   }
 
   return (
@@ -342,6 +380,7 @@ export function TimetablePanel({ access, classes, canEdit, staffId }: { access: 
       {!access.code && <ClassPicker value={classId} onChange={setClassId} classes={classes} allLabel="pilih kelas" />}
       {canEdit && classId && (
         <div className={card + " mb-3 grid gap-2"}>
+          {editingId && <p className="text-xs text-primary font-semibold">Mengedit slot — Simpan untuk update, atau Batal.</p>}
           <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Mata pelajaran" className={field} />
           <div className="flex gap-2 flex-wrap items-center">
             <select value={day} onChange={(e) => setDay(Number(e.target.value))} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm">
@@ -350,9 +389,16 @@ export function TimetablePanel({ access, classes, canEdit, staffId }: { access: 
             <input type="time" value={start} onChange={(e) => setStart(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm" />
             <span className="text-xs text-muted-foreground">-</span>
             <input type="time" value={end} onChange={(e) => setEnd(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm" />
-            <button onClick={add} disabled={busy} className={btn}><Plus size={13} /> Tambah Slot</button>
+            <button onClick={add} disabled={busy} className={btn}><Plus size={13} /> {editingId ? "Simpan" : "Tambah Slot"}</button>
+            {editingId && <button onClick={() => { setEditingId(null); setSubject(""); }} className="rounded-lg border border-border px-3 py-1.5 text-sm">Batal</button>}
           </div>
           <Err msg={err} />
+          <div className="flex items-center gap-2 pt-1 border-t border-border mt-1">
+            <button onClick={() => fileRef.current?.click()} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold">Import Timetable (CSV)</button>
+            <input ref={fileRef} type="file" accept=".csv,text/csv" onChange={handleImportFile} className="hidden" />
+            <span className="text-[10px] text-muted-foreground">Kolom: className, dayOfWeek (1-5), subject, startTime, endTime</span>
+          </div>
+          {importMsg && <p className="text-xs">{importMsg}</p>}
         </div>
       )}
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -367,6 +413,7 @@ export function TimetablePanel({ access, classes, canEdit, staffId }: { access: 
                     <span className="font-mono text-muted-foreground shrink-0">{String(s.start_time).slice(0, 5)}</span>
                     <span className="flex-1 font-semibold">{s.subject}</span>
                     {s.school_staff?.full_name && <span className="text-muted-foreground truncate max-w-24">{s.school_staff.full_name}</span>}
+                    {canEdit && <button onClick={() => startEdit(s)} className="text-muted-foreground shrink-0"><Pencil size={11} /></button>}
                     {canEdit && <button onClick={() => remove(s.id)} className="text-destructive shrink-0"><Trash2 size={11} /></button>}
                   </li>
                 ))}
@@ -1481,5 +1528,78 @@ function CaseRow({ kase, access, role, staffId, staffName, open, onToggle, onCha
         </div>
       )}
     </li>
+  );
+}
+
+/* ───────────── 10. Evaluation (Principal → HoS) ───────────── */
+export function EvaluationPanel({ pw, role, staffId, division }: { pw: string; role: "principal" | "hos"; staffId?: string; division?: string }) {
+  const [reload, setReload] = useState(0);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [title, setTitle] = useState("");
+  const [period, setPeriod] = useState("");
+  const [content, setContent] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const res = useAsync(() => listEvaluations({ data: { password: pw, role, division } }), [pw, role, division, reload]);
+  const evaluations: Row[] = res.data && res.data.ok ? res.data.evaluations : [];
+
+  async function save(submit: boolean) {
+    if (!title.trim()) return;
+    setBusy(true); setErr(null);
+    const r = await saveEvaluation({ data: { password: pw, id: editingId || undefined, staffId: staffId ?? "", division, title, period, content, submit } });
+    setBusy(false);
+    if (!r.ok) { setErr(r.error); return; }
+    setTitle(""); setPeriod(""); setContent(""); setEditingId(null); setReload((x) => x + 1);
+  }
+  function startEdit(e: Row) {
+    setEditingId(e.id); setTitle(e.title); setPeriod(e.period ?? ""); setContent(e.content ?? "");
+  }
+  async function remove(id: string) {
+    await deleteEvaluation({ data: { password: pw, id } });
+    setReload((x) => x + 1);
+  }
+
+  return (
+    <div>
+      {role === "principal" && (
+        <div className={card + " mb-3 grid gap-2"}>
+          <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">{editingId ? "Edit Evaluation" : "New Evaluation"}</p>
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" className={field} />
+          <input value={period} onChange={(e) => setPeriod(e.target.value)} placeholder="Period (e.g. Semester 1 2026/2027)" className={field} />
+          <textarea value={content} onChange={(e) => setContent(e.target.value)} rows={5} placeholder="Evaluation content / notes" className={field} />
+          <div className="flex gap-2 flex-wrap">
+            <button onClick={() => save(false)} disabled={busy} className="rounded-lg border border-border px-3 py-1.5 text-sm font-semibold disabled:opacity-50">Save Draft</button>
+            <button onClick={() => save(true)} disabled={busy} className={btn}><Save size={13} /> Submit to HoS</button>
+            {editingId && <button onClick={() => { setEditingId(null); setTitle(""); setPeriod(""); setContent(""); }} className="rounded-lg border border-border px-3 py-1.5 text-sm">Cancel</button>}
+          </div>
+          <Err msg={err} />
+        </div>
+      )}
+
+      <ul className="space-y-2">
+        {evaluations.map((e) => (
+          <li key={e.id} className="rounded-xl bg-card border border-border p-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-semibold">{e.title}</p>
+              <span className={"shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase " + (e.status === "submitted" ? "bg-emerald-500/15 text-emerald-600" : "bg-muted text-muted-foreground")}>
+                {e.status === "submitted" ? "Submitted" : "Draft"}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {e.period ? e.period + " · " : ""}{e.school_staff?.full_name ?? ""}
+            </p>
+            {e.content && <p className="text-sm mt-2 whitespace-pre-wrap">{e.content}</p>}
+            {role === "principal" && e.status === "draft" && (
+              <div className="flex gap-2 mt-2">
+                <button onClick={() => startEdit(e)} className="text-xs text-primary flex items-center gap-1"><Pencil size={11} /> Edit</button>
+                <button onClick={() => remove(e.id)} className="text-xs text-destructive flex items-center gap-1"><Trash2 size={11} /> Delete</button>
+              </div>
+            )}
+          </li>
+        ))}
+        {evaluations.length === 0 && <Hint>No evaluations yet.</Hint>}
+      </ul>
+    </div>
   );
 }

@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
-  CalendarPanel, TimetablePanel, LessonPlanPanel, ProjectPanel, AssessmentPanel, AttendancePanel, AgendaPanel, StaffMessagePanel, CasePanel,
+  CalendarPanel, TimetablePanel, LessonPlanPanel, ProjectPanel, AssessmentPanel, AttendancePanel, AgendaPanel, StaffMessagePanel, CasePanel, EvaluationPanel,
 } from "./SchoolAcademic";
 import {
   DIVISIONS, ROLE_LABEL, Hint, Section, StatCard, Tabs, ReadOnlyNote, useAsync, useClasses,
@@ -21,12 +21,12 @@ import {
 import { schoolLogout, type SchoolSession } from "@/lib/school-store";
 
 const ACADEMIC_TABS = [
-  { id: "calendar", label: "Kalender" }, { id: "timetable", label: "Timetable" },
-  { id: "lesson", label: "Lesson Plan" }, { id: "projects", label: "Project & Surat Resmi" },
+  { id: "calendar", label: "Calendar" }, { id: "timetable", label: "Timetable" },
+  { id: "lesson", label: "Lesson Plan" }, { id: "projects", label: "Official Letter" },
   { id: "assessment", label: "Assessment" }, { id: "attendance", label: "Attendance" },
 ];
 
-const PIN_TAB = { id: "pin", label: "Ganti PIN" };
+const PIN_TAB = { id: "pin", label: "Change PIN" };
 
 export function StaffHeader({ session }: { session: SchoolSession }) {
   const navigate = useNavigate();
@@ -56,17 +56,21 @@ export function StaffHeader({ session }: { session: SchoolSession }) {
 /** Read-only academic viewer shared by HoS / Admin HoS / Principal — except
  * Calendar, which HoS and Principal can edit for their OWN agenda entries
  * (everyone still sees everyone else's, per the "stay in sync" rule). */
-function AcademicReadOnly({ tab, classes, reviewerRole, reviewerName, calendarStaffId }: {
+function AcademicReadOnly({ tab, classes, reviewerRole, reviewerName, calendarStaffId, timetableStaffId }: {
   tab: string;
   classes: { id: string; name: string }[];
   reviewerRole: "principal" | "hos" | null;
   reviewerName?: string;
   calendarStaffId?: string | null;
+  timetableStaffId?: string | null;
 }) {
   const pw = getStoredPassword();
   if (!ACADEMIC_TABS.some((t) => t.id === tab)) return null;
   if (tab === "calendar" && calendarStaffId) {
     return <CalendarPanel access={{ pw, staffId: calendarStaffId }} classes={classes} canEdit compact />;
+  }
+  if (tab === "timetable" && reviewerRole === "principal" && timetableStaffId) {
+    return <TimetablePanel access={{ pw }} classes={classes} canEdit staffId={timetableStaffId} />;
   }
   return (
     <div>
@@ -89,9 +93,9 @@ export function HosDashboard({ staffId }: { staffId: string }) {
   const staff = useAsync(() => listSchoolStaff({ data: { password: pw } }), [pw]);
   const staffList = (staff.data && "staff" in staff.data ? (staff.data.staff ?? []) : []) as unknown[];
   const tabs = [
-    { id: "overview", label: "Overview" }, { id: "staff", label: "Staff & Role" }, { id: "agenda", label: "Agenda Sekolah" },
-    { id: "message", label: "Message" }, { id: "laporan", label: "Laporan" },
-    { id: "activity", label: "Teacher Activity" }, { id: "announce", label: "Pengumuman" }, ...ACADEMIC_TABS, PIN_TAB,
+    { id: "overview", label: "Overview" }, { id: "staff", label: "Staff & Role" }, { id: "agenda", label: "Agenda" },
+    { id: "message", label: "Message" }, { id: "laporan", label: "Report" },
+    { id: "activity", label: "Teacher Activity" }, { id: "announce", label: "Announcements" }, ...ACADEMIC_TABS, PIN_TAB, { id: "evaluation", label: "Evaluation" },
   ];
   return (
     <div>
@@ -106,6 +110,7 @@ export function HosDashboard({ staffId }: { staffId: string }) {
         {tab === "agenda" && <AgendaPanel pw={pw} staffId={staffId} />}
         {tab === "message" && <StaffMessagePanel pw={pw} staffId={staffId} />}
         {tab === "laporan" && <CasePanel access={{ pw }} role="hos" staffId={staffId} staffName="Head of School" classes={classes} />}
+        {tab === "evaluation" && <EvaluationPanel pw={pw} role="hos" />}
         {tab === "activity" && <AllActivitiesView division={null} />}
         {tab === "announce" && <AnnouncementPanel subrole="hos" division={null} classes={classes} />}
         {tab === "pin" && <ChangePinPanel />}
@@ -134,9 +139,9 @@ export function AdminHosDashboard() {
   const [tab, setTab] = useState("import");
   const classes = useClasses();
   const tabs = [
-    { id: "import", label: "Import Data" }, { id: "students", label: "Data Murid" },
-    { id: "staff", label: "Staff" }, { id: "personnel", label: "Kelola Personil" },
-    { id: "announce", label: "Pengumuman" }, ...ACADEMIC_TABS, PIN_TAB,
+    { id: "import", label: "Import Data" }, { id: "students", label: "Students" },
+    { id: "staff", label: "Staff" }, { id: "personnel", label: "Manage Personnel" },
+    { id: "announce", label: "Announcements" }, ...ACADEMIC_TABS, PIN_TAB,
   ];
   return (
     <div>
@@ -159,9 +164,9 @@ export function PrincipalDashboard({ division, staffId, staffName }: { division:
   const pw = getStoredPassword();
   const classes = useClasses(division);
   const tabs = [
-    { id: "overview", label: "Overview" }, { id: "students", label: "Murid & Guru" },
-    { id: "staff", label: "Staff" }, { id: "message", label: "Message" }, { id: "laporan", label: "Laporan" }, { id: "activity", label: "Teacher Activity" },
-    { id: "announce", label: "Pengumuman" }, ...ACADEMIC_TABS, PIN_TAB,
+    { id: "overview", label: "Overview" }, { id: "students", label: "Student" },
+    { id: "staff", label: "Staff" }, { id: "message", label: "Message" }, { id: "agenda", label: "Agenda" }, { id: "laporan", label: "Report" }, { id: "activity", label: "Teacher Activity" },
+    { id: "announce", label: "Announcements" }, ...ACADEMIC_TABS, PIN_TAB, { id: "evaluation", label: "Evaluation" },
   ];
   return (
     <div>
@@ -171,11 +176,13 @@ export function PrincipalDashboard({ division, staffId, staffName }: { division:
         {tab === "students" && <StudentRoster canEdit classes={classes} />}
         {tab === "staff" && <StaffRoster canEdit classes={classes} scopeDivision={division} />}
         {tab === "message" && <StaffMessagePanel pw={pw} staffId={staffId} />}
+        {tab === "agenda" && <AgendaPanel pw={pw} staffId={staffId} />}
         {tab === "laporan" && <CasePanel access={{ pw }} role="principal" staffId={staffId} staffName={staffName} division={division} classes={classes} />}
+        {tab === "evaluation" && <EvaluationPanel pw={pw} role="principal" staffId={staffId} division={division} />}
         {tab === "activity" && <AllActivitiesView division={division} />}
         {tab === "announce" && <AnnouncementPanel subrole="principal" division={division} classes={classes} />}
         {tab === "pin" && <ChangePinPanel />}
-        <AcademicReadOnly tab={tab} classes={classes} reviewerRole="principal" reviewerName="Principal" calendarStaffId={staffId} />
+        <AcademicReadOnly tab={tab} classes={classes} reviewerRole="principal" reviewerName="Principal" calendarStaffId={staffId} timetableStaffId={staffId} />
       </Tabs>
     </div>
   );
@@ -218,19 +225,19 @@ export function TeacherDashboard({ staffId, staffName, role, defaultClassId }: {
       <div>
         <button onClick={() => setSelectedStudent(null)} className="text-xs text-muted-foreground underline mb-3">Kembali ke kelas</button>
         <p className="text-sm font-semibold mb-3">{selectedStudent.full_name}</p>
-        <Section title="Invite Parent & Akun Wali" Icon={Users}><GuardianEditor studentId={selectedStudent.id} canEdit /></Section>
-        <Section title="Pesan dengan Orangtua" Icon={MessageSquare}><TeacherMessageThread studentId={selectedStudent.id} staffName={staffName} /></Section>
+        <Section title="Invite Parent" Icon={Users}><GuardianEditor studentId={selectedStudent.id} canEdit /></Section>
+        <Section title="Messages with Parent" Icon={MessageSquare}><TeacherMessageThread studentId={selectedStudent.id} staffName={staffName} /></Section>
       </div>
     );
   }
 
   const tabs = [
-    { id: "kelas", label: "Kelas" }, { id: "calendar", label: "Kalender" }, { id: "timetable", label: "Timetable" },
-    { id: "lesson", label: "Lesson Plan" }, { id: "projects", label: "Project & Surat Resmi" },
+    { id: "kelas", label: "Class" }, { id: "calendar", label: "Calendar" }, { id: "timetable", label: "Timetable" },
+    { id: "lesson", label: "Lesson Plan" }, { id: "projects", label: "Official Letter" },
     { id: "assessment", label: "Assessment" },
     ...(isHomeroom ? [{ id: "attendance", label: "Attendance" }] : []),
-    { id: "message", label: "Message Principal" },
-    { id: "laporan", label: "Laporan" },
+    { id: "message", label: "Message" },
+    { id: "laporan", label: "Report" },
     PIN_TAB,
   ];
 
@@ -238,7 +245,7 @@ export function TeacherDashboard({ staffId, staffName, role, defaultClassId }: {
     <div>
       <Tabs tabs={tabs} tab={tab} onChange={setTab}>
         {tab === "calendar" && <CalendarPanel access={{ pw, staffId }} classes={classList} canEdit />}
-        {tab === "timetable" && <TimetablePanel access={{ pw }} classes={classList} canEdit />}
+        {tab === "timetable" && <TimetablePanel access={{ pw }} classes={classList} canEdit={false} />}
         {tab === "lesson" && <LessonPlanPanel pw={pw} classes={classList} canEdit />}
         {tab === "projects" && <ProjectPanel pw={pw} classes={classList} canSubmit reviewerRole={null} reviewerName={staffName} staffId={staffId} />}
         {tab === "assessment" && <AssessmentPanel access={{ pw }} classes={classList} canEdit={isSubject || isHomeroom} />}
@@ -256,7 +263,7 @@ export function TeacherDashboard({ staffId, staffName, role, defaultClassId }: {
 
             {classId && (
               <>
-                <Section title="Murid" Icon={Baby}>
+                <Section title="Students" Icon={Baby}>
                   <ul className="space-y-2">
                     {studentList.map((s) => (
                       <li key={s.id}>
@@ -313,10 +320,10 @@ export function ParentDashboard({ code }: { code: string }) {
         <button onClick={() => { schoolLogout(); navigate({ to: "/" }); }} className="text-xs rounded-full border border-border px-3 py-1.5 flex items-center gap-1"><LogOut size={12} /> Keluar</button>
       </div>
 
-      <Section title="Ganti PIN" Icon={Shield}><ChangePinPanel /></Section>
+      <Section title="Change PIN" Icon={Shield}><ChangePinPanel /></Section>
 
 
-      <Section title="Pengumuman" Icon={Megaphone}>
+      <Section title="Announcements" Icon={Megaphone}>
         <ul className="space-y-2">
           {announcementList.slice(0, 5).map((a) => (
             <li key={a.id} className="rounded-xl bg-card border border-border p-3 text-sm"><p className="font-semibold">{a.title}</p><p className="text-xs text-muted-foreground">{new Date(a.created_at).toLocaleString()}</p>{a.body && <p className="mt-1">{a.body}</p>}</li>
@@ -334,12 +341,12 @@ export function ParentDashboard({ code }: { code: string }) {
         </ul>
       </Section>
 
-      <Section title="Kalender Akademik" Icon={Bell}><CalendarPanel access={{ code }} classes={[]} canEdit={false} /></Section>
+      <Section title="Calendar" Icon={Bell}><CalendarPanel access={{ code }} classes={[]} canEdit={false} /></Section>
       <Section title="Timetable" Icon={BookOpen}><TimetablePanel access={{ code }} classes={[]} canEdit={false} /></Section>
       <Section title="Assessment" Icon={GraduationCap}><AssessmentPanel access={{ code }} classes={[]} canEdit={false} /></Section>
-      <Section title="Kehadiran" Icon={Baby}><AttendancePanel access={{ code }} classes={[]} canEdit={false} /></Section>
-      <Section title="Pesan dengan Guru" Icon={MessageSquare}><ParentMessageThread code={code} /></Section>
-      <Section title="Laporan Kasus" Icon={Shield}><CasePanel access={{ code }} role="parent" classes={[]} /></Section>
+      <Section title="Attendance" Icon={Baby}><AttendancePanel access={{ code }} classes={[]} canEdit={false} /></Section>
+      <Section title="Messages with Teacher" Icon={MessageSquare}><ParentMessageThread code={code} /></Section>
+      <Section title="Report" Icon={Shield}><CasePanel access={{ code }} role="parent" classes={[]} /></Section>
     </div>
   );
 }

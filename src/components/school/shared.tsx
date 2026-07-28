@@ -396,6 +396,8 @@ export function StudentRoster({ canEdit, classes }: { canEdit: boolean; classes:
   const [reload, setReload] = useState(0);
   const [classId, setClassId] = useState("");
   const students = useAsync(() => listSchoolStudents({ data: { password: pw, classId: classId || undefined } }), [pw, classId, reload]);
+  const staffRes = useAsync(() => (classId ? listSchoolStaff({ data: { password: pw } }) : Promise.resolve(null)), [pw, classId]);
+  const classTeachers = (staffRes.data && "staff" in staffRes.data ? (staffRes.data.staff ?? []) : []).filter((s: { class_id?: string }) => s.class_id === classId) as { id: string; full_name: string; role: string }[];
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
   const [studentNumber, setStudentNumber] = useState("");
@@ -412,25 +414,35 @@ export function StudentRoster({ canEdit, classes }: { canEdit: boolean; classes:
   return (
     <div>
       <select value={classId} onChange={(e) => setClassId(e.target.value)} className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm mb-3">
-        <option value="">semua kelas</option>
+        <option value="">all classes</option>
         {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
       </select>
+      {classId && (
+        <div className="rounded-xl bg-secondary/40 px-3 py-2 mb-3">
+          <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold mb-1">Teachers</p>
+          {classTeachers.length > 0 ? (
+            <p className="text-sm">{classTeachers.map((t) => t.full_name + (t.role === "teacher_homeroom" ? " (Homeroom)" : " (Subject)")).join(", ")}</p>
+          ) : (
+            <p className="text-xs text-muted-foreground">No teacher assigned to this class yet.</p>
+          )}
+        </div>
+      )}
       {canEdit && (
         <div className="mb-3">
           {!adding ? (
-            <button onClick={() => setAdding(true)} disabled={!classId} className="rounded-full border border-border px-3 py-1.5 text-xs flex items-center gap-1 disabled:opacity-40"><UserPlus size={13} /> Tambah Murid {!classId ? "(pilih kelas dulu)" : ""}</button>
+            <button onClick={() => setAdding(true)} disabled={!classId} className="rounded-full border border-border px-3 py-1.5 text-xs flex items-center gap-1 disabled:opacity-40"><UserPlus size={13} /> Add Student {!classId ? "(pick a class first)" : ""}</button>
           ) : (
             <div className="flex gap-2 flex-wrap">
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nama lengkap" className="flex-1 min-w-40 rounded-lg bg-background border border-border px-3 py-1.5 text-sm" />
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" className="flex-1 min-w-40 rounded-lg bg-background border border-border px-3 py-1.5 text-sm" />
               <input value={studentNumber} onChange={(e) => setStudentNumber(e.target.value)} placeholder="Student ID" className="w-32 rounded-lg bg-background border border-border px-3 py-1.5 text-sm" />
-              <button onClick={add} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-sm font-semibold">Simpan</button>
+              <button onClick={add} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-sm font-semibold">Save</button>
             </div>
           )}
         </div>
       )}
       <ul className="space-y-2">
         {list.map((s) => <StudentRow key={s.id} student={s} canEdit={canEdit} onDelete={() => remove(s.id)} />)}
-        {list.length === 0 && <Hint>Belum ada murid.</Hint>}
+        {list.length === 0 && <Hint>No students yet.</Hint>}
       </ul>
     </div>
   );
