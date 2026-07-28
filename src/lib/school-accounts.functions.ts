@@ -13,6 +13,9 @@ export const DEFAULT_PIN = "123456";
 function passwordForTier(tier: StaffTier): string {
   return (tier === "admin" ? process.env.SCHOOL_ADMIN_PASSWORD : process.env.SCHOOL_TEACHER_PASSWORD) || "";
 }
+function tierForRole(role: string): StaffTier {
+  return ADMIN_TIER_ROLES.includes(role) ? "admin" : "teacher";
+}
 function checkSchoolPassword(password: string): StaffTier | null {
   if (password && password === (process.env.SCHOOL_ADMIN_PASSWORD || "")) return "admin";
   if (password && password === (process.env.SCHOOL_TEACHER_PASSWORD || "")) return "teacher";
