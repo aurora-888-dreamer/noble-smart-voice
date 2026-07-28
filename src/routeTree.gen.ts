@@ -47,6 +47,11 @@ import { Route as StoreTermsRouteImport } from './routes/store.terms'
 import { Route as StorePrivacyRouteImport } from './routes/store.privacy'
 import { Route as StoreOrderRouteImport } from './routes/store.order'
 import { Route as StoreAdminRouteImport } from './routes/store.admin'
+import { Route as SchoolTeacherRouteImport } from './routes/school.teacher'
+import { Route as SchoolPrincipalRouteImport } from './routes/school.principal'
+import { Route as SchoolParentRouteImport } from './routes/school.parent'
+import { Route as SchoolHosRouteImport } from './routes/school.hos'
+import { Route as SchoolAdminHosRouteImport } from './routes/school.admin-hos'
 import { Route as ProjectsIdRouteImport } from './routes/projects.$id'
 
 const UpgradeRoute = UpgradeRouteImport.update({
@@ -239,6 +244,31 @@ const StoreAdminRoute = StoreAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => StoreRoute,
 } as any)
+const SchoolTeacherRoute = SchoolTeacherRouteImport.update({
+  id: '/teacher',
+  path: '/teacher',
+  getParentRoute: () => SchoolRoute,
+} as any)
+const SchoolPrincipalRoute = SchoolPrincipalRouteImport.update({
+  id: '/principal',
+  path: '/principal',
+  getParentRoute: () => SchoolRoute,
+} as any)
+const SchoolParentRoute = SchoolParentRouteImport.update({
+  id: '/parent',
+  path: '/parent',
+  getParentRoute: () => SchoolRoute,
+} as any)
+const SchoolHosRoute = SchoolHosRouteImport.update({
+  id: '/hos',
+  path: '/hos',
+  getParentRoute: () => SchoolRoute,
+} as any)
+const SchoolAdminHosRoute = SchoolAdminHosRouteImport.update({
+  id: '/admin-hos',
+  path: '/admin-hos',
+  getParentRoute: () => SchoolRoute,
+} as any)
 const ProjectsIdRoute = ProjectsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -279,6 +309,11 @@ export interface FileRoutesByFullPath {
   '/trips': typeof TripsRoute
   '/upgrade': typeof UpgradeRoute
   '/projects/$id': typeof ProjectsIdRoute
+  '/school/admin-hos': typeof SchoolAdminHosRoute
+  '/school/hos': typeof SchoolHosRoute
+  '/school/parent': typeof SchoolParentRoute
+  '/school/principal': typeof SchoolPrincipalRoute
+  '/school/teacher': typeof SchoolTeacherRoute
   '/store/admin': typeof StoreAdminRoute
   '/store/order': typeof StoreOrderRoute
   '/store/privacy': typeof StorePrivacyRoute
@@ -318,6 +353,11 @@ export interface FileRoutesByTo {
   '/trips': typeof TripsRoute
   '/upgrade': typeof UpgradeRoute
   '/projects/$id': typeof ProjectsIdRoute
+  '/school/admin-hos': typeof SchoolAdminHosRoute
+  '/school/hos': typeof SchoolHosRoute
+  '/school/parent': typeof SchoolParentRoute
+  '/school/principal': typeof SchoolPrincipalRoute
+  '/school/teacher': typeof SchoolTeacherRoute
   '/store/admin': typeof StoreAdminRoute
   '/store/order': typeof StoreOrderRoute
   '/store/privacy': typeof StorePrivacyRoute
@@ -360,6 +400,11 @@ export interface FileRoutesById {
   '/trips': typeof TripsRoute
   '/upgrade': typeof UpgradeRoute
   '/projects/$id': typeof ProjectsIdRoute
+  '/school/admin-hos': typeof SchoolAdminHosRoute
+  '/school/hos': typeof SchoolHosRoute
+  '/school/parent': typeof SchoolParentRoute
+  '/school/principal': typeof SchoolPrincipalRoute
+  '/school/teacher': typeof SchoolTeacherRoute
   '/store/admin': typeof StoreAdminRoute
   '/store/order': typeof StoreOrderRoute
   '/store/privacy': typeof StorePrivacyRoute
@@ -403,6 +448,11 @@ export interface FileRouteTypes {
     | '/trips'
     | '/upgrade'
     | '/projects/$id'
+    | '/school/admin-hos'
+    | '/school/hos'
+    | '/school/parent'
+    | '/school/principal'
+    | '/school/teacher'
     | '/store/admin'
     | '/store/order'
     | '/store/privacy'
@@ -442,6 +492,11 @@ export interface FileRouteTypes {
     | '/trips'
     | '/upgrade'
     | '/projects/$id'
+    | '/school/admin-hos'
+    | '/school/hos'
+    | '/school/parent'
+    | '/school/principal'
+    | '/school/teacher'
     | '/store/admin'
     | '/store/order'
     | '/store/privacy'
@@ -483,6 +538,11 @@ export interface FileRouteTypes {
     | '/trips'
     | '/upgrade'
     | '/projects/$id'
+    | '/school/admin-hos'
+    | '/school/hos'
+    | '/school/parent'
+    | '/school/principal'
+    | '/school/teacher'
     | '/store/admin'
     | '/store/order'
     | '/store/privacy'
@@ -794,6 +854,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StoreAdminRouteImport
       parentRoute: typeof StoreRoute
     }
+    '/school/teacher': {
+      id: '/school/teacher'
+      path: '/teacher'
+      fullPath: '/school/teacher'
+      preLoaderRoute: typeof SchoolTeacherRouteImport
+      parentRoute: typeof SchoolRoute
+    }
+    '/school/principal': {
+      id: '/school/principal'
+      path: '/principal'
+      fullPath: '/school/principal'
+      preLoaderRoute: typeof SchoolPrincipalRouteImport
+      parentRoute: typeof SchoolRoute
+    }
+    '/school/parent': {
+      id: '/school/parent'
+      path: '/parent'
+      fullPath: '/school/parent'
+      preLoaderRoute: typeof SchoolParentRouteImport
+      parentRoute: typeof SchoolRoute
+    }
+    '/school/hos': {
+      id: '/school/hos'
+      path: '/hos'
+      fullPath: '/school/hos'
+      preLoaderRoute: typeof SchoolHosRouteImport
+      parentRoute: typeof SchoolRoute
+    }
+    '/school/admin-hos': {
+      id: '/school/admin-hos'
+      path: '/admin-hos'
+      fullPath: '/school/admin-hos'
+      preLoaderRoute: typeof SchoolAdminHosRouteImport
+      parentRoute: typeof SchoolRoute
+    }
     '/projects/$id': {
       id: '/projects/$id'
       path: '/$id'
@@ -817,10 +912,20 @@ const ProjectsRouteWithChildren = ProjectsRoute._addFileChildren(
 )
 
 interface SchoolRouteChildren {
+  SchoolAdminHosRoute: typeof SchoolAdminHosRoute
+  SchoolHosRoute: typeof SchoolHosRoute
+  SchoolParentRoute: typeof SchoolParentRoute
+  SchoolPrincipalRoute: typeof SchoolPrincipalRoute
+  SchoolTeacherRoute: typeof SchoolTeacherRoute
   SchoolIndexRoute: typeof SchoolIndexRoute
 }
 
 const SchoolRouteChildren: SchoolRouteChildren = {
+  SchoolAdminHosRoute: SchoolAdminHosRoute,
+  SchoolHosRoute: SchoolHosRoute,
+  SchoolParentRoute: SchoolParentRoute,
+  SchoolPrincipalRoute: SchoolPrincipalRoute,
+  SchoolTeacherRoute: SchoolTeacherRoute,
   SchoolIndexRoute: SchoolIndexRoute,
 }
 
@@ -882,3 +987,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
