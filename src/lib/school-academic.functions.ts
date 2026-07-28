@@ -230,7 +230,7 @@ export const listProjects = createServerFn({ method: "POST" })
 
 export const saveProject = createServerFn({ method: "POST" })
   .inputValidator(
-    (input: { password: string; id?: string; classId: string; teacherId?: string; title: string; description?: string; submit?: boolean }) =>
+    (input: { password: string; id?: string; classId: string; teacherId?: string; title: string; description?: string; submit?: boolean; requiresHos?: boolean }) =>
       input,
   )
   .handler(async ({ data }): Promise<{ ok: true; project: Row } | Fail> => {
@@ -243,6 +243,7 @@ export const saveProject = createServerFn({ method: "POST" })
       title: data.title.trim(),
       description: data.description || null,
       status: (data.submit ? "diajukan_principal" : "draft") as ProjectStatus,
+      requires_hos: data.requiresHos ?? true,
     };
     const q = data.id
       ? gate.supabase.from("school_projects").update(payload).eq("id", data.id).select().single()
@@ -256,23 +257,29 @@ export const reviewProject = createServerFn({ method: "POST" })
   .inputValidator(
     (input: {
       password: string; id: string; reviewerRole: "principal" | "hos";
-      reviewerName?: string; decision: "approve" | "reject"; notes?: string;
+      reviewerName?: string; decision: "approve" | "reject"; isRevisi?: boolean; notes?: string;
     }) => input,
   )
   .handler(async ({ data }): Promise<{ ok: true; status: ProjectStatus } | Fail> => {
     const gate = staffClient(data.password, true);
     if (!gate.ok) return gate;
     const { data: project, error: readErr } = await gate.supabase
-      .from("school_projects").select("id, status").eq("id", data.id).maybeSingle();
+      .from("school_projects").select("id, status, requires_hos").eq("id", data.id).maybeSingle();
     if (readErr) return { ok: false, error: readErr.message };
     if (!project) return { ok: false, error: "Project tidak ditemukan." };
 
-    const current = (project as { status: string }).status;
+    const current = (project as { status: string; requires_hos: boolean }).status;
+    const requiresHos = (project as { status: string; requires_hos: boolean }).requires_hos;
     let next: ProjectStatus;
-    if (data.decision === "reject") next = "ditolak";
-    else if (data.reviewerRole === "principal") {
+    if (data.decision === "reject") {
+      // "Minta Revisi" sends it back to draft so the original submitter can
+      // fix and resubmit — it is NOT a dead end like a hard reject.
+      next = data.isRevisi ? "draft" : "ditolak";
+    } else if (data.reviewerRole === "principal") {
       if (current !== "diajukan_principal") return { ok: false, error: "Project belum diajukan ke Principal." };
-      next = "diajukan_hos";
+      // Some proposals don't need HoS's sign-off — Principal's approval is
+      // final for those, and it goes straight to disetujui (finished).
+      next = requiresHos ? "diajukan_hos" : "disetujui";
     } else {
       if (current !== "diajukan_hos") return { ok: false, error: "Project belum diteruskan ke Head of School." };
       next = "disetujui";
