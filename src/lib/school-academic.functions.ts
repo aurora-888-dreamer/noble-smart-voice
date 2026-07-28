@@ -284,19 +284,22 @@ export const listProjects = createServerFn({ method: "POST" })
 
 export const saveProject = createServerFn({ method: "POST" })
   .inputValidator(
-    (input: { password: string; id?: string; classId: string; teacherId?: string; title: string; description?: string; submit?: boolean; requiresHos?: boolean }) =>
+    (input: { password: string; id?: string; classId: string; teacherId?: string; submitterRole?: "teacher" | "principal"; title: string; description?: string; submit?: boolean; requiresHos?: boolean }) =>
       input,
   )
   .handler(async ({ data }): Promise<{ ok: true; project: Row } | Fail> => {
     const gate = staffClient(data.password);
     if (!gate.ok) return gate;
+    // A Principal creating their own Official Letter has implicitly already
+    // "passed" the Principal review stage — it goes straight to HoS.
+    const submittedStatus: ProjectStatus = data.submitterRole === "principal" ? "diajukan_hos" : "diajukan_principal";
     const payload = {
       school_id: schoolId(),
       class_id: data.classId,
       teacher_id: data.teacherId || null,
       title: data.title.trim(),
       description: data.description || null,
-      status: (data.submit ? "diajukan_principal" : "draft") as ProjectStatus,
+      status: (data.submit ? submittedStatus : "draft") as ProjectStatus,
       requires_hos: data.requiresHos ?? true,
     };
     const q = data.id
@@ -365,6 +368,42 @@ export const listProjectReviews = createServerFn({ method: "POST" })
       .order("reviewed_at", { ascending: false });
     if (error) return { ok: false, error: error.message };
     return { ok: true, reviews: rows ?? [] };
+  });
+
+// ————— 5b. Competencies (Principal-defined, auto-populate Assessment forms) —————
+export const listCompetencies = createServerFn({ method: "POST" })
+  .inputValidator((input: { password: string; subject?: string }) => input)
+  .handler(async ({ data }): Promise<{ ok: true; competencies: Row[] } | Fail> => {
+    const gate = staffClient(data.password);
+    if (!gate.ok) return gate;
+    let q = gate.supabase.from("school_competencies").select("*").order("sort_order", { ascending: true });
+    if (data.subject) q = q.or(`subject.is.null,subject.eq.${data.subject}`);
+    const { data: rows, error } = await q;
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, competencies: rows ?? [] };
+  });
+
+export const saveCompetency = createServerFn({ method: "POST" })
+  .inputValidator((input: { password: string; staffId: string; subject?: string; title: string }) => input)
+  .handler(async ({ data }): Promise<{ ok: true } | Fail> => {
+    const gate = staffClient(data.password, true); // Principal/admin tier
+    if (!gate.ok) return gate;
+    if (!data.title.trim()) return { ok: false, error: "Nama kompetensi wajib diisi." };
+    const { error } = await gate.supabase.from("school_competencies").insert({
+      school_id: schoolId(), subject: data.subject || null, title: data.title.trim(), created_by: data.staffId || null,
+    });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  });
+
+export const deleteCompetency = createServerFn({ method: "POST" })
+  .inputValidator((input: { password: string; id: string }) => input)
+  .handler(async ({ data }): Promise<{ ok: true } | Fail> => {
+    const gate = staffClient(data.password, true);
+    if (!gate.ok) return gate;
+    const { error } = await gate.supabase.from("school_competencies").delete().eq("id", data.id);
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
   });
 
 // ————— 5. Subject assessments —————

@@ -38,6 +38,29 @@ export const reportCaseAsTeacher = createServerFn({ method: "POST" })
     return { ok: true, caseId: row.id };
   });
 
+export const reportCaseAsPrincipal = createServerFn({ method: "POST" })
+  .inputValidator(
+    (input: { password: string; staffId: string; staffName: string; classId?: string; studentId?: string; division?: string; title: string; description?: string }) => input,
+  )
+  .handler(async ({ data }): Promise<{ ok: true; caseId: string } | Fail> => {
+    const gate = staffClient(data.password, true);
+    if (!gate.ok) return gate;
+    const { data: row, error } = await gate.supabase.from("school_cases").insert({
+      school_id: schoolId(),
+      title: data.title.trim(),
+      description: data.description || null,
+      reported_by_type: "principal",
+      reported_by_staff_id: data.staffId,
+      class_id: data.classId || null,
+      student_id: data.studentId || null,
+      division: data.division || null,
+      status: "open",
+    }).select().single();
+    if (error) return { ok: false, error: error.message };
+    await addTimelineEntry(gate.supabase, row.id, data.staffName, "principal", `Case opened: ${data.title.trim()}`, "system");
+    return { ok: true, caseId: row.id };
+  });
+
 export const reportCaseAsParent = createServerFn({ method: "POST" })
   .inputValidator((input: { code: string; title: string; description?: string }) => input)
   .handler(async ({ data }): Promise<{ ok: true; caseId: string } | Fail> => {
