@@ -14,6 +14,11 @@ import {
 } from "@/lib/school-academic.functions";
 import { listAgendas, saveAgenda, deleteAgenda, addAgendaPic, removeAgendaPic } from "@/lib/school-agenda.functions";
 import { listMessagingContacts, listStaffConversation, sendStaffMessage } from "@/lib/school-staff-messages.functions";
+import {
+  reportCaseAsTeacher, reportCaseAsParent, listCases, listCasesForParent,
+  listCaseTimeline, listCaseTimelineForParent, addCaseComment, addCaseCommentAsParent,
+  listCaseParticipants, addCaseParticipant, escalateCaseToHos, closeCase, reopenCase,
+} from "@/lib/school-case.functions";
 import { listSchoolStudents, listSchoolStaff } from "@/lib/school.functions";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1180,4 +1185,217 @@ function roleLabelForMessaging(role: string): string {
     teacher_homeroom: "Homeroom Teacher", teacher_subject: "Subject Teacher", teacher_shadow: "Shadow Teacher",
   };
   return map[role] ?? role;
+}
+
+/* ───────────── 9. Laporan / Case Reporting ───────────── */
+const CASE_STATUS_LABEL: Record<string, { label: string; cls: string }> = {
+  open: { label: "Di Principal", cls: "bg-yellow-500/20 text-yellow-700" },
+  hos: { label: "Di Head of School", cls: "bg-orange-500/20 text-orange-700" },
+  selesai: { label: "Selesai (Arsip)", cls: "bg-emerald-500/15 text-emerald-600" },
+};
+
+export function CasePanel({
+  access, role, staffId, staffName, division, classes,
+}: {
+  access: Access; role: "teacher" | "principal" | "hos" | "parent";
+  staffId?: string; staffName?: string; division?: string; classes: ClassOpt[];
+}) {
+  const [reload, setReload] = useState(0);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [classId, setClassId] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const res = useAsync(
+    () => access.code
+      ? listCasesForParent({ data: { code: access.code } })
+      : listCases({ data: { password: access.pw!, role: role as "teacher" | "principal" | "hos", staffId: staffId ?? "", division } }),
+    [access.pw, access.code, role, staffId, division, reload],
+  );
+  const cases: Row[] = res.data && res.data.ok ? res.data.cases : [];
+
+  async function report() {
+    if (!title.trim()) return;
+    setBusy(true); setErr(null);
+    const r = access.code
+      ? await reportCaseAsParent({ data: { code: access.code, title, description } })
+      : await reportCaseAsTeacher({ data: { password: access.pw!, staffId: staffId ?? "", staffName: staffName ?? "", classId: classId || undefined, division, title, description } });
+    setBusy(false);
+    if (!r.ok) { setErr(r.error); return; }
+    setTitle(""); setDescription(""); setReload((x) => x + 1);
+  }
+
+  return (
+    <div>
+      {(role === "teacher" || role === "parent") && (
+        <div className={card + " mb-3 grid gap-2"}>
+          <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Lapor Kasus Baru ke Principal</p>
+          {role === "teacher" && (
+            <select value={classId} onChange={(e) => setClassId(e.target.value)} className={field}>
+              <option value="">kelas terkait (opsional)</option>
+              {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          )}
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Judul kasus" className={field} />
+          <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Detail kasus" className={field} />
+          <button onClick={report} disabled={busy} className={btn + " justify-self-start"}>Lapor ke Principal</button>
+          <Err msg={err} />
+        </div>
+      )}
+
+      <ul className="space-y-2">
+        {cases.map((c) => (
+          <CaseRow
+            key={c.id} kase={c} access={access} role={role} staffId={staffId} staffName={staffName}
+            open={openId === c.id} onToggle={() => setOpenId(openId === c.id ? null : c.id)}
+            onChanged={() => setReload((x) => x + 1)}
+          />
+        ))}
+        {cases.length === 0 && <Hint>Belum ada kasus.</Hint>}
+      </ul>
+    </div>
+  );
+}
+
+function CaseRow({ kase, access, role, staffId, staffName, open, onToggle, onChanged }: {
+  kase: Row; access: Access; role: "teacher" | "principal" | "hos" | "parent"; staffId?: string; staffName?: string;
+  open: boolean; onToggle: () => void; onChanged: () => void;
+}) {
+  const [comment, setComment] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [showInvite, setShowInvite] = useState(false);
+  const [extName, setExtName] = useState("");
+  const [extContact, setExtContact] = useState("");
+
+  const timelineRes = useAsync(
+    () => open
+      ? (access.code ? listCaseTimelineForParent({ data: { code: access.code, caseId: kase.id } }) : listCaseTimeline({ data: { password: access.pw!, caseId: kase.id } }))
+      : Promise.resolve(null),
+    [open, access.pw, access.code, kase.id],
+  );
+  const timeline: Row[] = timelineRes.data && timelineRes.data.ok ? timelineRes.data.entries : [];
+
+  const participantsRes = useAsync(
+    () => (open && !access.code ? listCaseParticipants({ data: { password: access.pw!, caseId: kase.id } }) : Promise.resolve(null)),
+    [open, access.pw, access.code, kase.id],
+  );
+  const participants: Row[] = participantsRes.data && participantsRes.data.ok ? participantsRes.data.participants : [];
+
+  const badge = CASE_STATUS_LABEL[kase.status] ?? CASE_STATUS_LABEL.open;
+  const isOwner = (role === "principal" && kase.status === "open") || (role === "hos" && kase.status === "hos");
+
+  async function sendComment() {
+    if (!comment.trim()) return;
+    setBusy(true); setErr(null);
+    const r = access.code
+      ? await addCaseCommentAsParent({ data: { code: access.code, caseId: kase.id, body: comment } })
+      : await addCaseComment({ data: { password: access.pw!, caseId: kase.id, authorName: staffName ?? "", authorRole: role, body: comment } });
+    setBusy(false);
+    if (!r.ok) { setErr(r.error); return; }
+    setComment(""); onChanged();
+  }
+  async function escalate() {
+    if (!access.pw) return;
+    const r = await escalateCaseToHos({ data: { password: access.pw, caseId: kase.id, actorName: staffName ?? "" } });
+    if (!r.ok) { setErr(r.error); return; }
+    onChanged();
+  }
+  async function close() {
+    if (!access.pw) return;
+    const r = await closeCase({ data: { password: access.pw, caseId: kase.id, actorName: staffName ?? "", actorRole: role as "principal" | "hos" } });
+    if (!r.ok) { setErr(r.error); return; }
+    onChanged();
+  }
+  async function reopen() {
+    if (!access.pw) return;
+    const r = await reopenCase({ data: { password: access.pw, caseId: kase.id, actorName: staffName ?? "", actorRole: role as "principal" | "hos" } });
+    if (!r.ok) { setErr(r.error); return; }
+    onChanged();
+  }
+  async function inviteExternal() {
+    if (!access.pw || !extName.trim()) return;
+    await addCaseParticipant({
+      data: { password: access.pw, caseId: kase.id, invitedBy: staffId ?? "", invitedByName: staffName ?? "", participantType: "external", externalName: extName, externalContact: extContact },
+    });
+    setExtName(""); setExtContact(""); setShowInvite(false); onChanged();
+  }
+
+  return (
+    <li className="rounded-xl bg-card border border-border p-3">
+      <button onClick={onToggle} className="w-full text-left">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-semibold">{kase.title}</p>
+          <span className={"shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase " + badge.cls}>{badge.label}</span>
+        </div>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          {kase.school_students?.full_name ?? kase.school_classes?.name ?? ""}
+        </p>
+      </button>
+      {open && (
+        <div className="mt-3 pt-3 border-t border-border space-y-3">
+          {kase.description && <p className="text-sm whitespace-pre-wrap">{kase.description}</p>}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Riwayat Timeline</p>
+              <ul className="space-y-1.5 max-h-64 overflow-y-auto">
+                {timeline.map((t) => (
+                  <li key={t.id} className={"text-xs rounded-lg p-2 " + (t.entry_type === "system" ? "bg-secondary/40 text-muted-foreground italic" : "bg-secondary/60")}>
+                    <span className="font-semibold not-italic">{t.author_name}</span>{t.author_role ? " (" + t.author_role + ")" : ""}: {t.body}
+                    <span className="block text-[10px] opacity-60 mt-0.5">{new Date(t.created_at).toLocaleString()}</span>
+                  </li>
+                ))}
+                {timeline.length === 0 && <Hint>Belum ada riwayat.</Hint>}
+              </ul>
+            </div>
+
+            <div className="grid gap-2 content-start">
+              {kase.status !== "selesai" && (
+                <>
+                  <textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={2} placeholder="Tambahkan pendapat/komentar…" className={field} />
+                  <button onClick={sendComment} disabled={busy} className={btn + " justify-self-start"}>Kirim Komentar</button>
+                </>
+              )}
+
+              {!access.code && (
+                <div className="flex gap-2 flex-wrap pt-1">
+                  {role === "principal" && kase.status === "open" && (
+                    <button onClick={escalate} className="rounded-lg bg-orange-600 text-white px-3 py-1.5 text-xs font-semibold">Teruskan ke HoS</button>
+                  )}
+                  {isOwner && (
+                    <button onClick={close} className="rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-xs font-semibold">Tandai Selesai</button>
+                  )}
+                  {kase.status === "selesai" && (role === "principal" || role === "hos") && (
+                    <button onClick={reopen} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold">Buka Kembali</button>
+                  )}
+                  {role === "principal" && (
+                    <button onClick={() => setShowInvite((v) => !v)} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold">+ Undang Pihak Lain</button>
+                  )}
+                </div>
+              )}
+              <Err msg={err} />
+
+              {showInvite && (
+                <div className="flex gap-2 flex-wrap mt-1">
+                  <input value={extName} onChange={(e) => setExtName(e.target.value)} placeholder="Nama (staff/parent lain/eksternal)" className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm" />
+                  <input value={extContact} onChange={(e) => setExtContact(e.target.value)} placeholder="Kontak" className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm" />
+                  <button onClick={inviteExternal} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold">Undang</button>
+                </div>
+              )}
+
+              {participants.length > 0 && (
+                <div className="mt-1">
+                  <p className="text-[11px] text-muted-foreground uppercase tracking-wide font-semibold mb-1">Pihak Terlibat</p>
+                  <p className="text-xs">{participants.map((p) => p.external_name ?? p.school_staff?.full_name ?? p.school_guardians?.full_name).join(", ")}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </li>
+  );
 }
