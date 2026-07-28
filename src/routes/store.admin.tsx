@@ -126,7 +126,7 @@ function ForgotPassword({ onDone }: { onDone: () => void }) {
     const res = await resetStoreAdminPassword({ data: { code, newPassword: newPw } });
     setBusy(false);
     if (!res.ok) return setErr(res.error);
-    const ok = await adminLogin(newPw);
+    const ok = await adminLogin("Noble888", newPw);
     if (!ok) {
       setNote("PIN berhasil diubah. Silakan masuk dengan PIN baru.");
       onDone();
