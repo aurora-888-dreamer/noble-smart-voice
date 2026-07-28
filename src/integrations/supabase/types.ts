@@ -155,8 +155,104 @@ export type Database = {
           },
         ]
       }
+      school_agenda_pic: {
+        Row: {
+          agenda_id: string
+          created_at: string
+          external_contact: string | null
+          external_name: string | null
+          id: string
+          is_external: boolean
+          staff_id: string | null
+        }
+        Insert: {
+          agenda_id: string
+          created_at?: string
+          external_contact?: string | null
+          external_name?: string | null
+          id?: string
+          is_external?: boolean
+          staff_id?: string | null
+        }
+        Update: {
+          agenda_id?: string
+          created_at?: string
+          external_contact?: string | null
+          external_name?: string | null
+          id?: string
+          is_external?: boolean
+          staff_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_agenda_pic_agenda_id_fkey"
+            columns: ["agenda_id"]
+            isOneToOne: false
+            referencedRelation: "school_agendas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_agenda_pic_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "school_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      school_agendas: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          end_date: string | null
+          id: string
+          purpose: string | null
+          school_id: string
+          start_date: string | null
+          status: string
+          theme: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          end_date?: string | null
+          id?: string
+          purpose?: string | null
+          school_id: string
+          start_date?: string | null
+          status?: string
+          theme?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          end_date?: string | null
+          id?: string
+          purpose?: string | null
+          school_id?: string
+          start_date?: string | null
+          status?: string
+          theme?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_agendas_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "school_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       school_announcements: {
         Row: {
+          audience: string
           author_name: string | null
           body: string | null
           class_id: string | null
@@ -169,6 +265,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          audience?: string
           author_name?: string | null
           body?: string | null
           class_id?: string | null
@@ -181,6 +278,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          audience?: string
           author_name?: string | null
           body?: string | null
           class_id?: string | null
@@ -389,6 +487,192 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "school_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      school_case_participants: {
+        Row: {
+          case_id: string
+          created_at: string
+          external_contact: string | null
+          external_name: string | null
+          guardian_id: string | null
+          id: string
+          invited_by: string | null
+          participant_type: string
+          staff_id: string | null
+        }
+        Insert: {
+          case_id: string
+          created_at?: string
+          external_contact?: string | null
+          external_name?: string | null
+          guardian_id?: string | null
+          id?: string
+          invited_by?: string | null
+          participant_type: string
+          staff_id?: string | null
+        }
+        Update: {
+          case_id?: string
+          created_at?: string
+          external_contact?: string | null
+          external_name?: string | null
+          guardian_id?: string | null
+          id?: string
+          invited_by?: string | null
+          participant_type?: string
+          staff_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_case_participants_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "school_cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_case_participants_guardian_id_fkey"
+            columns: ["guardian_id"]
+            isOneToOne: false
+            referencedRelation: "school_guardians"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_case_participants_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "school_staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_case_participants_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "school_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      school_case_timeline: {
+        Row: {
+          author_name: string
+          author_role: string | null
+          body: string
+          case_id: string
+          created_at: string
+          entry_type: string
+          id: string
+        }
+        Insert: {
+          author_name: string
+          author_role?: string | null
+          body: string
+          case_id: string
+          created_at?: string
+          entry_type?: string
+          id?: string
+        }
+        Update: {
+          author_name?: string
+          author_role?: string | null
+          body?: string
+          case_id?: string
+          created_at?: string
+          entry_type?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_case_timeline_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "school_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      school_cases: {
+        Row: {
+          class_id: string | null
+          closed_at: string | null
+          created_at: string
+          description: string | null
+          division: string | null
+          id: string
+          reported_by_guardian_id: string | null
+          reported_by_staff_id: string | null
+          reported_by_type: string
+          school_id: string
+          status: string
+          student_id: string | null
+          title: string
+          updated_at: string
+          was_escalated: boolean
+        }
+        Insert: {
+          class_id?: string | null
+          closed_at?: string | null
+          created_at?: string
+          description?: string | null
+          division?: string | null
+          id?: string
+          reported_by_guardian_id?: string | null
+          reported_by_staff_id?: string | null
+          reported_by_type: string
+          school_id: string
+          status?: string
+          student_id?: string | null
+          title: string
+          updated_at?: string
+          was_escalated?: boolean
+        }
+        Update: {
+          class_id?: string | null
+          closed_at?: string | null
+          created_at?: string
+          description?: string | null
+          division?: string | null
+          id?: string
+          reported_by_guardian_id?: string | null
+          reported_by_staff_id?: string | null
+          reported_by_type?: string
+          school_id?: string
+          status?: string
+          student_id?: string | null
+          title?: string
+          updated_at?: string
+          was_escalated?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_cases_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "school_classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_cases_reported_by_guardian_id_fkey"
+            columns: ["reported_by_guardian_id"]
+            isOneToOne: false
+            referencedRelation: "school_guardians"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_cases_reported_by_staff_id_fkey"
+            columns: ["reported_by_staff_id"]
+            isOneToOne: false
+            referencedRelation: "school_staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_cases_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "school_students"
             referencedColumns: ["id"]
           },
         ]
@@ -676,6 +960,7 @@ export type Database = {
           description: string | null
           id: string
           last_review_notes: string | null
+          requires_hos: boolean
           school_id: string
           status: string
           teacher_id: string | null
@@ -688,6 +973,7 @@ export type Database = {
           description?: string | null
           id?: string
           last_review_notes?: string | null
+          requires_hos?: boolean
           school_id: string
           status?: string
           teacher_id?: string | null
@@ -700,6 +986,7 @@ export type Database = {
           description?: string | null
           id?: string
           last_review_notes?: string | null
+          requires_hos?: boolean
           school_id?: string
           status?: string
           teacher_id?: string | null
@@ -808,6 +1095,48 @@ export type Database = {
             columns: ["class_id"]
             isOneToOne: false
             referencedRelation: "school_classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      school_staff_messages: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          recipient_id: string
+          school_id: string
+          sender_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          recipient_id: string
+          school_id: string
+          sender_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          recipient_id?: string
+          school_id?: string
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_staff_messages_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "school_staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_staff_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "school_staff"
             referencedColumns: ["id"]
           },
         ]
