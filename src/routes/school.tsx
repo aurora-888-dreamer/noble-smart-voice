@@ -677,7 +677,7 @@ function CsvImportPanel({ classes }: { classes: { id: string; name: string }[] }
             <p className="text-xs font-mono break-all bg-background rounded-lg p-2">Key (6 huruf terakhir): {debugKeyTail}</p>
           </div>
         )}
-        <p className="text-[11px] text-muted-foreground mt-2">Harus mengandung <code className="font-mono">gcszpmmvsutdqqtgswuu</code>. Kalau beda, itu penyebab data tidak muncul di SQL Editor.</p>
+        <p className="text-[11px] text-muted-foreground mt-2">Ini sekarang sengaja pakai koneksi Lovable Cloud (bukan project Supabase pribadi) — cek datanya lewat tab Cloud &gt; Database di Lovable, bukan supabase.com.</p>
       </div>
 
       <div className="rounded-2xl bg-card border border-border p-4">
