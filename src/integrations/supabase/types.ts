@@ -707,6 +707,91 @@ export type Database = {
         }
         Relationships: []
       }
+      school_competencies: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          school_id: string
+          sort_order: number
+          subject: string | null
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          school_id: string
+          sort_order?: number
+          subject?: string | null
+          title: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          school_id?: string
+          sort_order?: number
+          subject?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_competencies_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "school_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      school_evaluations: {
+        Row: {
+          content: string | null
+          created_at: string
+          division: string | null
+          id: string
+          period: string | null
+          school_id: string
+          status: string
+          submitted_by: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          division?: string | null
+          id?: string
+          period?: string | null
+          school_id: string
+          status?: string
+          submitted_by?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          division?: string | null
+          id?: string
+          period?: string | null
+          school_id?: string
+          status?: string
+          submitted_by?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_evaluations_submitted_by_fkey"
+            columns: ["submitted_by"]
+            isOneToOne: false
+            referencedRelation: "school_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       school_guardians: {
         Row: {
           created_at: string
