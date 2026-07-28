@@ -1,11 +1,11 @@
 // UI panels for the 6 academic modules of the School Dashboard.
 // Pure presentation + calls into src/lib/school-academic.functions.ts.
 // Style matches the existing /school tabs (rounded-2xl cards, pill tabs).
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Trash2, Save, Sparkles, Plus, Check, X, BarChart3 } from "lucide-react";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell } from "recharts";
 import {
-  listCalendarEvents, saveCalendarEvent, deleteCalendarEvent,
+  listCalendarEvents, saveCalendarEvent, deleteCalendarEvent, bulkImportCalendarEvents,
   listTimetable, saveTimetableSlot, deleteTimetableSlot,
   listLessonPlans, saveLessonPlan, deleteLessonPlan,
   listProjects, saveProject, reviewProject, listProjectReviews,
@@ -78,6 +78,8 @@ export function CalendarPanel({ access, classes, canEdit, compact }: { access: A
   const [type, setType] = useState("acara");
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [importMsg, setImportMsg] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const staffId = access.staffId;
 
   const res = useAsync(
@@ -101,8 +103,34 @@ export function CalendarPanel({ access, classes, canEdit, compact }: { access: A
     setReload((x) => x + 1);
   }
 
+  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !access.pw) return;
+    setImportMsg(null);
+    const text = await file.text();
+    const lines = text.split(/\r?\n/).filter((l) => l.trim());
+    const headers = (lines[0] ?? "").split(",").map((h) => h.trim().toLowerCase());
+    const idx = (key: string) => headers.indexOf(key);
+    const rows = lines.slice(1).map((line) => {
+      const cols = line.split(",").map((c) => c.trim());
+      const className = idx("classname") >= 0 ? cols[idx("classname")] : "";
+      const matchedClass = classes.find((c) => c.name.toLowerCase() === (className ?? "").toLowerCase());
+      return {
+        title: cols[idx("title")] ?? "",
+        eventDate: cols[idx("eventdate")] ?? "",
+        eventType: idx("eventtype") >= 0 ? cols[idx("eventtype")] : "acara",
+        description: idx("description") >= 0 ? cols[idx("description")] : undefined,
+        classId: matchedClass?.id,
+      };
+    });
+    const r = await bulkImportCalendarEvents({ data: { password: access.pw, staffId: staffId ?? "", rows } });
+    setImportMsg(r.ok ? `${r.added} event berhasil diimport.` : `Gagal: ${r.error}`);
+    if (r.ok) setReload((x) => x + 1);
+    if (fileRef.current) fileRef.current.value = "";
+  }
+
   return (
-    <div className={compact ? "mx-auto" : undefined} style={compact ? { maxWidth: 380 } : undefined}>
+    <div className={compact ? "mx-auto" : undefined} style={compact ? { maxWidth: 560 } : undefined}>
       {!access.code && <ClassPicker value={classId} onChange={setClassId} classes={classes} />}
       {canEdit && (
         <div className={card + " mb-3 grid gap-2"}>
@@ -116,6 +144,12 @@ export function CalendarPanel({ access, classes, canEdit, compact }: { access: A
             <button onClick={add} disabled={busy} className={btn}><Plus size={13} /> Tambah Event</button>
           </div>
           <p className="text-[11px] text-muted-foreground">Anda hanya bisa mengubah/menghapus agenda yang Anda buat sendiri — agenda milik orang lain tetap bisa dilihat.</p>
+          <div className="flex items-center gap-2 pt-1 border-t border-border mt-1">
+            <button onClick={() => fileRef.current?.click()} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold">Import Agenda Tahunan (CSV)</button>
+            <input ref={fileRef} type="file" accept=".csv,text/csv" onChange={handleImportFile} className="hidden" />
+            <span className="text-[10px] text-muted-foreground">Kolom: title, eventDate (YYYY-MM-DD), eventType, description, className (opsional)</span>
+          </div>
+          {importMsg && <p className="text-xs">{importMsg}</p>}
           <Err msg={err} />
         </div>
       )}
@@ -155,62 +189,69 @@ function CalendarGrid({ events, canEdit, staffId, onRemove, compact }: { events:
 
   return (
     <div className={"rounded-2xl bg-card border border-border " + (compact ? "p-2 text-xs" : "p-3")}>
-      <div className="flex items-center justify-between mb-2">
-        <button onClick={() => shift(-1)} className="rounded-lg border border-border px-2 py-1 text-xs">‹</button>
-        <p className={compact ? "text-xs font-semibold" : "text-sm font-semibold"}>{MONTHS[cursor.m]} {cursor.y}</p>
-        <button onClick={() => shift(1)} className="rounded-lg border border-border px-2 py-1 text-xs">›</button>
-      </div>
-      <div className="grid grid-cols-7 gap-1 text-center text-[10px] uppercase text-muted-foreground mb-1">
-        {WEEKDAYS.map((d) => <div key={d}>{d}</div>)}
-      </div>
-      <div className="grid grid-cols-7 gap-1">
-        {cells.map((d, i) => {
-          if (d === null) return <div key={i} />;
-          const k = key(d);
-          const dayEvents = byDate.get(k) ?? [];
-          const isToday = k === todayKey;
-          return (
-            <button
-              key={i}
-              onClick={() => setSelected(dayEvents.length ? k : null)}
-              className={
-                (compact ? "aspect-square rounded-md text-[10px] " : "aspect-square rounded-lg text-xs ") +
-                "flex flex-col items-center justify-center gap-0.5 border " +
-                (selected === k ? "border-primary bg-primary/15 " : isToday ? "border-primary/60 " : "border-transparent ") +
-                (dayEvents.length ? "bg-secondary font-semibold" : "text-muted-foreground")
-              }
-            >
-              {d}
-              {dayEvents.length > 0 && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="mt-3 border-t border-border pt-3">
-        {selected ? (
-          <ul className="space-y-2">
-            {selectedEvents.map((e) => {
-              const t = EVENT_TYPES.find((x) => x.v === e.event_type) ?? EVENT_TYPES[2];
-              const isOwn = !!staffId && e.created_by === staffId;
+      <div className="grid grid-cols-2 gap-3 items-start">
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <button onClick={() => shift(-1)} className="rounded-lg border border-border px-2 py-1 text-xs">‹</button>
+            <p className={compact ? "text-xs font-semibold" : "text-sm font-semibold"}>{MONTHS[cursor.m]} {cursor.y}</p>
+            <button onClick={() => shift(1)} className="rounded-lg border border-border px-2 py-1 text-xs">›</button>
+          </div>
+          <div className="grid grid-cols-7 gap-0.5 text-center text-[9px] uppercase text-muted-foreground mb-1">
+            {WEEKDAYS.map((d) => <div key={d}>{d[0]}</div>)}
+          </div>
+          <div className="grid grid-cols-7 gap-0.5">
+            {cells.map((d, i) => {
+              if (d === null) return <div key={i} />;
+              const k = key(d);
+              const dayEvents = byDate.get(k) ?? [];
+              const isToday = k === todayKey;
               return (
-                <li key={e.id} className="rounded-xl bg-background border border-border p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-semibold">{e.title}</p>
-                    <span className={"shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase " + t.cls}>{t.label}</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {new Date(e.event_date).toLocaleDateString()}{e.school_staff?.full_name ? " · dibuat oleh " + e.school_staff.full_name : ""}
-                  </p>
-                  {e.description && <p className="text-sm mt-1 whitespace-pre-wrap">{e.description}</p>}
-                  {canEdit && isOwn && <button onClick={() => onRemove(e.id)} className="mt-2 text-xs text-destructive flex items-center gap-1"><Trash2 size={12} /> Hapus</button>}
-                </li>
+                <button
+                  key={i}
+                  onClick={() => setSelected(dayEvents.length ? k : null)}
+                  className={
+                    "aspect-square rounded-md text-[9px] sm:text-[10px] " +
+                    "flex flex-col items-center justify-center gap-0.5 border " +
+                    (selected === k ? "border-primary bg-primary/15 " : isToday ? "border-primary/60 " : "border-transparent ") +
+                    (dayEvents.length ? "bg-secondary font-semibold" : "text-muted-foreground")
+                  }
+                >
+                  {d}
+                  {dayEvents.length > 0 && <span className="w-1 h-1 rounded-full bg-primary" />}
+                </button>
               );
             })}
-          </ul>
-        ) : (
-          <Hint>{events.length === 0 ? "Belum ada event di kalender." : "Pilih tanggal bertanda untuk melihat detail event."}</Hint>
-        )}
+          </div>
+        </div>
+
+        <div className="border-l border-border pl-3">
+          <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">
+            {selected ? new Date(selected).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" }) : "Detail Event"}
+          </p>
+          {selected ? (
+            <ul className="space-y-2 max-h-64 overflow-y-auto">
+              {selectedEvents.map((e) => {
+                const t = EVENT_TYPES.find((x) => x.v === e.event_type) ?? EVENT_TYPES[2];
+                const isOwn = !!staffId && e.created_by === staffId;
+                return (
+                  <li key={e.id} className="rounded-xl bg-background border border-border p-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-semibold">{e.title}</p>
+                      <span className={"shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase " + t.cls}>{t.label}</span>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      {e.school_staff?.full_name ? "oleh " + e.school_staff.full_name : ""}
+                    </p>
+                    {e.description && <p className="text-xs mt-1 whitespace-pre-wrap">{e.description}</p>}
+                    {canEdit && isOwn && <button onClick={() => onRemove(e.id)} className="mt-1.5 text-[10px] text-destructive flex items-center gap-1"><Trash2 size={11} /> Hapus</button>}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <Hint>{events.length === 0 ? "Belum ada event." : "Pilih tanggal bertanda."}</Hint>
+          )}
+        </div>
       </div>
     </div>
   );

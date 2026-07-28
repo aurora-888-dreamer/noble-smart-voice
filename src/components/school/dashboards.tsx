@@ -7,7 +7,7 @@ import {
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   CalendarPanel, TimetablePanel, LessonPlanPanel, ProjectPanel, AssessmentPanel, AttendancePanel, AgendaPanel, StaffMessagePanel, CasePanel,
-} from "./SchoolAcademic";
+} from "@/components/SchoolAcademic";
 import {
   DIVISIONS, ROLE_LABEL, Hint, Section, StatCard, Tabs, ReadOnlyNote, useAsync, useClasses,
   getStoredPassword, getSchoolIdSync, StaffRoster, StudentRoster, GuardianEditor, CsvImportPanel,
@@ -95,21 +95,22 @@ export function HosDashboard({ staffId }: { staffId: string }) {
   ];
   return (
     <div>
-      <Tabs tabs={tabs} tab={tab} onChange={setTab} />
-      {tab === "overview" && (
-        <div className="grid grid-cols-2 gap-3">
-          <StatCard label="Classes" value={classes.length} Icon={GraduationCap} />
-          <StatCard label="Staff" value={staffList.length} Icon={Users} />
-        </div>
-      )}
-      {tab === "staff" && <RoleManager classes={classes} />}
-      {tab === "agenda" && <AgendaPanel pw={pw} staffId={staffId} />}
-      {tab === "message" && <StaffMessagePanel pw={pw} staffId={staffId} />}
-      {tab === "laporan" && <CasePanel access={{ pw }} role="hos" staffId={staffId} staffName="Head of School" classes={classes} />}
-      {tab === "activity" && <AllActivitiesView division={null} />}
-      {tab === "announce" && <AnnouncementPanel subrole="hos" division={null} classes={classes} />}
-      {tab === "pin" && <ChangePinPanel />}
-      <AcademicReadOnly tab={tab} classes={classes} reviewerRole="hos" reviewerName="Head of School" calendarStaffId={staffId} />
+      <Tabs tabs={tabs} tab={tab} onChange={setTab}>
+        {tab === "overview" && (
+          <div className="grid grid-cols-2 gap-3">
+            <StatCard label="Classes" value={classes.length} Icon={GraduationCap} />
+            <StatCard label="Staff" value={staffList.length} Icon={Users} />
+          </div>
+        )}
+        {tab === "staff" && <RoleManager classes={classes} />}
+        {tab === "agenda" && <AgendaPanel pw={pw} staffId={staffId} />}
+        {tab === "message" && <StaffMessagePanel pw={pw} staffId={staffId} />}
+        {tab === "laporan" && <CasePanel access={{ pw }} role="hos" staffId={staffId} staffName="Head of School" classes={classes} />}
+        {tab === "activity" && <AllActivitiesView division={null} />}
+        {tab === "announce" && <AnnouncementPanel subrole="hos" division={null} classes={classes} />}
+        {tab === "pin" && <ChangePinPanel />}
+        <AcademicReadOnly tab={tab} classes={classes} reviewerRole="hos" reviewerName="Head of School" calendarStaffId={staffId} />
+      </Tabs>
     </div>
   );
 }
@@ -139,14 +140,15 @@ export function AdminHosDashboard() {
   ];
   return (
     <div>
-      <Tabs tabs={tabs} tab={tab} onChange={setTab} />
-      {tab === "import" && <CsvImportPanel classes={classes} />}
-      {tab === "students" && <StudentRoster canEdit classes={classes} />}
-      {tab === "staff" && <StaffRoster canEdit classes={classes} scopeDivision={null} />}
-      {tab === "personnel" && <PersonnelManager classes={classes} />}
-      {tab === "announce" && <AnnouncementPanel subrole="admin_hos" division={null} classes={classes} />}
-      {tab === "pin" && <ChangePinPanel />}
-      <AcademicReadOnly tab={tab} classes={classes} reviewerRole={null} />
+      <Tabs tabs={tabs} tab={tab} onChange={setTab}>
+        {tab === "import" && <CsvImportPanel classes={classes} />}
+        {tab === "students" && <StudentRoster canEdit classes={classes} />}
+        {tab === "staff" && <StaffRoster canEdit classes={classes} scopeDivision={null} />}
+        {tab === "personnel" && <PersonnelManager classes={classes} />}
+        {tab === "announce" && <AnnouncementPanel subrole="admin_hos" division={null} classes={classes} />}
+        {tab === "pin" && <ChangePinPanel />}
+        <AcademicReadOnly tab={tab} classes={classes} reviewerRole={null} />
+      </Tabs>
     </div>
   );
 }
@@ -164,16 +166,17 @@ export function PrincipalDashboard({ division, staffId, staffName }: { division:
   return (
     <div>
       <p className="text-xs text-muted-foreground mb-3">Divisi: {DIVISIONS.find((d) => d.id === division)?.label ?? division}</p>
-      <Tabs tabs={tabs} tab={tab} onChange={setTab} />
-      {tab === "overview" && <div className="grid grid-cols-2 gap-3"><StatCard label="Classes" value={classes.length} Icon={GraduationCap} /></div>}
-      {tab === "students" && <StudentRoster canEdit classes={classes} />}
-      {tab === "staff" && <StaffRoster canEdit classes={classes} scopeDivision={division} />}
-      {tab === "message" && <StaffMessagePanel pw={pw} staffId={staffId} />}
-      {tab === "laporan" && <CasePanel access={{ pw }} role="principal" staffId={staffId} staffName={staffName} division={division} classes={classes} />}
-      {tab === "activity" && <AllActivitiesView division={division} />}
-      {tab === "announce" && <AnnouncementPanel subrole="principal" division={division} classes={classes} />}
-      {tab === "pin" && <ChangePinPanel />}
-      <AcademicReadOnly tab={tab} classes={classes} reviewerRole="principal" reviewerName="Principal" calendarStaffId={staffId} />
+      <Tabs tabs={tabs} tab={tab} onChange={setTab}>
+        {tab === "overview" && <div className="grid grid-cols-2 gap-3"><StatCard label="Classes" value={classes.length} Icon={GraduationCap} /></div>}
+        {tab === "students" && <StudentRoster canEdit classes={classes} />}
+        {tab === "staff" && <StaffRoster canEdit classes={classes} scopeDivision={division} />}
+        {tab === "message" && <StaffMessagePanel pw={pw} staffId={staffId} />}
+        {tab === "laporan" && <CasePanel access={{ pw }} role="principal" staffId={staffId} staffName={staffName} division={division} classes={classes} />}
+        {tab === "activity" && <AllActivitiesView division={division} />}
+        {tab === "announce" && <AnnouncementPanel subrole="principal" division={division} classes={classes} />}
+        {tab === "pin" && <ChangePinPanel />}
+        <AcademicReadOnly tab={tab} classes={classes} reviewerRole="principal" reviewerName="Principal" calendarStaffId={staffId} />
+      </Tabs>
     </div>
   );
 }
@@ -233,59 +236,59 @@ export function TeacherDashboard({ staffId, staffName, role, defaultClassId }: {
 
   return (
     <div>
-      <Tabs tabs={tabs} tab={tab} onChange={setTab} />
+      <Tabs tabs={tabs} tab={tab} onChange={setTab}>
+        {tab === "calendar" && <CalendarPanel access={{ pw, staffId }} classes={classList} canEdit />}
+        {tab === "timetable" && <TimetablePanel access={{ pw }} classes={classList} canEdit />}
+        {tab === "lesson" && <LessonPlanPanel pw={pw} classes={classList} canEdit />}
+        {tab === "projects" && <ProjectPanel pw={pw} classes={classList} canSubmit reviewerRole={null} reviewerName={staffName} staffId={staffId} />}
+        {tab === "assessment" && <AssessmentPanel access={{ pw }} classes={classList} canEdit={isSubject || isHomeroom} />}
+        {tab === "attendance" && isHomeroom && <AttendancePanel access={{ pw }} classes={classList} canEdit />}
+        {tab === "message" && <StaffMessagePanel pw={pw} staffId={staffId} />}
+        {tab === "laporan" && <CasePanel access={{ pw }} role="teacher" staffId={staffId} staffName={staffName} classes={classList} />}
+        {tab === "pin" && <ChangePinPanel />}
 
-      {tab === "calendar" && <CalendarPanel access={{ pw, staffId }} classes={classList} canEdit />}
-      {tab === "timetable" && <TimetablePanel access={{ pw }} classes={classList} canEdit />}
-      {tab === "lesson" && <LessonPlanPanel pw={pw} classes={classList} canEdit />}
-      {tab === "projects" && <ProjectPanel pw={pw} classes={classList} canSubmit reviewerRole={null} reviewerName={staffName} staffId={staffId} />}
-      {tab === "assessment" && <AssessmentPanel access={{ pw }} classes={classList} canEdit={isSubject || isHomeroom} />}
-      {tab === "attendance" && isHomeroom && <AttendancePanel access={{ pw }} classes={classList} canEdit />}
-      {tab === "message" && <StaffMessagePanel pw={pw} staffId={staffId} />}
-      {tab === "laporan" && <CasePanel access={{ pw }} role="teacher" staffId={staffId} staffName={staffName} classes={classList} />}
-      {tab === "pin" && <ChangePinPanel />}
+        {tab === "kelas" && (
+          <>
+            <select value={classId} onChange={(e) => setClassId(e.target.value)} className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm mb-4">
+              <option value="">pilih kelas</option>
+              {classList.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
 
-      {tab === "kelas" && (
-        <>
-          <select value={classId} onChange={(e) => setClassId(e.target.value)} className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm mb-4">
-            <option value="">pilih kelas</option>
-            {classList.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-
-          {classId && (
-            <>
-              <Section title="Murid" Icon={Baby}>
-                <ul className="space-y-2">
-                  {studentList.map((s) => (
-                    <li key={s.id}>
-                      <button onClick={() => setSelectedStudent(s)} className="w-full rounded-xl bg-card border border-border p-3 text-left text-sm flex items-center justify-between">
-                        {s.full_name} <span className="text-xs text-muted-foreground">Pesan / Wali</span>
-                      </button>
-                    </li>
-                  ))}
-                  {studentList.length === 0 && <Hint>Belum ada murid di kelas ini.</Hint>}
-                </ul>
-              </Section>
-              <Section title="Daily Activity" Icon={BookOpen}>
-                <div className="rounded-2xl bg-card border border-border p-3 mb-3">
-                  <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Judul aktivitas" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm mb-2" />
-                  <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={3} placeholder="Cerita" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm" />
-                  <button onClick={post} className="mt-2 rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-sm font-semibold flex items-center gap-1"><Save size={13} /> Kirim</button>
-                </div>
-                <ul className="space-y-2">
-                  {activityList.map((a) => (
-                    <li key={a.id} className="rounded-xl bg-card border border-border p-3">
-                      <div className="flex justify-between"><p className="text-sm font-semibold">{a.title}</p><button onClick={() => removeActivity(a.id)} className="text-destructive"><Trash2 size={13} /></button></div>
-                      <p className="text-xs text-muted-foreground mt-0.5">{new Date(a.activity_date).toLocaleDateString()}{a.author_name ? " - " + a.author_name : ""}</p>
-                      {a.body && <p className="text-sm mt-2 whitespace-pre-wrap">{a.body}</p>}
-                    </li>
-                  ))}
-                </ul>
-              </Section>
-            </>
-          )}
-        </>
-      )}
+            {classId && (
+              <>
+                <Section title="Murid" Icon={Baby}>
+                  <ul className="space-y-2">
+                    {studentList.map((s) => (
+                      <li key={s.id}>
+                        <button onClick={() => setSelectedStudent(s)} className="w-full rounded-xl bg-card border border-border p-3 text-left text-sm flex items-center justify-between">
+                          {s.full_name} <span className="text-xs text-muted-foreground">Pesan / Wali</span>
+                        </button>
+                      </li>
+                    ))}
+                    {studentList.length === 0 && <Hint>Belum ada murid di kelas ini.</Hint>}
+                  </ul>
+                </Section>
+                <Section title="Daily Activity" Icon={BookOpen}>
+                  <div className="rounded-2xl bg-card border border-border p-3 mb-3">
+                    <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Judul aktivitas" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm mb-2" />
+                    <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={3} placeholder="Cerita" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm" />
+                    <button onClick={post} className="mt-2 rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-sm font-semibold flex items-center gap-1"><Save size={13} /> Kirim</button>
+                  </div>
+                  <ul className="space-y-2">
+                    {activityList.map((a) => (
+                      <li key={a.id} className="rounded-xl bg-card border border-border p-3">
+                        <div className="flex justify-between"><p className="text-sm font-semibold">{a.title}</p><button onClick={() => removeActivity(a.id)} className="text-destructive"><Trash2 size={13} /></button></div>
+                        <p className="text-xs text-muted-foreground mt-0.5">{new Date(a.activity_date).toLocaleDateString()}{a.author_name ? " - " + a.author_name : ""}</p>
+                        {a.body && <p className="text-sm mt-2 whitespace-pre-wrap">{a.body}</p>}
+                      </li>
+                    ))}
+                  </ul>
+                </Section>
+              </>
+            )}
+          </>
+        )}
+      </Tabs>
     </div>
   );
 }

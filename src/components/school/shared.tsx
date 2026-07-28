@@ -1,7 +1,7 @@
 // Shared building blocks for every School dashboard (HoS, Admin HoS,
 // Principal, Teacher, Parent). Extracted out of the old single-file
 // /school route so each role can live on its own URL.
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Shield, Users, Trash2, UserPlus, Upload, Send, Megaphone, Bell, X, GraduationCap,
   KeyRound, Copy, Check, Pencil, Power,
@@ -102,16 +102,22 @@ export function StatCard({ label, value, Icon }: { label: string; value: number;
   );
 }
 
-export function Tabs({ tabs, tab, onChange }: { tabs: { id: string; label: string }[]; tab: string; onChange: (id: string) => void }) {
+export function Tabs({ tabs, tab, onChange, children }: { tabs: { id: string; label: string }[]; tab: string; onChange: (id: string) => void; children?: ReactNode }) {
   return (
-    <div className="flex gap-2 overflow-x-auto pb-2 mb-4 no-scrollbar">
-      {tabs.map((t) => (
-        <button
-          key={t.id}
-          onClick={() => onChange(t.id)}
-          className={"shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold border " + (tab === t.id ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}
-        >{t.label}</button>
-      ))}
+    <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-wrap sm:flex-col gap-1.5 sm:gap-1 sm:w-40 shrink-0 sm:border-r sm:border-border sm:pr-3">
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => onChange(t.id)}
+            className={
+              "shrink-0 sm:shrink sm:w-full sm:text-left rounded-full sm:rounded-lg px-3 py-1.5 text-xs font-semibold border " +
+              (tab === t.id ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")
+            }
+          >{t.label}</button>
+        ))}
+      </div>
+      <div className="flex-1 min-w-0">{children}</div>
     </div>
   );
 }
