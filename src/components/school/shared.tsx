@@ -158,6 +158,32 @@ export function ClassManagerPrincipal({ division, classes }: { division: string;
 }
 
 /* ───────────── staff ───────────── */
+type StaffRow = {
+  id: string; full_name: string; role: SchoolRole; division?: string; class_id?: string | null;
+  user_id?: string | null; pin_is_default?: boolean; is_active?: boolean; subjects?: string[] | null; email?: string | null;
+};
+
+export function CredentialCard({ userId, pin, onDismiss }: { userId: string; pin: string; onDismiss?: () => void }) {
+  const [copied, setCopied] = useState(false);
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(`UserID: ${userId} · PIN: ${pin}`);
+      setCopied(true); setTimeout(() => setCopied(false), 1200);
+    } catch { /* clipboard unavailable */ }
+  }
+  return (
+    <div className="rounded-xl border border-primary/40 bg-primary/10 p-3 text-xs space-y-2">
+      <p className="font-semibold text-primary">Akun berhasil dibuat</p>
+      <p>UserID: <code className="font-mono font-semibold">{userId}</code> · PIN default: <code className="font-mono font-semibold">{pin}</code></p>
+      <p className="text-destructive font-semibold">Segera ganti PIN setelah login pertama.</p>
+      <div className="flex gap-2">
+        <button onClick={copy} className="rounded-lg border border-border px-2 py-1 flex items-center gap-1">{copied ? <Check size={12} /> : <Copy size={12} />} Salin</button>
+        {onDismiss && <button onClick={onDismiss} className="text-muted-foreground underline">Tutup</button>}
+      </div>
+    </div>
+  );
+}
+
 export function StaffRoster({
   canEdit, classes, scopeDivision, roleOptions,
 }: {
@@ -170,81 +196,167 @@ export function StaffRoster({
   const [reload, setReload] = useState(0);
   const staff = useAsync(() => listSchoolStaff({ data: { password: pw } }), [pw, reload]);
   const options: { v: SchoolRole; label: string }[] = roleOptions ?? (scopeDivision
-    ? [{ v: "teacher_homeroom", label: "Homeroom Teacher" }, { v: "teacher_shadow", label: "Shadow Teacher" }, { v: "teacher_subject", label: "Subject Teacher" }]
-    : [{ v: "principal", label: "Principal" }]);
+    ? [{ v: "teacher_homeroom", label: "Homeroom Teacher" }, { v: "teacher_subject", label: "Subject Teacher" }]
+    : CREATABLE_ROLES);
   const [name, setName] = useState("");
   const [role, setRole] = useState<SchoolRole>(options[0]?.v ?? "principal");
   const [division, setDivision] = useState(scopeDivision ?? "kindergarten");
   const [classId, setClassId] = useState("");
+  const [subjects, setSubjects] = useState("");
+  const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [created, setCreated] = useState<{ userId: string; pin: string } | null>(null);
 
-  const isSchoolWide = role === "hos" || role === "admin_hos";
+  const isSchoolWide = role === "hos" || role === "vice_hos" || role === "admin_hos";
+  const isHomeroom = role === "teacher_homeroom";
+  const isSubject = role === "teacher_subject";
 
   async function add() {
     if (!name.trim()) return;
     setBusy(true); setErr(null);
-    const res = await createSchoolStaff({
+    const res = await createStaffAccount({
       data: {
         password: pw, schoolId: getSchoolIdSync(), fullName: name.trim(), role,
         division: isSchoolWide ? "All Divisions" : (scopeDivision ?? division),
-        classId: classId || undefined,
+        email: email || undefined,
+        classId: isHomeroom ? (classId || undefined) : undefined,
+        subjects: isSubject ? subjects.split(",").map((s) => s.trim()).filter(Boolean) : [],
       },
     });
     setBusy(false);
     if (!res.ok) { setErr(res.error); return; }
-    setName(""); setClassId(""); setReload((x) => x + 1);
+    setCreated({ userId: res.userId, pin: res.defaultPin });
+    setName(""); setClassId(""); setSubjects(""); setEmail(""); setReload((x) => x + 1);
   }
   async function remove(id: string) {
     await deleteSchoolStaff({ data: { password: pw, id } });
     setReload((x) => x + 1);
   }
-  const list = (staff.data && "staff" in staff.data ? (staff.data.staff ?? []) : []) as { id: string; full_name: string; role: SchoolRole; division?: string; pin_is_default?: boolean }[];
+  const list = (staff.data && "staff" in staff.data ? (staff.data.staff ?? []) : []) as StaffRow[];
   const filtered = scopeDivision ? list.filter((s) => s.division === scopeDivision) : list;
   return (
     <div>
       {canEdit && (
         <div className="rounded-2xl bg-card border border-border p-3 mb-3 grid gap-2">
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nama lengkap" className="rounded-lg bg-background border border-border px-3 py-1.5 text-sm" />
+          <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email (dipakai untuk reset PIN)" className="rounded-lg bg-background border border-border px-3 py-1.5 text-sm" />
           <div className="grid grid-cols-2 gap-2">
             <select value={role} onChange={(e) => setRole(e.target.value as SchoolRole)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm">
               {options.map((r) => <option key={r.v} value={r.v}>{r.label}</option>)}
             </select>
-            {!scopeDivision && !isSchoolWide && (
+            {!isSchoolWide && !scopeDivision && (
               <select value={division} onChange={(e) => setDivision(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm">
                 {DIVISIONS.filter((d) => d.id !== "All Divisions").map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
               </select>
             )}
-            {scopeDivision && (
+            {isHomeroom && (
               <select value={classId} onChange={(e) => setClassId(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm">
-                <option value="">pilih kelas opsional</option>
+                <option value="">assign kelas (opsional)</option>
                 {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             )}
           </div>
-          <p className="text-[11px] text-muted-foreground">PIN awal <code className="font-mono">123456</code> — diganti sendiri saat login pertama.</p>
-          <button onClick={add} disabled={busy} className="justify-self-start rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-sm font-semibold disabled:opacity-50 flex items-center gap-1"><UserPlus size={13} /> Tambah Staff</button>
+          {isSubject && (
+            <input value={subjects} onChange={(e) => setSubjects(e.target.value)} placeholder="Mata pelajaran, pisahkan dengan koma (mis. Math, Science)" className="rounded-lg bg-background border border-border px-3 py-1.5 text-sm" />
+          )}
+          <p className="text-[11px] text-muted-foreground">UserID dibuat otomatis (5 huruf + 3 angka). PIN awal <code className="font-mono">123456</code> — wajib diganti saat login pertama.</p>
+          <button onClick={add} disabled={busy} className="justify-self-start rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-sm font-semibold disabled:opacity-50 flex items-center gap-1"><UserPlus size={13} /> Buat Akun Staff</button>
           {err && <p className="text-xs text-destructive">{err}</p>}
+          {created && <CredentialCard userId={created.userId} pin={created.pin} onDismiss={() => setCreated(null)} />}
         </div>
       )}
       <ul className="space-y-2">
         {filtered.map((s) => (
-          <li key={s.id} className="rounded-xl bg-card border border-border p-3 text-sm flex justify-between">
-            <div>
-              <p className="font-semibold">{s.full_name}</p>
-              <p className="text-xs text-muted-foreground">
-                {ROLE_LABEL[s.role] ?? s.role}{s.division ? " · " + (DIVISIONS.find((d) => d.id === s.division)?.label ?? s.division) : ""}
-                {s.pin_is_default ? " · PIN default" : ""}
-              </p>
-            </div>
-            {canEdit && <button onClick={() => remove(s.id)} className="text-destructive"><Trash2 size={14} /></button>}
-          </li>
+          <StaffRow key={s.id} staff={s} classes={classes} canEdit={canEdit} onChanged={() => setReload((x) => x + 1)} onRemove={() => remove(s.id)} />
         ))}
         {filtered.length === 0 && <Hint>Belum ada staff.</Hint>}
       </ul>
     </div>
   );
 }
+
+function StaffRow({ staff, classes, canEdit, onChanged, onRemove }: {
+  staff: StaffRow; classes: { id: string; name: string }[]; canEdit: boolean; onChanged: () => void; onRemove: () => void;
+}) {
+  const pw = getStoredPassword();
+  const [open, setOpen] = useState(false);
+  const [classId, setClassId] = useState(staff.class_id ?? "");
+  const [subjects, setSubjects] = useState((staff.subjects ?? []).join(", "));
+  const [msg, setMsg] = useState<string | null>(null);
+  const isHomeroom = staff.role === "teacher_homeroom";
+  const isSubject = staff.role === "teacher_subject";
+
+  async function save() {
+    await updateStaffAccount({
+      data: {
+        password: pw, id: staff.id,
+        classId: isHomeroom ? (classId || null) : undefined,
+        subjects: isSubject ? subjects.split(",").map((s) => s.trim()).filter(Boolean) : undefined,
+      },
+    });
+    setMsg("Tersimpan.");
+    onChanged();
+  }
+  async function toggleActive() {
+    await updateStaffAccount({ data: { password: pw, id: staff.id, isActive: staff.is_active === false } });
+    onChanged();
+  }
+  async function resetPin() {
+    await updateStaffAccount({ data: { password: pw, id: staff.id, resetPin: true } });
+    setMsg("PIN dikembalikan ke 123456.");
+    onChanged();
+  }
+  async function makeUserId() {
+    const res = await ensureStaffUserId({ data: { password: pw, id: staff.id } });
+    setMsg(res.ok ? `UserID: ${res.userId} · PIN 123456` : res.error);
+    onChanged();
+  }
+
+  return (
+    <li className="rounded-xl bg-card border border-border p-3 text-sm">
+      <div className="flex justify-between gap-2">
+        <div>
+          <p className="font-semibold">{staff.full_name}{staff.is_active === false && <span className="ml-2 text-[10px] text-destructive">nonaktif</span>}</p>
+          <p className="text-xs text-muted-foreground">
+            {roleLabel(staff.role)}{staff.division ? " · " + (DIVISIONS.find((d) => d.id === staff.division)?.label ?? staff.division) : ""}
+          </p>
+          <p className="text-[11px] text-muted-foreground">
+            UserID: <code className="font-mono">{staff.user_id || "belum ada"}</code>{staff.pin_is_default ? " · PIN default" : ""}
+          </p>
+          {isSubject && (staff.subjects?.length ?? 0) > 0 && <p className="text-[11px] text-muted-foreground">Subjects: {staff.subjects!.join(", ")}</p>}
+        </div>
+        {canEdit && (
+          <div className="flex items-start gap-2">
+            <button onClick={() => setOpen((v) => !v)} className="text-muted-foreground" aria-label="Edit"><Pencil size={14} /></button>
+            <button onClick={onRemove} className="text-destructive" aria-label="Hapus"><Trash2 size={14} /></button>
+          </div>
+        )}
+      </div>
+      {canEdit && open && (
+        <div className="mt-3 pt-3 border-t border-border grid gap-2">
+          {isHomeroom && (
+            <select value={classId} onChange={(e) => setClassId(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm">
+              <option value="">tanpa kelas</option>
+              {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          )}
+          {isSubject && (
+            <input value={subjects} onChange={(e) => setSubjects(e.target.value)} placeholder="Mata pelajaran (pisahkan koma)" className="rounded-lg bg-background border border-border px-3 py-1.5 text-sm" />
+          )}
+          <div className="flex gap-2 flex-wrap">
+            {(isHomeroom || isSubject) && <button onClick={save} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold">Simpan</button>}
+            <button onClick={toggleActive} className="rounded-lg border border-border px-3 py-1.5 text-xs flex items-center gap-1"><Power size={12} /> {staff.is_active === false ? "Aktifkan" : "Nonaktifkan"}</button>
+            <button onClick={resetPin} className="rounded-lg border border-border px-3 py-1.5 text-xs flex items-center gap-1"><KeyRound size={12} /> Reset PIN</button>
+            {!staff.user_id && <button onClick={makeUserId} className="rounded-lg border border-border px-3 py-1.5 text-xs">Buatkan UserID</button>}
+          </div>
+          {msg && <p className="text-xs text-primary">{msg}</p>}
+        </div>
+      )}
+    </li>
+  );
+}
+
 
 /* ───────────── students ───────────── */
 export function StudentRoster({ canEdit, classes }: { canEdit: boolean; classes: { id: string; name: string }[] }) {
