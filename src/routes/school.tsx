@@ -22,6 +22,9 @@ import {
   postAnnouncement, listAnnouncements, listAnnouncementsForCode, getSchoolId, debugSupabaseUrl,
   type SchoolRole,
 } from "@/lib/school.functions";
+import {
+  CalendarPanel, TimetablePanel, LessonPlanPanel, ProjectPanel, AssessmentPanel, AttendancePanel,
+} from "@/components/SchoolAcademic";
 
 // SCHOOL_ID now comes from the SCHOOL_ID Secret (see getSchoolId in
 // school.functions.ts) — not hardcoded here anymore, since a hardcoded
