@@ -42,6 +42,7 @@ import { Route as ActivateRouteImport } from './routes/activate'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as StoreIndexRouteImport } from './routes/store.index'
+import { Route as SchoolIndexRouteImport } from './routes/school.index'
 import { Route as StoreTermsRouteImport } from './routes/store.terms'
 import { Route as StorePrivacyRouteImport } from './routes/store.privacy'
 import { Route as StoreOrderRouteImport } from './routes/store.order'
@@ -213,6 +214,11 @@ const StoreIndexRoute = StoreIndexRouteImport.update({
   path: '/',
   getParentRoute: () => StoreRoute,
 } as any)
+const SchoolIndexRoute = SchoolIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SchoolRoute,
+} as any)
 const StoreTermsRoute = StoreTermsRouteImport.update({
   id: '/terms',
   path: '/terms',
@@ -263,7 +269,7 @@ export interface FileRoutesByFullPath {
   '/record': typeof RecordRoute
   '/register': typeof RegisterRoute
   '/reminders': typeof RemindersRoute
-  '/school': typeof SchoolRoute
+  '/school': typeof SchoolRouteWithChildren
   '/settings': typeof SettingsRoute
   '/store': typeof StoreRouteWithChildren
   '/sync': typeof SyncRoute
@@ -277,6 +283,7 @@ export interface FileRoutesByFullPath {
   '/store/order': typeof StoreOrderRoute
   '/store/privacy': typeof StorePrivacyRoute
   '/store/terms': typeof StoreTermsRoute
+  '/school/': typeof SchoolIndexRoute
   '/store/': typeof StoreIndexRoute
 }
 export interface FileRoutesByTo {
@@ -303,7 +310,6 @@ export interface FileRoutesByTo {
   '/record': typeof RecordRoute
   '/register': typeof RegisterRoute
   '/reminders': typeof RemindersRoute
-  '/school': typeof SchoolRoute
   '/settings': typeof SettingsRoute
   '/sync': typeof SyncRoute
   '/tasks': typeof TasksRoute
@@ -316,6 +322,7 @@ export interface FileRoutesByTo {
   '/store/order': typeof StoreOrderRoute
   '/store/privacy': typeof StorePrivacyRoute
   '/store/terms': typeof StoreTermsRoute
+  '/school': typeof SchoolIndexRoute
   '/store': typeof StoreIndexRoute
 }
 export interface FileRoutesById {
@@ -343,7 +350,7 @@ export interface FileRoutesById {
   '/record': typeof RecordRoute
   '/register': typeof RegisterRoute
   '/reminders': typeof RemindersRoute
-  '/school': typeof SchoolRoute
+  '/school': typeof SchoolRouteWithChildren
   '/settings': typeof SettingsRoute
   '/store': typeof StoreRouteWithChildren
   '/sync': typeof SyncRoute
@@ -357,6 +364,7 @@ export interface FileRoutesById {
   '/store/order': typeof StoreOrderRoute
   '/store/privacy': typeof StorePrivacyRoute
   '/store/terms': typeof StoreTermsRoute
+  '/school/': typeof SchoolIndexRoute
   '/store/': typeof StoreIndexRoute
 }
 export interface FileRouteTypes {
@@ -399,6 +407,7 @@ export interface FileRouteTypes {
     | '/store/order'
     | '/store/privacy'
     | '/store/terms'
+    | '/school/'
     | '/store/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -425,7 +434,6 @@ export interface FileRouteTypes {
     | '/record'
     | '/register'
     | '/reminders'
-    | '/school'
     | '/settings'
     | '/sync'
     | '/tasks'
@@ -438,6 +446,7 @@ export interface FileRouteTypes {
     | '/store/order'
     | '/store/privacy'
     | '/store/terms'
+    | '/school'
     | '/store'
   id:
     | '__root__'
@@ -478,6 +487,7 @@ export interface FileRouteTypes {
     | '/store/order'
     | '/store/privacy'
     | '/store/terms'
+    | '/school/'
     | '/store/'
   fileRoutesById: FileRoutesById
 }
@@ -505,7 +515,7 @@ export interface RootRouteChildren {
   RecordRoute: typeof RecordRoute
   RegisterRoute: typeof RegisterRoute
   RemindersRoute: typeof RemindersRoute
-  SchoolRoute: typeof SchoolRoute
+  SchoolRoute: typeof SchoolRouteWithChildren
   SettingsRoute: typeof SettingsRoute
   StoreRoute: typeof StoreRouteWithChildren
   SyncRoute: typeof SyncRoute
@@ -749,6 +759,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StoreIndexRouteImport
       parentRoute: typeof StoreRoute
     }
+    '/school/': {
+      id: '/school/'
+      path: '/'
+      fullPath: '/school/'
+      preLoaderRoute: typeof SchoolIndexRouteImport
+      parentRoute: typeof SchoolRoute
+    }
     '/store/terms': {
       id: '/store/terms'
       path: '/terms'
@@ -799,6 +816,17 @@ const ProjectsRouteWithChildren = ProjectsRoute._addFileChildren(
   ProjectsRouteChildren,
 )
 
+interface SchoolRouteChildren {
+  SchoolIndexRoute: typeof SchoolIndexRoute
+}
+
+const SchoolRouteChildren: SchoolRouteChildren = {
+  SchoolIndexRoute: SchoolIndexRoute,
+}
+
+const SchoolRouteWithChildren =
+  SchoolRoute._addFileChildren(SchoolRouteChildren)
+
 interface StoreRouteChildren {
   StoreAdminRoute: typeof StoreAdminRoute
   StoreOrderRoute: typeof StoreOrderRoute
@@ -841,7 +869,7 @@ const rootRouteChildren: RootRouteChildren = {
   RecordRoute: RecordRoute,
   RegisterRoute: RegisterRoute,
   RemindersRoute: RemindersRoute,
-  SchoolRoute: SchoolRoute,
+  SchoolRoute: SchoolRouteWithChildren,
   SettingsRoute: SettingsRoute,
   StoreRoute: StoreRouteWithChildren,
   SyncRoute: SyncRoute,
