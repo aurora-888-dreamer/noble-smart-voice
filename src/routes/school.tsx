@@ -4,6 +4,8 @@ import { AppShell } from "@/components/AppShell";
 import { usePlugin } from "@/lib/plugins-store";
 import { useLicenseInfo } from "@/lib/auth-store";
 import { getSchoolId } from "@/lib/school.functions";
+import { SchoolTools } from "@/components/SchoolTools";
+
 
 export const Route = createFileRoute("/school")({
   head: () => ({
