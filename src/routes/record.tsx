@@ -15,7 +15,7 @@ const VALID_TYPES: ItemType[] = ["note", "task", "meeting", "appointment", "cont
 
 export const Route = createFileRoute("/record")({
   head: () => ({ meta: [{ title: "Recording — Noble" }] }),
-  validateSearch: (search: Record<string, unknown>) => ({
+  validateSearch: (search: Record<string, unknown>): { type?: ItemType } => ({
     type: VALID_TYPES.includes(search.type as ItemType) ? (search.type as ItemType) : undefined,
   }),
   component: RecordPage,

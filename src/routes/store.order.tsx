@@ -8,7 +8,7 @@ import {
 import { getDiscount, isDiscountValid, discountAppliesToPlan, discountAppliesToGroup, applyDiscount, setUserGroupId, useDiscounts } from "@/lib/discounts-store";
 
 export const Route = createFileRoute("/store/order")({
-  validateSearch: (s: Record<string, unknown>) => ({
+  validateSearch: (s: Record<string, unknown>): { plan?: PlanId; discount?: string; group?: string } => ({
     plan: (s.plan as PlanId) ?? "quarterly",
     discount: typeof s.discount === "string" ? (s.discount as string) : undefined,
     group: typeof s.group === "string" ? (s.group as string) : undefined,

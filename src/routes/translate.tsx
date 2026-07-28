@@ -15,7 +15,7 @@ const TYPES: ItemType[] = ["note", "task", "meeting", "appointment", "contact", 
 
 export const Route = createFileRoute("/translate")({
   head: () => ({ meta: [{ title: "Translator — Noble" }] }),
-  validateSearch: (search: Record<string, unknown>) => ({
+  validateSearch: (search: Record<string, unknown>): { type?: ItemType } => ({
     type: TYPES.includes(search.type as ItemType) ? (search.type as ItemType) : undefined,
   }),
   component: TranslatePage,
