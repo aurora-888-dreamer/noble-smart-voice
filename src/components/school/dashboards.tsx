@@ -12,12 +12,13 @@ import {
   DIVISIONS, ROLE_LABEL, Hint, Section, StatCard, Tabs, ReadOnlyNote, useAsync, useClasses,
   getStoredPassword, getSchoolIdSync, StaffRoster, StudentRoster, GuardianEditor, CsvImportPanel,
   AllActivitiesView, AnnouncementPanel, TeacherMessageThread, ParentMessageThread,
+  ChangePinPanel, PersonnelManager,
 } from "./shared";
 import {
   listSchoolStaff, listSchoolStudents, postSchoolActivity, deleteSchoolActivity, listActivitiesForClass,
   getStudentForCode, listActivitiesForCode, listAnnouncementsForCode, type SchoolRole,
 } from "@/lib/school.functions";
-import { schoolLogout, clearTeacherDevice, parentLogout, type TeacherDevice } from "@/lib/school-store";
+import { schoolLogout, type SchoolSession } from "@/lib/school-store";
 
 const ACADEMIC_TABS = [
   { id: "calendar", label: "Kalender" }, { id: "timetable", label: "Timetable" },
@@ -25,25 +26,32 @@ const ACADEMIC_TABS = [
   { id: "assessment", label: "Assessment" }, { id: "attendance", label: "Attendance" },
 ];
 
-export function StaffHeader({ device }: { device: TeacherDevice }) {
+const PIN_TAB = { id: "pin", label: "Ganti PIN" };
+
+export function StaffHeader({ session }: { session: SchoolSession }) {
   const navigate = useNavigate();
-  const divisionLabel = device.division ? (DIVISIONS.find((d) => d.id === device.division)?.label ?? device.division) : null;
+  const divisionLabel = session.division ? (DIVISIONS.find((d) => d.id === session.division)?.label ?? session.division) : null;
   return (
-    <div className="flex items-center justify-between mb-4">
-      <div>
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">Signed in as</p>
-        <p className="text-sm font-semibold">{device.name}</p>
-        <p className="text-[11px] text-muted-foreground">
-          {device.role ? ROLE_LABEL[device.role as SchoolRole] ?? device.role : ""}{divisionLabel ? " · " + divisionLabel : ""}
+    <div className="mb-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Signed in as</p>
+          <p className="text-sm font-semibold">{session.name}</p>
+          <p className="text-[11px] text-muted-foreground">
+            {session.role ? ROLE_LABEL[session.role as SchoolRole] ?? session.role : ""}{divisionLabel ? " · " + divisionLabel : ""} · <code className="font-mono">{session.userId}</code>
+          </p>
+        </div>
+        <button onClick={() => { schoolLogout(); navigate({ to: "/" }); }} className="text-xs rounded-full border border-border px-3 py-1.5 flex items-center gap-1"><LogOut size={12} /> Keluar</button>
+      </div>
+      {session.pinIsDefault && (
+        <p className="mt-2 rounded-lg bg-destructive/10 text-destructive text-[11px] px-3 py-2">
+          PIN Anda masih default (123456). Segera ganti lewat tab “Ganti PIN”.
         </p>
-      </div>
-      <div className="flex items-center gap-2">
-        <button onClick={() => { schoolLogout(); navigate({ to: "/school" }); }} className="text-xs rounded-full border border-border px-3 py-1.5 flex items-center gap-1"><LogOut size={12} /> Keluar</button>
-        <button onClick={() => { clearTeacherDevice(); navigate({ to: "/school" }); }} className="text-xs text-muted-foreground underline">Bukan Anda?</button>
-      </div>
+      )}
     </div>
   );
 }
+
 
 /** Read-only academic viewer shared by HoS / Admin HoS / Principal. */
 function AcademicReadOnly({ tab, classes, reviewerRole, reviewerName }: {
