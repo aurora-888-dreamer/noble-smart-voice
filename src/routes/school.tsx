@@ -806,6 +806,7 @@ function TeacherDashboard({ staffName, defaultClassId }: { staffName: string; de
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [selectedStudent, setSelectedStudent] = useState<{ id: string; full_name: string } | null>(null);
+  const [tab, setTab] = useState<string>("kelas");
 
   const classList = classes.data && "classes" in classes.data ? (classes.data.classes ?? []) : [];
   const studentList = students.data && "students" in students.data ? (students.data.students ?? []) : [];
