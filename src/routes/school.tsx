@@ -352,7 +352,7 @@ function TeacherFirstTimeSetup() {
 }
 
 function HosDashboard({ subrole }: { subrole: AdminSubrole }) {
-  const [tab, setTab] = useState<"overview" | "students" | "staff" | "activity" | "announce" | "import">("overview");
+  const [tab, setTab] = useState<string>("overview");
   const canEditProfile = subrole === "admin_hos";
   const pw = getStoredPassword();
   const classes = useAsync(() => listSchoolClasses({ data: { password: pw } }), [pw]);
@@ -362,8 +362,10 @@ function HosDashboard({ subrole }: { subrole: AdminSubrole }) {
   const tabs = [
     { id: "overview", label: "Overview" }, { id: "students", label: "Data Murid" },
     { id: "staff", label: "Staff" }, { id: "activity", label: "Semua Activity" }, { id: "announce", label: "Pengumuman" },
-    ...(canEditProfile ? [{ id: "import" as const, label: "Import CSV" }] : []),
-  ] as const;
+    { id: "calendar", label: "Kalender" }, { id: "timetable", label: "Timetable" }, { id: "lesson", label: "Lesson Plan" },
+    { id: "projects", label: "Project & Surat Resmi" }, { id: "assessment", label: "Assessment" }, { id: "attendance", label: "Attendance" },
+    ...(canEditProfile ? [{ id: "import", label: "Import CSV" }] : []),
+  ];
   return (
     <div>
       <div className="flex gap-2 overflow-x-auto pb-2 mb-4 no-scrollbar">
@@ -381,6 +383,12 @@ function HosDashboard({ subrole }: { subrole: AdminSubrole }) {
       {tab === "staff" && <StaffRoster canEdit={canEditProfile} classes={classList} scopeDivision={null} />}
       {tab === "activity" && <AllActivitiesView division={null} />}
       {tab === "announce" && <AnnouncementPanel subrole={subrole} division={null} classes={classList} />}
+      {tab === "calendar" && <CalendarPanel access={{ pw }} classes={classList} canEdit />}
+      {tab === "timetable" && <TimetablePanel access={{ pw }} classes={classList} canEdit />}
+      {tab === "lesson" && <LessonPlanPanel pw={pw} classes={classList} canEdit />}
+      {tab === "projects" && <ProjectPanel pw={pw} classes={classList} canSubmit={false} reviewerRole="hos" reviewerName="Head of School" />}
+      {tab === "assessment" && <AssessmentPanel access={{ pw }} classes={classList} canEdit={false} />}
+      {tab === "attendance" && <AttendancePanel access={{ pw }} classes={classList} canEdit={false} />}
       {tab === "import" && canEditProfile && <CsvImportPanel classes={classList} />}
     </div>
   );
