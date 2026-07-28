@@ -832,42 +832,66 @@ function TeacherDashboard({ staffName, defaultClassId }: { staffName: string; de
     );
   }
 
+  const teacherTabs = [
+    { id: "kelas", label: "Kelas" }, { id: "calendar", label: "Kalender" }, { id: "timetable", label: "Timetable" },
+    { id: "lesson", label: "Lesson Plan" }, { id: "projects", label: "Project & Surat Resmi" },
+    { id: "assessment", label: "Assessment" }, { id: "attendance", label: "Attendance" },
+  ];
+  const teacherClasses = classList as { id: string; name: string }[];
+
   return (
     <div>
-      <select value={classId} onChange={(e) => setClassId(e.target.value)} className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm mb-4">
-        <option value="">pilih kelas</option>
-        {classList.map((c: { id: string; name: string }) => <option key={c.id} value={c.id}>{c.name}</option>)}
-      </select>
-      {classId && (
+      <div className="flex gap-2 overflow-x-auto pb-2 mb-4 no-scrollbar">
+        {teacherTabs.map((t) => (
+          <button key={t.id} onClick={() => setTab(t.id)} className={"shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold border " + (tab === t.id ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>{t.label}</button>
+        ))}
+      </div>
+
+      {tab === "calendar" && <CalendarPanel access={{ pw }} classes={teacherClasses} canEdit />}
+      {tab === "timetable" && <TimetablePanel access={{ pw }} classes={teacherClasses} canEdit />}
+      {tab === "lesson" && <LessonPlanPanel pw={pw} classes={teacherClasses} canEdit />}
+      {tab === "projects" && <ProjectPanel pw={pw} classes={teacherClasses} canSubmit reviewerRole={null} reviewerName={staffName} />}
+      {tab === "assessment" && <AssessmentPanel access={{ pw }} classes={teacherClasses} canEdit />}
+      {tab === "attendance" && <AttendancePanel access={{ pw }} classes={teacherClasses} canEdit />}
+
+      {tab === "kelas" && (
         <>
-          <Section title="Murid" Icon={Baby}>
-            <ul className="space-y-2">
-              {studentList.map((s: { id: string; full_name: string }) => (
-                <li key={s.id}>
-                  <button onClick={() => setSelectedStudent(s)} className="w-full rounded-xl bg-card border border-border p-3 text-left text-sm flex items-center justify-between">
-                    {s.full_name} <span className="text-xs text-muted-foreground">Pesan / Wali</span>
-                  </button>
-                </li>
-              ))}
-              {studentList.length === 0 && <Hint>Belum ada murid di kelas ini.</Hint>}
-            </ul>
-          </Section>
-          <Section title="Daily Activity" Icon={BookOpen}>
-            <div className="rounded-2xl bg-card border border-border p-3 mb-3">
-              <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Judul aktivitas" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm mb-2" />
-              <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={3} placeholder="Cerita" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm" />
-              <button onClick={post} className="mt-2 rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-sm font-semibold flex items-center gap-1"><Save size={13} /> Kirim</button>
-            </div>
-            <ul className="space-y-2">
-              {activityList.map((a: { id: string; title: string; body?: string; activity_date: string; author_name?: string }) => (
-                <li key={a.id} className="rounded-xl bg-card border border-border p-3">
-                  <div className="flex justify-between"><p className="text-sm font-semibold">{a.title}</p><button onClick={() => removeActivity(a.id)} className="text-destructive"><Trash2 size={13} /></button></div>
-                  <p className="text-xs text-muted-foreground mt-0.5">{new Date(a.activity_date).toLocaleDateString()}{a.author_name ? " - " + a.author_name : ""}</p>
-                  {a.body && <p className="text-sm mt-2 whitespace-pre-wrap">{a.body}</p>}
-                </li>
-              ))}
-            </ul>
-          </Section>
+          <select value={classId} onChange={(e) => setClassId(e.target.value)} className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm mb-4">
+            <option value="">pilih kelas</option>
+            {classList.map((c: { id: string; name: string }) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          {classId && (
+            <>
+              <Section title="Murid" Icon={Baby}>
+                <ul className="space-y-2">
+                  {studentList.map((s: { id: string; full_name: string }) => (
+                    <li key={s.id}>
+                      <button onClick={() => setSelectedStudent(s)} className="w-full rounded-xl bg-card border border-border p-3 text-left text-sm flex items-center justify-between">
+                        {s.full_name} <span className="text-xs text-muted-foreground">Pesan / Wali</span>
+                      </button>
+                    </li>
+                  ))}
+                  {studentList.length === 0 && <Hint>Belum ada murid di kelas ini.</Hint>}
+                </ul>
+              </Section>
+              <Section title="Daily Activity" Icon={BookOpen}>
+                <div className="rounded-2xl bg-card border border-border p-3 mb-3">
+                  <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Judul aktivitas" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm mb-2" />
+                  <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={3} placeholder="Cerita" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm" />
+                  <button onClick={post} className="mt-2 rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-sm font-semibold flex items-center gap-1"><Save size={13} /> Kirim</button>
+                </div>
+                <ul className="space-y-2">
+                  {activityList.map((a: { id: string; title: string; body?: string; activity_date: string; author_name?: string }) => (
+                    <li key={a.id} className="rounded-xl bg-card border border-border p-3">
+                      <div className="flex justify-between"><p className="text-sm font-semibold">{a.title}</p><button onClick={() => removeActivity(a.id)} className="text-destructive"><Trash2 size={13} /></button></div>
+                      <p className="text-xs text-muted-foreground mt-0.5">{new Date(a.activity_date).toLocaleDateString()}{a.author_name ? " - " + a.author_name : ""}</p>
+                      {a.body && <p className="text-sm mt-2 whitespace-pre-wrap">{a.body}</p>}
+                    </li>
+                  ))}
+                </ul>
+              </Section>
+            </>
+          )}
         </>
       )}
     </div>
