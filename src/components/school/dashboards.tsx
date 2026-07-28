@@ -53,19 +53,25 @@ export function StaffHeader({ session }: { session: SchoolSession }) {
 }
 
 
-/** Read-only academic viewer shared by HoS / Admin HoS / Principal. */
-function AcademicReadOnly({ tab, classes, reviewerRole, reviewerName }: {
+/** Read-only academic viewer shared by HoS / Admin HoS / Principal — except
+ * Calendar, which HoS and Principal can edit for their OWN agenda entries
+ * (everyone still sees everyone else's, per the "stay in sync" rule). */
+function AcademicReadOnly({ tab, classes, reviewerRole, reviewerName, calendarStaffId }: {
   tab: string;
   classes: { id: string; name: string }[];
   reviewerRole: "principal" | "hos" | null;
   reviewerName?: string;
+  calendarStaffId?: string | null;
 }) {
   const pw = getStoredPassword();
   if (!ACADEMIC_TABS.some((t) => t.id === tab)) return null;
+  if (tab === "calendar" && calendarStaffId) {
+    return <CalendarPanel access={{ pw, staffId: calendarStaffId }} classes={classes} canEdit compact />;
+  }
   return (
     <div>
       <ReadOnlyNote />
-      {tab === "calendar" && <CalendarPanel access={{ pw }} classes={classes} canEdit={false} />}
+      {tab === "calendar" && <CalendarPanel access={{ pw }} classes={classes} canEdit={false} compact />}
       {tab === "timetable" && <TimetablePanel access={{ pw }} classes={classes} canEdit={false} />}
       {tab === "lesson" && <LessonPlanPanel pw={pw} classes={classes} canEdit={false} />}
       {tab === "projects" && <ProjectPanel pw={pw} classes={classes} canSubmit={false} reviewerRole={reviewerRole} reviewerName={reviewerName} />}
@@ -76,7 +82,7 @@ function AcademicReadOnly({ tab, classes, reviewerRole, reviewerName }: {
 }
 
 /* ───────────── HoS ───────────── */
-export function HosDashboard() {
+export function HosDashboard({ staffId }: { staffId: string }) {
   const [tab, setTab] = useState("overview");
   const pw = getStoredPassword();
   const classes = useClasses();
@@ -99,7 +105,7 @@ export function HosDashboard() {
       {tab === "activity" && <AllActivitiesView division={null} />}
       {tab === "announce" && <AnnouncementPanel subrole="hos" division={null} classes={classes} />}
       {tab === "pin" && <ChangePinPanel />}
-      <AcademicReadOnly tab={tab} classes={classes} reviewerRole="hos" reviewerName="Head of School" />
+      <AcademicReadOnly tab={tab} classes={classes} reviewerRole="hos" reviewerName="Head of School" calendarStaffId={staffId} />
     </div>
   );
 }
@@ -142,7 +148,7 @@ export function AdminHosDashboard() {
 }
 
 /* ───────────── Principal ───────────── */
-export function PrincipalDashboard({ division }: { division: string }) {
+export function PrincipalDashboard({ division, staffId }: { division: string; staffId: string }) {
   const [tab, setTab] = useState("overview");
   const classes = useClasses(division);
   const tabs = [
@@ -160,14 +166,14 @@ export function PrincipalDashboard({ division }: { division: string }) {
       {tab === "activity" && <AllActivitiesView division={division} />}
       {tab === "announce" && <AnnouncementPanel subrole="principal" division={division} classes={classes} />}
       {tab === "pin" && <ChangePinPanel />}
-      <AcademicReadOnly tab={tab} classes={classes} reviewerRole="principal" reviewerName="Principal" />
+      <AcademicReadOnly tab={tab} classes={classes} reviewerRole="principal" reviewerName="Principal" calendarStaffId={staffId} />
     </div>
   );
 }
 
 
 /* ───────────── Teacher ───────────── */
-export function TeacherDashboard({ staffName, role, defaultClassId }: { staffName: string; role: string | null; defaultClassId: string | null }) {
+export function TeacherDashboard({ staffId, staffName, role, defaultClassId }: { staffId: string; staffName: string; role: string | null; defaultClassId: string | null }) {
   const pw = getStoredPassword();
   const [reload, setReload] = useState(0);
   const allClasses = useClasses();
@@ -220,7 +226,7 @@ export function TeacherDashboard({ staffName, role, defaultClassId }: { staffNam
     <div>
       <Tabs tabs={tabs} tab={tab} onChange={setTab} />
 
-      {tab === "calendar" && <CalendarPanel access={{ pw }} classes={classList} canEdit />}
+      {tab === "calendar" && <CalendarPanel access={{ pw, staffId }} classes={classList} canEdit />}
       {tab === "timetable" && <TimetablePanel access={{ pw }} classes={classList} canEdit />}
       {tab === "lesson" && <LessonPlanPanel pw={pw} classes={classList} canEdit />}
       {tab === "projects" && <ProjectPanel pw={pw} classes={classList} canSubmit reviewerRole={null} reviewerName={staffName} />}

@@ -646,7 +646,9 @@ export function AnnouncementPanel({ subrole, division, classes }: { subrole: Adm
   const list = useAsync(() => listAnnouncements({ data: { password: pw } }), [pw, reload]);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
-  const [scope, setScope] = useState<"school" | "division" | "class">(subrole === "principal" ? "division" : "school");
+  const isPrincipal = subrole === "principal";
+  const [audience, setAudience] = useState<"external" | "internal" | "principal">("external");
+  const [scope, setScope] = useState<"school" | "division" | "class">(isPrincipal ? "division" : "school");
   const [classId, setClassId] = useState("");
   const [err, setErr] = useState<string | null>(null);
 
@@ -654,24 +656,36 @@ export function AnnouncementPanel({ subrole, division, classes }: { subrole: Adm
     if (!title.trim()) return;
     setErr(null);
     const res = await postAnnouncement({
-      data: { password: pw, subrole, schoolId: getSchoolIdSync(), scope, division: scope === "division" ? (division ?? undefined) : undefined, classId: scope === "class" ? classId : undefined, title: title.trim(), body },
+      data: { password: pw, subrole, schoolId: getSchoolIdSync(), audience, scope, division: scope === "division" ? (division ?? undefined) : undefined, classId: scope === "class" ? classId : undefined, title: title.trim(), body },
     });
     if (!res.ok) { setErr(res.error); return; }
     setTitle(""); setBody(""); setReload((x) => x + 1);
   }
-  const items = (list.data && "announcements" in list.data ? (list.data.announcements ?? []) : []) as { id: string; title: string; body?: string; scope: string; created_at: string }[];
+  const items = (list.data && "announcements" in list.data ? (list.data.announcements ?? []) : []) as { id: string; title: string; body?: string; scope: string; audience?: string; created_at: string }[];
+  const AUDIENCE_LABEL: Record<string, string> = { external: "External (Parent)", internal: "Internal (Staff)", principal: "Principal" };
   return (
     <div>
       <div className="rounded-2xl bg-card border border-border p-3 mb-3">
         <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Judul pengumuman" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm mb-2" />
         <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={3} placeholder="Isi" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm mb-2" />
         <div className="flex gap-2 flex-wrap">
-          <select value={scope} onChange={(e) => setScope(e.target.value as typeof scope)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm">
-            {subrole !== "principal" && <option value="school">Seluruh Sekolah</option>}
-            <option value="division">Divisi Saya</option>
-            <option value="class">Kelas Tertentu</option>
+          <select
+            value={audience}
+            onChange={(e) => { const v = e.target.value as typeof audience; setAudience(v); setScope(v === "principal" ? "school" : (isPrincipal ? "division" : "school")); }}
+            className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm"
+          >
+            <option value="external">External (Parent)</option>
+            <option value="internal">Internal (Staff)</option>
+            {!isPrincipal && <option value="principal">Principal</option>}
           </select>
-          {scope === "class" && (
+          {audience !== "principal" && (
+            <select value={scope} onChange={(e) => setScope(e.target.value as typeof scope)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm">
+              {!isPrincipal && <option value="school">Seluruh Sekolah</option>}
+              <option value="division">Divisi Saya</option>
+              <option value="class">Kelas Tertentu</option>
+            </select>
+          )}
+          {audience !== "principal" && scope === "class" && (
             <select value={classId} onChange={(e) => setClassId(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm">
               <option value="">pilih kelas</option>
               {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -679,12 +693,13 @@ export function AnnouncementPanel({ subrole, division, classes }: { subrole: Adm
           )}
           <button onClick={post} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-sm font-semibold flex items-center gap-1"><Megaphone size={13} /> Umumkan</button>
         </div>
+        {audience === "principal" && <p className="text-[11px] text-muted-foreground mt-2">Dikirim ke semua Principal di seluruh sekolah.</p>}
         {err && <p className="text-xs text-destructive mt-2">{err}</p>}
       </div>
       <ul className="space-y-2">
         {items.map((a) => (
           <li key={a.id} className="rounded-xl bg-card border border-border p-3">
-            <div className="flex justify-between text-sm"><p className="font-semibold">{a.title}</p><span className="text-[10px] uppercase text-muted-foreground">{a.scope}</span></div>
+            <div className="flex justify-between text-sm"><p className="font-semibold">{a.title}</p><span className="text-[10px] uppercase text-muted-foreground">{AUDIENCE_LABEL[a.audience ?? "external"]}</span></div>
             <p className="text-xs text-muted-foreground">{new Date(a.created_at).toLocaleString()}</p>
             {a.body && <p className="text-sm mt-1">{a.body}</p>}
           </li>
