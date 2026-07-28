@@ -40,7 +40,7 @@ function SchoolLayout() {
 
   if (!hasPlugin && !isAdmin) {
     return (
-      <AppShell title="School Dashboard">
+      <AppShell title="School Dashboard" fullWidth>
         <div className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
           Plugin School Dashboard belum aktif.
           <div className="mt-3"><Link to="/upgrade" className="rounded-xl bg-primary text-primary-foreground px-4 py-2 text-xs font-semibold">Upgrade / Enable</Link></div>
@@ -51,7 +51,7 @@ function SchoolLayout() {
   if (schoolId === null) return null;
   if (!schoolId) {
     return (
-      <AppShell title="School Dashboard">
+      <AppShell title="School Dashboard" fullWidth>
         <div className="rounded-2xl border border-dashed border-destructive/40 bg-destructive/5 p-6 text-center text-sm">
           <p className="font-semibold text-destructive mb-1">Setup belum selesai</p>
           <p className="text-muted-foreground">Secret <code className="font-mono">SCHOOL_ID</code> belum diisi.</p>
@@ -61,7 +61,7 @@ function SchoolLayout() {
   }
 
   return (
-    <AppShell title="School Dashboard" headerExtra={<SchoolTools />}>
+    <AppShell title="School Dashboard" fullWidth headerExtra={<SchoolTools />}>
       <Outlet />
     </AppShell>
   );
