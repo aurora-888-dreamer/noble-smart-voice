@@ -431,9 +431,13 @@ export type Database = {
           id: string
           invite_code: string
           invite_used_at: string | null
+          is_active: boolean
+          pin: string | null
+          pin_is_default: boolean
           relation: string
           student_id: string
           updated_at: string
+          user_id: string | null
           whatsapp: string | null
         }
         Insert: {
@@ -443,9 +447,13 @@ export type Database = {
           id?: string
           invite_code: string
           invite_used_at?: string | null
+          is_active?: boolean
+          pin?: string | null
+          pin_is_default?: boolean
           relation: string
           student_id: string
           updated_at?: string
+          user_id?: string | null
           whatsapp?: string | null
         }
         Update: {
@@ -455,9 +463,13 @@ export type Database = {
           id?: string
           invite_code?: string
           invite_used_at?: string | null
+          is_active?: boolean
+          pin?: string | null
+          pin_is_default?: boolean
           relation?: string
           student_id?: string
           updated_at?: string
+          user_id?: string | null
           whatsapp?: string | null
         }
         Relationships: [
@@ -738,6 +750,7 @@ export type Database = {
           email: string | null
           full_name: string
           id: string
+          is_active: boolean
           phone: string | null
           photo_url: string | null
           pin: string | null
@@ -745,6 +758,7 @@ export type Database = {
           pin_updated_at: string | null
           role: string
           school_id: string
+          subjects: string[]
           updated_at: string
           user_id: string | null
         }
@@ -756,6 +770,7 @@ export type Database = {
           email?: string | null
           full_name: string
           id?: string
+          is_active?: boolean
           phone?: string | null
           photo_url?: string | null
           pin?: string | null
@@ -763,6 +778,7 @@ export type Database = {
           pin_updated_at?: string | null
           role: string
           school_id: string
+          subjects?: string[]
           updated_at?: string
           user_id?: string | null
         }
@@ -774,6 +790,7 @@ export type Database = {
           email?: string | null
           full_name?: string
           id?: string
+          is_active?: boolean
           phone?: string | null
           photo_url?: string | null
           pin?: string | null
@@ -781,6 +798,7 @@ export type Database = {
           pin_updated_at?: string | null
           role?: string
           school_id?: string
+          subjects?: string[]
           updated_at?: string
           user_id?: string | null
         }
