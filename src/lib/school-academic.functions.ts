@@ -27,7 +27,7 @@ export const listCalendarEvents = createServerFn({ method: "POST" })
       if (!gate.ok) return gate;
       supabase = gate.supabase;
     }
-    let q = supabase.from("school_calendar_events").select("*").order("event_date", { ascending: true });
+    let q = supabase.from("school_calendar_events").select("*, school_staff(full_name)").order("event_date", { ascending: true });
     if (classFilter) q = q.or(`class_id.is.null,class_id.eq.${classFilter}`);
     if (data.from) q = q.gte("event_date", data.from);
     if (data.to) q = q.lte("event_date", data.to);
@@ -40,7 +40,7 @@ export const saveCalendarEvent = createServerFn({ method: "POST" })
   .inputValidator(
     (input: {
       password: string; id?: string; classId?: string; title: string;
-      description?: string; eventDate: string; eventType: string;
+      description?: string; eventDate: string; eventType: string; staffId: string;
     }) => input,
   )
   .handler(async ({ data }): Promise<{ ok: true; event: Row } | Fail> => {
@@ -54,19 +54,39 @@ export const saveCalendarEvent = createServerFn({ method: "POST" })
       event_date: data.eventDate,
       event_type: data.eventType,
     };
-    const q = data.id
-      ? gate.supabase.from("school_calendar_events").update(payload).eq("id", data.id).select().single()
-      : gate.supabase.from("school_calendar_events").insert(payload).select().single();
-    const { data: row, error } = await q;
+    if (data.id) {
+      // Only the original creator may edit their own agenda entry — everyone
+      // can still VIEW every event, but editing someone else's is blocked
+      // here (not just hidden in the UI) so HoS can't overwrite what a
+      // Teacher or Principal set up, and vice versa.
+      const { data: existing, error: readErr } = await gate.supabase
+        .from("school_calendar_events").select("created_by").eq("id", data.id).maybeSingle();
+      if (readErr) return { ok: false, error: readErr.message };
+      if (existing && existing.created_by && existing.created_by !== data.staffId) {
+        return { ok: false, error: "Anda hanya bisa mengubah agenda yang Anda buat sendiri." };
+      }
+      const { data: row, error } = await gate.supabase
+        .from("school_calendar_events").update(payload).eq("id", data.id).select().single();
+      if (error) return { ok: false, error: error.message };
+      return { ok: true, event: row as Row };
+    }
+    const { data: row, error } = await gate.supabase
+      .from("school_calendar_events").insert({ ...payload, created_by: data.staffId || null }).select().single();
     if (error) return { ok: false, error: error.message };
     return { ok: true, event: row as Row };
   });
 
 export const deleteCalendarEvent = createServerFn({ method: "POST" })
-  .inputValidator((input: { password: string; id: string }) => input)
+  .inputValidator((input: { password: string; id: string; staffId: string }) => input)
   .handler(async ({ data }): Promise<{ ok: true } | Fail> => {
     const gate = staffClient(data.password);
     if (!gate.ok) return gate;
+    const { data: existing, error: readErr } = await gate.supabase
+      .from("school_calendar_events").select("created_by").eq("id", data.id).maybeSingle();
+    if (readErr) return { ok: false, error: readErr.message };
+    if (existing && existing.created_by && existing.created_by !== data.staffId) {
+      return { ok: false, error: "Anda hanya bisa menghapus agenda yang Anda buat sendiri." };
+    }
     const { error } = await gate.supabase.from("school_calendar_events").delete().eq("id", data.id);
     if (error) return { ok: false, error: error.message };
     return { ok: true };

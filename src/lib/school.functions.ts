@@ -836,6 +836,7 @@ export const postAnnouncement = createServerFn({ method: "POST" })
       password: string;
       subrole: "hos" | "admin_hos" | "principal";
       schoolId: string;
+      audience: "external" | "internal" | "principal";
       scope: "school" | "division" | "class";
       division?: string;
       classId?: string;
@@ -846,6 +847,15 @@ export const postAnnouncement = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     if (checkSchoolPassword(data.password) !== "admin") return { ok: false as const, error: "Admin access required." };
+    const isPrincipal = data.subrole === "principal";
+    // Principal is scoped to their own division: no "Seluruh Sekolah" reach,
+    // and no "Principal only" audience (that's a HoS→Principal channel).
+    if (isPrincipal && data.audience === "principal") {
+      return { ok: false as const, error: "Principal tidak bisa mengirim ke sesama Principal." };
+    }
+    if (isPrincipal && data.scope === "school") {
+      return { ok: false as const, error: "Principal hanya bisa mengumumkan ke divisinya sendiri atau kelas tertentu." };
+    }
     if (data.scope === "school" && data.subrole !== "hos") {
       return { ok: false as const, error: "Hanya Head of School yang boleh mengumumkan ke seluruh sekolah." };
     }
@@ -855,9 +865,11 @@ export const postAnnouncement = createServerFn({ method: "POST" })
     if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
     const { error } = await supabase.from("school_announcements").insert({
       school_id: data.schoolId,
-      scope: data.scope,
-      division: data.scope === "division" ? data.division : null,
-      class_id: data.scope === "class" ? data.classId : null,
+      audience: data.audience,
+      // "Principal only" is always school-wide reach to every Principal — scope/division/class don't apply.
+      scope: data.audience === "principal" ? "school" : data.scope,
+      division: data.audience !== "principal" && data.scope === "division" ? data.division : null,
+      class_id: data.audience !== "principal" && data.scope === "class" ? data.classId : null,
       title: data.title.trim(),
       body: data.body || null,
       author_name: data.authorName || null,
@@ -896,6 +908,7 @@ export const listAnnouncementsForCode = createServerFn({ method: "POST" })
     const { data: rows, error } = await supabase
       .from("school_announcements")
       .select("*")
+      .eq("audience", "external")
       .or(`scope.eq.school,and(scope.eq.division,division.eq.${division}),and(scope.eq.class,class_id.eq.${classId})`)
       .order("created_at", { ascending: false })
       .limit(30);
