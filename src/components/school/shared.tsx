@@ -4,17 +4,25 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Shield, Users, Trash2, UserPlus, Upload, Send, Megaphone, Bell, X, GraduationCap,
+  KeyRound, Copy, Check, Pencil, Power,
 } from "lucide-react";
-import { getStoredSchoolPassword, type AdminSubrole } from "@/lib/school-store";
+import { getStoredSchoolPassword, changeSchoolPin, useSchoolSession } from "@/lib/school-store";
+import { CREATABLE_ROLES, ROLE_LABELS, roleLabel, type SchoolRole } from "@/lib/school-roles";
 import {
-  listSchoolClasses, createSchoolClass, listSchoolStaff, createSchoolStaff, deleteSchoolStaff,
+  listSchoolClasses, createSchoolClass, listSchoolStaff, deleteSchoolStaff,
   listSchoolStudents, upsertSchoolStudent, deleteSchoolStudent, importSchoolStudents, seedStellaMarisPhase1,
-  listGuardians, addGuardian, deleteGuardian,
+  listGuardians, deleteGuardian,
   listAllActivities, postAnnouncement, listAnnouncements,
   listMessagesForStudent, postMessageAsTeacher, closeThreadAsTeacher,
   listMessagesForCode, postMessageAsParent, closeThreadAsParent,
-  debugSupabaseUrl, type SchoolRole,
+  debugSupabaseUrl,
 } from "@/lib/school.functions";
+import {
+  createStaffAccount, updateStaffAccount, ensureStaffUserId,
+  inviteParentAccount, updateGuardianAccount, listAllPersonnel,
+} from "@/lib/school-accounts.functions";
+
+export type AdminSubrole = "hos" | "admin_hos" | "principal";
 
 export const DIVISIONS = [
   { id: "kindergarten", label: "Kindergarten" },
@@ -24,14 +32,8 @@ export const DIVISIONS = [
   { id: "All Divisions", label: "All Divisions" },
 ];
 
-export const ROLE_LABEL: Record<SchoolRole, string> = {
-  hos: "Head of School",
-  admin_hos: "Admin HoS",
-  principal: "Principal",
-  teacher_homeroom: "Homeroom Teacher",
-  teacher_shadow: "Shadow Teacher",
-  teacher_subject: "Subject Teacher",
-};
+export const ROLE_LABEL = ROLE_LABELS;
+export { roleLabel };
 
 export function getStoredPassword(): string {
   return getStoredSchoolPassword();
@@ -41,6 +43,7 @@ export function getSchoolIdSync(): string {
   if (typeof window === "undefined") return "";
   return sessionStorage.getItem("noble.school.id") || "";
 }
+
 
 /* ───────────── generic hooks / atoms ───────────── */
 export function useAsync<T>(fn: () => Promise<T> | null, deps: unknown[]): { data: T | null; loading: boolean } {
