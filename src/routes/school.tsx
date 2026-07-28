@@ -1021,6 +1021,19 @@ function ParentDashboard({ code }: { code: string }) {
         </ul>
       </Section>
 
+      <Section title="Kalender Akademik" Icon={Bell}>
+        <CalendarPanel access={{ code }} classes={[]} canEdit={false} />
+      </Section>
+      <Section title="Timetable" Icon={BookOpen}>
+        <TimetablePanel access={{ code }} classes={[]} canEdit={false} />
+      </Section>
+      <Section title="Assessment" Icon={GraduationCap}>
+        <AssessmentPanel access={{ code }} classes={[]} canEdit={false} />
+      </Section>
+      <Section title="Kehadiran" Icon={Baby}>
+        <AttendancePanel access={{ code }} classes={[]} canEdit={false} />
+      </Section>
+
       <Section title="Pesan dengan Guru" Icon={MessageSquare}><ParentMessageThread code={code} /></Section>
     </div>
   );
