@@ -229,6 +229,24 @@ export type Database = {
           },
         ]
       }
+      school_schools: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       school_staff: {
         Row: {
           class_id: string | null
