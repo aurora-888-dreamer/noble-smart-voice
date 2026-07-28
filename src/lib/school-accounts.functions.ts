@@ -5,7 +5,8 @@
 // for parents) — the user never picks a name or a role by hand.
 import { createServerFn } from "@tanstack/react-start";
 import { createLovableSchoolSupabase } from "./supabase.server";
-import { tierForRole, type StaffTier } from "./school.functions";
+import { ADMIN_TIER_ROLES, type StaffTier } from "./school-roles";
+
 
 export const DEFAULT_PIN = "123456";
 
