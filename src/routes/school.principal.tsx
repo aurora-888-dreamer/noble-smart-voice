@@ -17,13 +17,13 @@ export const Route = createFileRoute("/school/principal")({
 });
 
 function PrincipalPage() {
-  const { teacherDevice, teacherUnlocked, ready } = useSchoolSession();
+  const { session, ready } = useSchoolSession();
   if (!ready) return null;
-  if (!teacherDevice || !teacherUnlocked || teacherDevice.role !== "principal") return <NotSignedIn />;
+  if (!session || session.kind !== "staff" || session.role !== "principal") return <NotSignedIn />;
   return (
     <div>
-      <StaffHeader device={teacherDevice} />
-      <PrincipalDashboard division={teacherDevice.division || "kindergarten"} />
+      <StaffHeader session={session} />
+      <PrincipalDashboard division={session.division || "kindergarten"} />
     </div>
   );
 }

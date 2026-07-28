@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useSchoolSession } from "@/lib/school-store";
 import { TeacherDashboard, StaffHeader, NotSignedIn } from "@/components/school/dashboards";
 
-const TEACHER_ROLES = ["teacher_homeroom", "teacher_shadow", "teacher_subject"];
+const TEACHER_ROLES = ["teacher_homeroom", "teacher_subject"];
 
 export const Route = createFileRoute("/school/teacher")({
   head: () => ({
@@ -19,13 +19,13 @@ export const Route = createFileRoute("/school/teacher")({
 });
 
 function TeacherPage() {
-  const { teacherDevice, teacherUnlocked, ready } = useSchoolSession();
+  const { session, ready } = useSchoolSession();
   if (!ready) return null;
-  if (!teacherDevice || !teacherUnlocked || !TEACHER_ROLES.includes(teacherDevice.role ?? "")) return <NotSignedIn />;
+  if (!session || session.kind !== "staff" || !TEACHER_ROLES.includes(session.role ?? "")) return <NotSignedIn />;
   return (
     <div>
-      <StaffHeader device={teacherDevice} />
-      <TeacherDashboard staffName={teacherDevice.name} role={teacherDevice.role ?? null} defaultClassId={teacherDevice.classId} />
+      <StaffHeader session={session} />
+      <TeacherDashboard staffName={session.name} role={session.role ?? null} defaultClassId={session.classId} />
     </div>
   );
 }

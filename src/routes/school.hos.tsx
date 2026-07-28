@@ -17,12 +17,12 @@ export const Route = createFileRoute("/school/hos")({
 });
 
 function HosPage() {
-  const { teacherDevice, teacherUnlocked, ready } = useSchoolSession();
+  const { session, ready } = useSchoolSession();
   if (!ready) return null;
-  if (!teacherDevice || !teacherUnlocked || teacherDevice.role !== "hos") return <NotSignedIn />;
+  if (!session || session.kind !== "staff" || session.role !== "hos") return <NotSignedIn />;
   return (
     <div>
-      <StaffHeader device={teacherDevice} />
+      <StaffHeader session={session} />
       <HosDashboard />
     </div>
   );

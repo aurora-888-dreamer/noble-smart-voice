@@ -17,12 +17,12 @@ export const Route = createFileRoute("/school/admin-hos")({
 });
 
 function AdminHosPage() {
-  const { teacherDevice, teacherUnlocked, ready } = useSchoolSession();
+  const { session, ready } = useSchoolSession();
   if (!ready) return null;
-  if (!teacherDevice || !teacherUnlocked || teacherDevice.role !== "admin_hos") return <NotSignedIn />;
+  if (!session || session.kind !== "staff" || session.role !== "admin_hos") return <NotSignedIn />;
   return (
     <div>
-      <StaffHeader device={teacherDevice} />
+      <StaffHeader session={session} />
       <AdminHosDashboard />
     </div>
   );
