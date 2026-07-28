@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
-  CalendarPanel, TimetablePanel, LessonPlanPanel, ProjectPanel, AssessmentPanel, AttendancePanel,
+  CalendarPanel, TimetablePanel, LessonPlanPanel, ProjectPanel, AssessmentPanel, AttendancePanel, AgendaPanel, StaffMessagePanel,
 } from "@/components/SchoolAcademic";
 import {
   DIVISIONS, ROLE_LABEL, Hint, Section, StatCard, Tabs, ReadOnlyNote, useAsync, useClasses,
@@ -89,7 +89,8 @@ export function HosDashboard({ staffId }: { staffId: string }) {
   const staff = useAsync(() => listSchoolStaff({ data: { password: pw } }), [pw]);
   const staffList = (staff.data && "staff" in staff.data ? (staff.data.staff ?? []) : []) as unknown[];
   const tabs = [
-    { id: "overview", label: "Overview" }, { id: "staff", label: "Staff & Role" },
+    { id: "overview", label: "Overview" }, { id: "staff", label: "Staff & Role" }, { id: "agenda", label: "Agenda Sekolah" },
+    { id: "message", label: "Message" },
     { id: "activity", label: "Teacher Activity" }, { id: "announce", label: "Pengumuman" }, ...ACADEMIC_TABS, PIN_TAB,
   ];
   return (
@@ -102,6 +103,8 @@ export function HosDashboard({ staffId }: { staffId: string }) {
         </div>
       )}
       {tab === "staff" && <RoleManager classes={classes} />}
+      {tab === "agenda" && <AgendaPanel pw={pw} staffId={staffId} />}
+      {tab === "message" && <StaffMessagePanel pw={pw} staffId={staffId} />}
       {tab === "activity" && <AllActivitiesView division={null} />}
       {tab === "announce" && <AnnouncementPanel subrole="hos" division={null} classes={classes} />}
       {tab === "pin" && <ChangePinPanel />}
@@ -150,10 +153,11 @@ export function AdminHosDashboard() {
 /* ───────────── Principal ───────────── */
 export function PrincipalDashboard({ division, staffId }: { division: string; staffId: string }) {
   const [tab, setTab] = useState("overview");
+  const pw = getStoredPassword();
   const classes = useClasses(division);
   const tabs = [
     { id: "overview", label: "Overview" }, { id: "students", label: "Murid & Guru" },
-    { id: "staff", label: "Staff" }, { id: "activity", label: "Teacher Activity" },
+    { id: "staff", label: "Staff" }, { id: "message", label: "Message" }, { id: "activity", label: "Teacher Activity" },
     { id: "announce", label: "Pengumuman" }, ...ACADEMIC_TABS, PIN_TAB,
   ];
   return (
@@ -163,6 +167,7 @@ export function PrincipalDashboard({ division, staffId }: { division: string; st
       {tab === "overview" && <div className="grid grid-cols-2 gap-3"><StatCard label="Classes" value={classes.length} Icon={GraduationCap} /></div>}
       {tab === "students" && <StudentRoster canEdit classes={classes} />}
       {tab === "staff" && <StaffRoster canEdit classes={classes} scopeDivision={division} />}
+      {tab === "message" && <StaffMessagePanel pw={pw} staffId={staffId} />}
       {tab === "activity" && <AllActivitiesView division={division} />}
       {tab === "announce" && <AnnouncementPanel subrole="principal" division={division} classes={classes} />}
       {tab === "pin" && <ChangePinPanel />}
@@ -219,6 +224,7 @@ export function TeacherDashboard({ staffId, staffName, role, defaultClassId }: {
     { id: "lesson", label: "Lesson Plan" }, { id: "projects", label: "Project & Surat Resmi" },
     { id: "assessment", label: "Assessment" },
     ...(isHomeroom ? [{ id: "attendance", label: "Attendance" }] : []),
+    { id: "message", label: "Message Principal" },
     PIN_TAB,
   ];
 
@@ -229,9 +235,10 @@ export function TeacherDashboard({ staffId, staffName, role, defaultClassId }: {
       {tab === "calendar" && <CalendarPanel access={{ pw, staffId }} classes={classList} canEdit />}
       {tab === "timetable" && <TimetablePanel access={{ pw }} classes={classList} canEdit />}
       {tab === "lesson" && <LessonPlanPanel pw={pw} classes={classList} canEdit />}
-      {tab === "projects" && <ProjectPanel pw={pw} classes={classList} canSubmit reviewerRole={null} reviewerName={staffName} />}
+      {tab === "projects" && <ProjectPanel pw={pw} classes={classList} canSubmit reviewerRole={null} reviewerName={staffName} staffId={staffId} />}
       {tab === "assessment" && <AssessmentPanel access={{ pw }} classes={classList} canEdit={isSubject || isHomeroom} />}
       {tab === "attendance" && isHomeroom && <AttendancePanel access={{ pw }} classes={classList} canEdit />}
+      {tab === "message" && <StaffMessagePanel pw={pw} staffId={staffId} />}
       {tab === "pin" && <ChangePinPanel />}
 
       {tab === "kelas" && (

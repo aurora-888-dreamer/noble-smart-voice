@@ -12,7 +12,9 @@ import {
   listAssessments, saveAssessment, deleteAssessment, draftAssessmentNote,
   listAttendance, saveAttendance,
 } from "@/lib/school-academic.functions";
-import { listSchoolStudents } from "@/lib/school.functions";
+import { listAgendas, saveAgenda, deleteAgenda, addAgendaPic, removeAgendaPic } from "@/lib/school-agenda.functions";
+import { listMessagingContacts, listStaffConversation, sendStaffMessage } from "@/lib/school-staff-messages.functions";
+import { listSchoolStudents, listSchoolStaff } from "@/lib/school.functions";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = Record<string, any>;
@@ -95,7 +97,7 @@ export function CalendarPanel({ access, classes, canEdit, compact }: { access: A
   }
 
   return (
-    <div className={compact ? "max-w-md" : undefined}>
+    <div className={compact ? "mx-auto" : undefined} style={compact ? { maxWidth: 380 } : undefined}>
       {!access.code && <ClassPicker value={classId} onChange={setClassId} classes={classes} />}
       {canEdit && (
         <div className={card + " mb-3 grid gap-2"}>
@@ -374,7 +376,7 @@ export function LessonPlanPanel({ pw, classes, canEdit, staffId }: { pw: string;
 const REVISI_TAG = "[REVISI]";
 function projectBadge(p: Row): { label: string; cls: string } {
   const notes: string = p.last_review_notes ?? "";
-  if (p.status === "ditolak" && notes.startsWith(REVISI_TAG)) return { label: "Minta Revisi", cls: "bg-blue-500/15 text-blue-600" };
+  if (p.status === "draft" && notes.startsWith(REVISI_TAG)) return { label: "Minta Revisi", cls: "bg-blue-500/15 text-blue-600" };
   switch (p.status) {
     case "diajukan_principal": return { label: "Di Principal", cls: "bg-yellow-500/20 text-yellow-700" };
     case "diajukan_hos": return { label: "Di Head of School", cls: "bg-orange-500/20 text-orange-700" };
@@ -392,9 +394,11 @@ export function ProjectPanel({
 }) {
   const [view, setView] = useState<"list" | "pending">(reviewerRole ? "pending" : "list");
   const [reload, setReload] = useState(0);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [classId, setClassId] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [requiresHos, setRequiresHos] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -402,14 +406,27 @@ export function ProjectPanel({
   const all: Row[] = res.data && res.data.ok ? res.data.projects : [];
   const pendingStatus = reviewerRole === "principal" ? "diajukan_principal" : "diajukan_hos";
   const pending = all.filter((p) => p.status === pendingStatus);
+  // For Principal/HoS, "history" is only what's actually finished — anything
+  // still moving through the approval chain stays in "Menunggu Approval"
+  // (at whichever stage it's currently at) and never shows here until then.
+  const history = all.filter((p) => p.status === "disetujui" || p.status === "ditolak");
+
+  function startEdit(p: Row) {
+    setEditingId(p.id);
+    setClassId(p.class_id ?? "");
+    setTitle(p.title ?? "");
+    setDescription(p.description ?? "");
+    setRequiresHos(p.requires_hos ?? true);
+    setView("list");
+  }
 
   async function submit(asDraft: boolean) {
     if (!title.trim() || !classId) return;
     setBusy(true); setErr(null);
-    const r = await saveProject({ data: { password: pw, classId, teacherId: staffId || undefined, title, description, submit: !asDraft } });
+    const r = await saveProject({ data: { password: pw, id: editingId || undefined, classId, teacherId: staffId || undefined, title, description, submit: !asDraft, requiresHos } });
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
-    setTitle(""); setDescription(""); setReload((x) => x + 1);
+    setTitle(""); setDescription(""); setEditingId(null); setReload((x) => x + 1);
   }
 
   return (
@@ -426,30 +443,38 @@ export function ProjectPanel({
 
       {canSubmit && view === "list" && (
         <div className={card + " mb-3 grid gap-2"}>
+          {editingId && <p className="text-xs text-primary font-semibold">Mengedit project yang diminta revisi — ajukan ulang setelah diperbaiki.</p>}
           <select value={classId} onChange={(e) => setClassId(e.target.value)} className={field}>
             <option value="">pilih kelas</option>
             {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Judul project / surat resmi" className={field} />
           <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} placeholder="Isi / deskripsi" className={field} />
-          <div className="flex gap-2">
+          <label className="flex items-center gap-2 text-xs">
+            <input type="checkbox" checked={requiresHos} onChange={(e) => setRequiresHos(e.target.checked)} />
+            Perlu approval Head of School (kalau tidak dicentang, keputusan Principal sudah final)
+          </label>
+          <div className="flex gap-2 flex-wrap">
             <button onClick={() => submit(true)} disabled={busy} className="rounded-lg border border-border px-3 py-1.5 text-sm font-semibold disabled:opacity-50">Simpan Draft</button>
-            <button onClick={() => submit(false)} disabled={busy} className={btn}><Save size={13} /> Ajukan ke Principal</button>
+            <button onClick={() => submit(false)} disabled={busy} className={btn}><Save size={13} /> {editingId ? "Ajukan Ulang ke Principal" : "Ajukan ke Principal"}</button>
+            {editingId && <button onClick={() => { setEditingId(null); setTitle(""); setDescription(""); setClassId(""); }} className="rounded-lg border border-border px-3 py-1.5 text-sm">Batal Edit</button>}
           </div>
           <Err msg={err} />
         </div>
       )}
 
       <ul className="space-y-2">
-        {(view === "pending" ? pending : all).map((p) => (
+        {(view === "pending" ? pending : (reviewerRole ? history : all)).map((p) => (
           <ProjectRow
             key={p.id} project={p} pw={pw}
-            reviewerRole={view === "pending" ? reviewerRole : null}
+            reviewerRole={reviewerRole}
             reviewerName={reviewerName}
+            canEditDraft={canSubmit && p.status === "draft"}
+            onEdit={() => startEdit(p)}
             onChanged={() => setReload((x) => x + 1)}
           />
         ))}
-        {(view === "pending" ? pending : all).length === 0 && (
+        {(view === "pending" ? pending : (reviewerRole ? history : all)).length === 0 && (
           <Hint>{view === "pending" ? "Tidak ada project yang menunggu approval." : "Belum ada project."}</Hint>
         )}
       </ul>
@@ -458,9 +483,10 @@ export function ProjectPanel({
 }
 
 function ProjectRow({
-  project, pw, reviewerRole, reviewerName, onChanged,
+  project, pw, reviewerRole, reviewerName, canEditDraft, onEdit, onChanged,
 }: {
-  project: Row; pw: string; reviewerRole: "principal" | "hos" | null; reviewerName?: string; onChanged: () => void;
+  project: Row; pw: string; reviewerRole: "principal" | "hos" | null; reviewerName?: string;
+  canEditDraft?: boolean; onEdit?: () => void; onChanged: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [notes, setNotes] = useState("");
@@ -477,6 +503,7 @@ function ProjectRow({
       data: {
         password: pw, id: project.id, reviewerRole, reviewerName,
         decision: kind === "approve" ? "approve" : "reject",
+        isRevisi: kind === "revisi",
         notes: kind === "revisi" ? REVISI_TAG + " " + notes : notes,
       },
     });
@@ -494,6 +521,7 @@ function ProjectRow({
         </div>
         <p className="text-xs text-muted-foreground mt-0.5">
           {project.school_classes?.name}{project.school_staff?.full_name ? " - " + project.school_staff.full_name : ""}
+          {project.requires_hos === false && <span className="ml-2 text-[10px] uppercase text-muted-foreground">· Final di Principal</span>}
         </p>
       </button>
       {open && (
@@ -502,25 +530,34 @@ function ProjectRow({
           {project.last_review_notes && (
             <p className="text-xs rounded-lg bg-secondary/50 p-2"><span className="text-muted-foreground">Catatan terakhir: </span>{project.last_review_notes}</p>
           )}
-          {reviews.length > 0 && (
-            <ul className="space-y-1">
-              {reviews.map((r) => (
-                <li key={r.id} className="text-[11px] text-muted-foreground">
-                  {new Date(r.reviewed_at).toLocaleDateString()} - {r.reviewer_role} - {r.decision}{r.notes ? ": " + r.notes : ""}
-                </li>
-              ))}
-            </ul>
-          )}
-          {reviewerRole && (
-            <div className="grid gap-2">
-              <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Catatan untuk guru (opsional)" className={field} />
-              <div className="flex gap-2 flex-wrap">
-                <button onClick={() => decide("approve")} disabled={busy} className="rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-sm font-semibold disabled:opacity-50 flex items-center gap-1"><Check size={13} /> Approve</button>
-                <button onClick={() => decide("revisi")} disabled={busy} className="rounded-lg bg-blue-600 text-white px-3 py-1.5 text-sm font-semibold disabled:opacity-50">Minta Revisi</button>
-                <button onClick={() => decide("reject")} disabled={busy} className="rounded-lg bg-destructive text-destructive-foreground px-3 py-1.5 text-sm font-semibold disabled:opacity-50 flex items-center gap-1"><X size={13} /> Reject</button>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {reviews.length > 0 && (
+              <div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Riwayat Revisi & Review</p>
+                <ul className="space-y-1">
+                  {reviews.map((r) => (
+                    <li key={r.id} className="text-[11px] text-muted-foreground">
+                      {new Date(r.reviewed_at).toLocaleDateString()} - {r.reviewer_role} - {r.decision}{r.notes ? ": " + r.notes : ""}
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <Err msg={err} />
-            </div>
+            )}
+            {reviewerRole && (
+              <div className="grid gap-2 content-start">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Catatan & Keputusan</p>
+                <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Catatan untuk guru (opsional)" className={field} />
+                <div className="flex gap-2 flex-wrap">
+                  <button onClick={() => decide("approve")} disabled={busy} className="rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-sm font-semibold disabled:opacity-50 flex items-center gap-1"><Check size={13} /> Approve</button>
+                  <button onClick={() => decide("revisi")} disabled={busy} className="rounded-lg bg-blue-600 text-white px-3 py-1.5 text-sm font-semibold disabled:opacity-50">Minta Revisi</button>
+                  <button onClick={() => decide("reject")} disabled={busy} className="rounded-lg bg-destructive text-destructive-foreground px-3 py-1.5 text-sm font-semibold disabled:opacity-50 flex items-center gap-1"><X size={13} /> Reject</button>
+                </div>
+                <Err msg={err} />
+              </div>
+            )}
+          </div>
+          {canEditDraft && onEdit && (
+            <button onClick={onEdit} className="rounded-lg border border-primary text-primary px-3 py-1.5 text-sm font-semibold">Edit & Ajukan Ulang</button>
           )}
         </div>
       )}
@@ -920,4 +957,227 @@ export function AttendancePanel({ access, classes, canEdit, staffId }: { access:
       )}
     </div>
   );
+}
+
+/* ───────────── 7. Agenda Sekolah (HoS only) ───────────── */
+export function AgendaPanel({ pw, staffId }: { pw: string; staffId: string }) {
+  const [reload, setReload] = useState(0);
+  const [open, setOpen] = useState<string | null>(null);
+  const [title, setTitle] = useState("");
+  const [purpose, setPurpose] = useState("");
+  const [theme, setTheme] = useState("");
+  const [startDate, setStartDate] = useState(today());
+  const [endDate, setEndDate] = useState(today());
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const res = useAsync(() => listAgendas({ data: { password: pw } }), [pw, reload]);
+  const agendas: Row[] = res.data && res.data.ok ? res.data.agendas : [];
+
+  const staffRes = useAsync(() => listSchoolStaff({ data: { password: pw } }), [pw]);
+  const staffList: Row[] = staffRes.data && "staff" in staffRes.data ? (staffRes.data.staff ?? []) : [];
+
+  async function create() {
+    if (!title.trim()) return;
+    setBusy(true); setErr(null);
+    const r = await saveAgenda({ data: { password: pw, staffId, title, purpose, theme, startDate, endDate } });
+    setBusy(false);
+    if (!r.ok) { setErr(r.error); return; }
+    setTitle(""); setPurpose(""); setTheme(""); setReload((x) => x + 1);
+  }
+  async function remove(id: string) {
+    await deleteAgenda({ data: { password: pw, id } });
+    setReload((x) => x + 1);
+  }
+
+  return (
+    <div>
+      <div className={card + " mb-3 grid gap-2"}>
+        <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Agenda Sekolah Baru</p>
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Judul" className={field} />
+        <input value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="Tujuan" className={field} />
+        <input value={theme} onChange={(e) => setTheme(e.target.value)} placeholder="Tema" className={field} />
+        <div className="flex gap-2 flex-wrap items-center">
+          <label className="text-xs text-muted-foreground">Mulai</label>
+          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm" />
+          <label className="text-xs text-muted-foreground">Selesai</label>
+          <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm" />
+        </div>
+        <button onClick={create} disabled={busy} className={btn + " justify-self-start"}><Plus size={13} /> Buat Agenda</button>
+        <Err msg={err} />
+      </div>
+
+      <ul className="space-y-2">
+        {agendas.map((a) => (
+          <AgendaRow key={a.id} agenda={a} pw={pw} staffList={staffList} open={open === a.id} onToggle={() => setOpen(open === a.id ? null : a.id)} onRemove={() => remove(a.id)} onChanged={() => setReload((x) => x + 1)} />
+        ))}
+        {agendas.length === 0 && <Hint>Belum ada agenda sekolah.</Hint>}
+      </ul>
+    </div>
+  );
+}
+
+function AgendaRow({ agenda, pw, staffList, open, onToggle, onRemove, onChanged }: {
+  agenda: Row; pw: string; staffList: Row[]; open: boolean; onToggle: () => void; onRemove: () => void; onChanged: () => void;
+}) {
+  const [picStaffId, setPicStaffId] = useState("");
+  const [extName, setExtName] = useState("");
+  const [extContact, setExtContact] = useState("");
+  const [addingExternal, setAddingExternal] = useState(false);
+  const picList: Row[] = agenda.school_agenda_pic ?? [];
+
+  async function addInternal() {
+    if (!picStaffId) return;
+    await addAgendaPic({ data: { password: pw, agendaId: agenda.id, staffId: picStaffId, isExternal: false } });
+    setPicStaffId(""); onChanged();
+  }
+  async function addExternal() {
+    if (!extName.trim()) return;
+    await addAgendaPic({ data: { password: pw, agendaId: agenda.id, externalName: extName, externalContact: extContact, isExternal: true } });
+    setExtName(""); setExtContact(""); setAddingExternal(false); onChanged();
+  }
+  async function removePic(id: string) {
+    await removeAgendaPic({ data: { password: pw, id } });
+    onChanged();
+  }
+
+  return (
+    <li className="rounded-xl bg-card border border-border p-3">
+      <button onClick={onToggle} className="w-full text-left">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-semibold">{agenda.title}</p>
+          <span className="text-[10px] uppercase text-muted-foreground shrink-0">{agenda.status}</span>
+        </div>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          {agenda.theme ? agenda.theme + " · " : ""}
+          {agenda.start_date ? new Date(agenda.start_date).toLocaleDateString() : ""}{agenda.end_date ? " – " + new Date(agenda.end_date).toLocaleDateString() : ""}
+        </p>
+        {picList.length > 0 && (
+          <p className="text-[11px] text-muted-foreground mt-1">
+            PIC: {picList.map((p) => p.is_external ? p.external_name : p.school_staff?.full_name).join(", ")}
+          </p>
+        )}
+      </button>
+      {open && (
+        <div className="mt-3 pt-3 border-t border-border space-y-3">
+          {agenda.purpose && <p className="text-sm"><span className="text-muted-foreground">Tujuan: </span>{agenda.purpose}</p>}
+
+          <div>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">PIC (Person in Charge)</p>
+            <ul className="space-y-1.5 mb-2">
+              {picList.map((p) => (
+                <li key={p.id} className="flex items-center justify-between text-sm rounded-lg bg-secondary/40 px-2 py-1.5">
+                  <span>{p.is_external ? p.external_name + " (eksternal)" : p.school_staff?.full_name}</span>
+                  <button onClick={() => removePic(p.id)} className="text-destructive"><Trash2 size={13} /></button>
+                </li>
+              ))}
+              {picList.length === 0 && <Hint>Belum ada PIC ditunjuk.</Hint>}
+            </ul>
+            <div className="flex gap-2 flex-wrap">
+              <select value={picStaffId} onChange={(e) => setPicStaffId(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm">
+                <option value="">pilih staff internal</option>
+                {staffList.map((s) => <option key={s.id} value={s.id}>{s.full_name}</option>)}
+              </select>
+              <button onClick={addInternal} disabled={!picStaffId} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold disabled:opacity-40">Tambah PIC Internal</button>
+              <button onClick={() => setAddingExternal((v) => !v)} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold">+ PIC Eksternal</button>
+            </div>
+            {addingExternal && (
+              <div className="mt-2 flex gap-2 flex-wrap">
+                <input value={extName} onChange={(e) => setExtName(e.target.value)} placeholder="Nama PIC eksternal" className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm" />
+                <input value={extContact} onChange={(e) => setExtContact(e.target.value)} placeholder="Kontak (opsional)" className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm" />
+                <button onClick={addExternal} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold">Tambah</button>
+              </div>
+            )}
+            <p className="text-[11px] text-muted-foreground mt-1.5">PIC eksternal cuma dicatat nama & kontak — tidak bisa login untuk mengisi timeline sendiri.</p>
+          </div>
+
+          <button onClick={onRemove} className="text-xs text-destructive flex items-center gap-1"><Trash2 size={12} /> Hapus Agenda</button>
+        </div>
+      )}
+    </li>
+  );
+}
+
+/* ───────────── 8. Staff Messaging (HoS<->Principal, Principal<->Teacher) ───────────── */
+export function StaffMessagePanel({ pw, staffId }: { pw: string; staffId: string }) {
+  const [otherId, setOtherId] = useState("");
+  const [body, setBody] = useState("");
+  const [reload, setReload] = useState(0);
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const contactsRes = useAsync(() => listMessagingContacts({ data: { password: pw, staffId } }), [pw, staffId]);
+  const contacts: Row[] = contactsRes.data && contactsRes.data.ok ? contactsRes.data.contacts : [];
+
+  const convoRes = useAsync(
+    () => (otherId ? listStaffConversation({ data: { password: pw, staffId, otherId } }) : Promise.resolve(null)),
+    [pw, staffId, otherId, reload],
+  );
+  const messages: Row[] = convoRes.data && convoRes.data.ok ? convoRes.data.messages : [];
+
+  async function send() {
+    if (!body.trim() || !otherId) return;
+    setBusy(true); setErr(null);
+    const r = await sendStaffMessage({ data: { password: pw, staffId, otherId, body } });
+    setBusy(false);
+    if (!r.ok) { setErr(r.error); return; }
+    setBody(""); setReload((x) => x + 1);
+  }
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-4">
+      <div>
+        <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold mb-2">Kontak</p>
+        <ul className="space-y-1.5">
+          {contacts.map((c) => (
+            <li key={c.id}>
+              <button
+                onClick={() => setOtherId(c.id)}
+                className={"w-full text-left rounded-lg px-3 py-2 text-sm border " + (otherId === c.id ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}
+              >
+                {c.full_name}
+                <span className="block text-[10px] opacity-70">{roleLabelForMessaging(c.role)}</span>
+              </button>
+            </li>
+          ))}
+          {contacts.length === 0 && <Hint>Belum ada kontak yang bisa dihubungi.</Hint>}
+        </ul>
+      </div>
+
+      <div>
+        {!otherId ? (
+          <Hint>Pilih kontak di sebelah kiri (atau di atas, kalau di HP) untuk mulai chat.</Hint>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <div className="rounded-2xl bg-card border border-border p-3 max-h-80 overflow-y-auto space-y-2">
+              {messages.map((m) => {
+                const mine = m.sender_id === staffId;
+                return (
+                  <div key={m.id} className={"max-w-[80%] rounded-xl px-3 py-2 text-sm " + (mine ? "ml-auto bg-primary text-primary-foreground" : "bg-secondary")}>
+                    <p>{m.body}</p>
+                    <p className="text-[10px] opacity-70 mt-0.5">{new Date(m.created_at).toLocaleString()}</p>
+                  </div>
+                );
+              })}
+              {messages.length === 0 && <Hint>Belum ada pesan. Mulai percakapan.</Hint>}
+            </div>
+            <div className="flex gap-2">
+              <input value={body} onChange={(e) => setBody(e.target.value)} placeholder="Tulis pesan…" className={field} onKeyDown={(e) => { if (e.key === "Enter") send(); }} />
+              <button onClick={send} disabled={busy} className={btn}>Kirim</button>
+            </div>
+            <Err msg={err} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function roleLabelForMessaging(role: string): string {
+  const map: Record<string, string> = {
+    hos: "Head of School", vice_hos: "Vice HoS",
+    principal: "Principal", vice_principal: "Vice Principal", admin_principal: "Admin Principal",
+    teacher_homeroom: "Homeroom Teacher", teacher_subject: "Subject Teacher", teacher_shadow: "Shadow Teacher",
+  };
+  return map[role] ?? role;
 }
