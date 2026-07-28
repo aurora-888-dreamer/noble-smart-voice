@@ -945,7 +945,7 @@ function ParentDashboard({ code }: { code: string }) {
   const info = useAsync(() => getStudentForCode({ data: { code } }), [code]);
   const activities = useAsync(() => listActivitiesForCode({ data: { code } }), [code]);
   const announcements = useAsync(() => listAnnouncementsForCode({ data: { code } }), [code]);
-  const student = info.data && "student" in info.data ? info.data.student : null;
+  const student = (info.data && "student" in info.data ? info.data.student : null) as { nickname?: string | null; full_name: string; id: string } | null;
   const activityList = activities.data && "activities" in activities.data ? (activities.data.activities ?? []) : [];
   const announcementList = announcements.data && "announcements" in announcements.data ? (announcements.data.announcements ?? []) : [];
 
