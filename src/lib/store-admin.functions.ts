@@ -1,11 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
 import { createNobleSupabase } from "./supabase.server";
 import {
+  ADMIN_USER_ID,
   adminEmail,
+  isAdminUserId,
   generateResetCode,
   sendResetCodeEmail,
   sha256,
   storeAdminPassword,
+  verifyAdminPassword,
 } from "./store-admin.server";
 
 const CODE_TTL_MS = 15 * 60 * 1000;
@@ -45,14 +48,27 @@ export const requestStoreAdminReset = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-// Redeem the code and set a new password.
+// Single-identity login: UserID + 6-digit PIN. Returns the PIN back so the
+// client can keep using it as the credential for every admin call.
+export const storeAdminLogin = createServerFn({ method: "POST" })
+  .inputValidator((input: { userId: string; pin: string }) => input)
+  .handler(async ({ data }): Promise<{ ok: true; pin: string } | { ok: false; error: string }> => {
+    if (!isAdminUserId(data.userId || "")) return { ok: false, error: "UserID atau PIN salah." };
+    const pin = (data.pin || "").trim();
+    if (!(await verifyAdminPassword(pin))) return { ok: false, error: "UserID atau PIN salah." };
+    return { ok: true, pin };
+  });
+
+export const ADMIN_LOGIN_USER_ID = ADMIN_USER_ID;
+
+// Redeem the code and set a new PIN.
 export const resetStoreAdminPassword = createServerFn({ method: "POST" })
   .inputValidator((input: { code: string; newPassword: string }) => input)
   .handler(async ({ data }): Promise<{ ok: true } | { ok: false; error: string }> => {
     const supabase = createNobleSupabase();
     if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
     const password = data.newPassword.trim();
-    if (password.length < 8) return { ok: false, error: "Password baru minimal 8 karakter." };
+    if (!/^\d{6}$/.test(password)) return { ok: false, error: "PIN baru harus 6 angka." };
 
     const codeHash = await sha256(data.code.trim());
     const { data: row, error } = await supabase

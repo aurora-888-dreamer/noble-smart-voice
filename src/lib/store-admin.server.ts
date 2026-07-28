@@ -23,6 +23,14 @@ function safeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
+/** The single admin identity for /store/admin. */
+export const ADMIN_USER_ID = "Noble888";
+export const DEFAULT_ADMIN_PIN = "440077";
+
+export function isAdminUserId(userId: string): boolean {
+  return userId.trim().toLowerCase() === ADMIN_USER_ID.toLowerCase();
+}
+
 export async function verifyAdminPassword(password: string): Promise<boolean> {
   if (!password) return false;
   const supabase = createNobleSupabase();
@@ -31,7 +39,7 @@ export async function verifyAdminPassword(password: string): Promise<boolean> {
     const stored = data?.password_hash as string | undefined;
     if (stored) return safeEqual(await sha256(password), stored);
   }
-  const expected = process.env.STORE_ADMIN_PASSWORD || "AURORA-ADMIN";
+  const expected = DEFAULT_ADMIN_PIN;
   return safeEqual(await sha256(password), await sha256(expected));
 }
 
@@ -46,9 +54,11 @@ export async function storeAdminPassword(password: string): Promise<string | nul
 
 // ————— Reset email —————
 
+/** Only one address may ever receive a PIN reset code. */
+export const ADMIN_EMAIL = "auroradreamer888@gmail.com";
+
 export function adminEmail(): string | null {
-  const email = process.env.STORE_ADMIN_EMAIL;
-  return email?.trim() ? email.trim().toLowerCase() : null;
+  return ADMIN_EMAIL;
 }
 
 export function generateResetCode(): string {
@@ -64,10 +74,10 @@ export async function sendResetCodeEmail(to: string, code: string): Promise<stri
 
   const html = `
     <div style="font-family:Arial,Helvetica,sans-serif;background:#ffffff;padding:24px">
-      <h2 style="margin:0 0 8px">AURORA MASTER — Reset Admin Password</h2>
-      <p style="color:#444;margin:0 0 16px">Gunakan kode berikut untuk mengatur ulang password admin toko. Kode berlaku 15 menit.</p>
+      <h2 style="margin:0 0 8px">AURORA MASTER — Reset Admin PIN</h2>
+      <p style="color:#444;margin:0 0 16px">Gunakan kode berikut untuk mengatur ulang PIN admin toko. Kode berlaku 15 menit.</p>
       <p style="font-size:30px;letter-spacing:8px;font-weight:700;margin:0 0 16px">${code}</p>
-      <p style="color:#777;font-size:12px;margin:0">Abaikan email ini jika kamu tidak meminta reset password.</p>
+      <p style="color:#777;font-size:12px;margin:0">Abaikan email ini jika kamu tidak meminta reset PIN.</p>
     </div>`;
 
   try {
@@ -76,9 +86,9 @@ export async function sendResetCodeEmail(to: string, code: string): Promise<stri
         to,
         from: `AURORA MASTER <admin@${senderDomain}>`,
         sender_domain: senderDomain,
-        subject: "Kode reset password admin AURORA MASTER",
+        subject: "Kode reset PIN admin AURORA MASTER",
         html,
-        text: `Kode reset password admin AURORA MASTER: ${code} (berlaku 15 menit).`,
+        text: `Kode reset PIN admin AURORA MASTER: ${code} (berlaku 15 menit).`,
         purpose: "transactional",
       },
       { apiKey },
