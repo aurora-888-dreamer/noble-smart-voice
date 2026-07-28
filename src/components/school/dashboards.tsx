@@ -84,7 +84,7 @@ export function HosDashboard() {
   const staffList = (staff.data && "staff" in staff.data ? (staff.data.staff ?? []) : []) as unknown[];
   const tabs = [
     { id: "overview", label: "Overview" }, { id: "staff", label: "Staff" }, { id: "roles", label: "Kelola Role" },
-    { id: "activity", label: "Teacher Activity" }, { id: "announce", label: "Pengumuman" }, ...ACADEMIC_TABS,
+    { id: "activity", label: "Teacher Activity" }, { id: "announce", label: "Pengumuman" }, ...ACADEMIC_TABS, PIN_TAB,
   ];
   return (
     <div>
@@ -95,32 +95,26 @@ export function HosDashboard() {
           <StatCard label="Staff" value={staffList.length} Icon={Users} />
         </div>
       )}
-      {tab === "staff" && (
-        <StaffRoster
-          canEdit classes={classes} scopeDivision={null}
-          roleOptions={[{ v: "admin_hos", label: "Admin HoS" }, { v: "principal", label: "Principal" }]}
-        />
-      )}
+      {tab === "staff" && <StaffRoster canEdit classes={classes} scopeDivision={null} />}
       {tab === "roles" && <RoleManager classes={classes} />}
       {tab === "activity" && <AllActivitiesView division={null} />}
       {tab === "announce" && <AnnouncementPanel subrole="hos" division={null} classes={classes} />}
+      {tab === "pin" && <ChangePinPanel />}
       <AcademicReadOnly tab={tab} classes={classes} reviewerRole="hos" reviewerName="Head of School" />
     </div>
   );
 }
 
-/** HoS-only: create Admin HoS / Principal accounts with the default PIN. */
+/** HoS-only: create any school account (Vice HoS, Admin HoS, Principal, Vice/Admin Principal, Teachers). */
 export function RoleManager({ classes }: { classes: { id: string; name: string }[] }) {
   return (
     <div>
       <p className="text-xs text-muted-foreground mb-3">
-        Tambah akun baru untuk Admin HoS atau Principal. PIN awal <code className="font-mono">123456</code> — staff wajib menggantinya sendiri saat login pertama.
-        Role yang mencakup semua divisi otomatis diberi divisi <span className="font-semibold">All Divisions</span>.
+        Buat akun baru: Vice HoS, Admin HoS, Principal, Vice Principal, Admin Principal, Homeroom Teacher (bisa assign/lepas kelas)
+        dan Subject Teacher (bisa assign/lepas mata pelajaran). UserID dibuat otomatis, PIN awal <code className="font-mono">123456</code> —
+        wajib diganti saat login pertama. Role yang mencakup semua divisi otomatis diberi divisi <span className="font-semibold">All Divisions</span>.
       </p>
-      <StaffRoster
-        canEdit classes={classes} scopeDivision={null}
-        roleOptions={[{ v: "admin_hos", label: "Admin HoS" }, { v: "principal", label: "Principal" }]}
-      />
+      <StaffRoster canEdit classes={classes} scopeDivision={null} />
     </div>
   );
 }
@@ -131,25 +125,18 @@ export function AdminHosDashboard() {
   const classes = useClasses();
   const tabs = [
     { id: "import", label: "Import Data" }, { id: "students", label: "Data Murid" },
-    { id: "staff", label: "Staff" }, { id: "announce", label: "Pengumuman" }, ...ACADEMIC_TABS,
+    { id: "staff", label: "Staff" }, { id: "personnel", label: "Kelola Personil" },
+    { id: "announce", label: "Pengumuman" }, ...ACADEMIC_TABS, PIN_TAB,
   ];
   return (
     <div>
       <Tabs tabs={tabs} tab={tab} onChange={setTab} />
       {tab === "import" && <CsvImportPanel classes={classes} />}
       {tab === "students" && <StudentRoster canEdit classes={classes} />}
-      {tab === "staff" && (
-        <StaffRoster
-          canEdit classes={classes} scopeDivision={null}
-          roleOptions={[
-            { v: "principal", label: "Principal" },
-            { v: "teacher_homeroom", label: "Homeroom Teacher" },
-            { v: "teacher_shadow", label: "Shadow Teacher" },
-            { v: "teacher_subject", label: "Subject Teacher" },
-          ]}
-        />
-      )}
+      {tab === "staff" && <StaffRoster canEdit classes={classes} scopeDivision={null} />}
+      {tab === "personnel" && <PersonnelManager classes={classes} />}
       {tab === "announce" && <AnnouncementPanel subrole="admin_hos" division={null} classes={classes} />}
+      {tab === "pin" && <ChangePinPanel />}
       <AcademicReadOnly tab={tab} classes={classes} reviewerRole={null} />
     </div>
   );
@@ -162,7 +149,7 @@ export function PrincipalDashboard({ division }: { division: string }) {
   const tabs = [
     { id: "overview", label: "Overview" }, { id: "students", label: "Murid & Guru" },
     { id: "staff", label: "Staff" }, { id: "activity", label: "Teacher Activity" },
-    { id: "announce", label: "Pengumuman" }, ...ACADEMIC_TABS,
+    { id: "announce", label: "Pengumuman" }, ...ACADEMIC_TABS, PIN_TAB,
   ];
   return (
     <div>
@@ -173,10 +160,12 @@ export function PrincipalDashboard({ division }: { division: string }) {
       {tab === "staff" && <StaffRoster canEdit classes={classes} scopeDivision={division} />}
       {tab === "activity" && <AllActivitiesView division={division} />}
       {tab === "announce" && <AnnouncementPanel subrole="principal" division={division} classes={classes} />}
+      {tab === "pin" && <ChangePinPanel />}
       <AcademicReadOnly tab={tab} classes={classes} reviewerRole="principal" reviewerName="Principal" />
     </div>
   );
 }
+
 
 /* ───────────── Teacher ───────────── */
 export function TeacherDashboard({ staffName, role, defaultClassId }: { staffName: string; role: string | null; defaultClassId: string | null }) {
