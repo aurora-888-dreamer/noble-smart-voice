@@ -178,7 +178,7 @@ function ForgotPassword({ onDone }: { onDone: () => void }) {
             inputMode="numeric"
             maxLength={6}
             value={newPw}
-            onChange={(e) => setNewPw(e.target.value)}
+            onChange={(e) => setNewPw(e.target.value.replace(/\D/g, ""))}
             placeholder="PIN baru (6 angka)"
             className="w-full rounded-xl bg-secondary px-4 py-3 text-sm outline-none"
           />
