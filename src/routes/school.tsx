@@ -59,8 +59,9 @@ function SchoolLayout() {
   }
 
   return (
-    <AppShell title="School Dashboard">
+    <AppShell title="School Dashboard" headerExtra={<SchoolTools />}>
       <Outlet />
     </AppShell>
   );
 }
+
