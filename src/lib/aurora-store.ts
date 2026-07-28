@@ -7,6 +7,7 @@
 //
 // Kept as a thin wrapper (same export names as before) so store.index.tsx
 // and other pages that only need PLANS/formatIDR/types don't need to change.
+import { storeAdminLogin } from "./store-admin.functions";
 import { useEffect, useState } from "react";
 import {
   createStoreOrder,
@@ -116,10 +117,10 @@ export function generateSerialPreview(prefix = "NBL"): string {
 // STORE_ADMIN_PASSWORD. The password itself is kept in sessionStorage (not
 // just a yes/no flag) so subsequent admin actions can pass it along
 // automatically without asking again.
-export async function adminLogin(pw: string): Promise<boolean> {
-  const res = await listStoreOrders({ data: { adminPassword: pw } });
+export async function adminLogin(userId: string, pin: string): Promise<boolean> {
+  const res = await storeAdminLogin({ data: { userId, pin } });
   if (!res.ok) return false;
-  sessionStorage.setItem(SESSION_KEY, pw);
+  sessionStorage.setItem(SESSION_KEY, res.pin);
   window.dispatchEvent(new Event("aurora:store"));
   return true;
 }
