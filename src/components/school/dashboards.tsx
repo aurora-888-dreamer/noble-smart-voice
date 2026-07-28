@@ -291,8 +291,11 @@ export function ParentDashboard({ code }: { code: string }) {
     <div>
       <div className="flex items-center justify-between mb-4">
         <div className="rounded-full bg-primary/15 text-primary px-3 py-1.5 text-sm font-semibold flex items-center gap-1.5"><Baby size={14} /> {student.nickname || student.full_name}</div>
-        <button onClick={() => { parentLogout(); navigate({ to: "/school" }); }} className="text-xs rounded-full border border-border px-3 py-1.5 flex items-center gap-1"><LogOut size={12} /> Keluar</button>
+        <button onClick={() => { schoolLogout(); navigate({ to: "/" }); }} className="text-xs rounded-full border border-border px-3 py-1.5 flex items-center gap-1"><LogOut size={12} /> Keluar</button>
       </div>
+
+      <Section title="Ganti PIN" Icon={Shield}><ChangePinPanel /></Section>
+
 
       <Section title="Pengumuman" Icon={Megaphone}>
         <ul className="space-y-2">
