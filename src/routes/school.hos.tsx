@@ -19,7 +19,7 @@ export const Route = createFileRoute("/school/hos")({
 function HosPage() {
   const { session, ready } = useSchoolSession();
   if (!ready) return null;
-  if (!session || session.kind !== "staff" || session.role !== "hos") return <NotSignedIn />;
+  if (!session || session.kind !== "staff" || !["hos", "vice_hos"].includes(session.role ?? "")) return <NotSignedIn />;
   return (
     <div>
       <StaffHeader session={session} />

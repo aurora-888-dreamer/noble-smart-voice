@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useSchoolSession } from "@/lib/school-store";
 import { TeacherDashboard, StaffHeader, NotSignedIn } from "@/components/school/dashboards";
 
-const TEACHER_ROLES = ["teacher_homeroom", "teacher_subject"];
+const TEACHER_ROLES = ["teacher_homeroom", "teacher_subject", "teacher_shadow"];
 
 export const Route = createFileRoute("/school/teacher")({
   head: () => ({

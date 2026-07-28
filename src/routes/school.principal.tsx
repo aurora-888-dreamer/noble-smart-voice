@@ -19,7 +19,7 @@ export const Route = createFileRoute("/school/principal")({
 function PrincipalPage() {
   const { session, ready } = useSchoolSession();
   if (!ready) return null;
-  if (!session || session.kind !== "staff" || session.role !== "principal") return <NotSignedIn />;
+  if (!session || session.kind !== "staff" || !["principal", "vice_principal", "admin_principal"].includes(session.role ?? "")) return <NotSignedIn />;
   return (
     <div>
       <StaffHeader session={session} />
