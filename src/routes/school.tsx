@@ -22,6 +22,9 @@ import {
   postAnnouncement, listAnnouncements, listAnnouncementsForCode, getSchoolId, debugSupabaseUrl,
   type SchoolRole,
 } from "@/lib/school.functions";
+import {
+  CalendarPanel, TimetablePanel, LessonPlanPanel, ProjectPanel, AssessmentPanel, AttendancePanel,
+} from "@/components/SchoolAcademic";
 
 // SCHOOL_ID now comes from the SCHOOL_ID Secret (see getSchoolId in
 // school.functions.ts) — not hardcoded here anymore, since a hardcoded
@@ -349,7 +352,7 @@ function TeacherFirstTimeSetup() {
 }
 
 function HosDashboard({ subrole }: { subrole: AdminSubrole }) {
-  const [tab, setTab] = useState<"overview" | "students" | "staff" | "activity" | "announce" | "import">("overview");
+  const [tab, setTab] = useState<string>("overview");
   const canEditProfile = subrole === "admin_hos";
   const pw = getStoredPassword();
   const classes = useAsync(() => listSchoolClasses({ data: { password: pw } }), [pw]);
@@ -359,8 +362,10 @@ function HosDashboard({ subrole }: { subrole: AdminSubrole }) {
   const tabs = [
     { id: "overview", label: "Overview" }, { id: "students", label: "Data Murid" },
     { id: "staff", label: "Staff" }, { id: "activity", label: "Semua Activity" }, { id: "announce", label: "Pengumuman" },
-    ...(canEditProfile ? [{ id: "import" as const, label: "Import CSV" }] : []),
-  ] as const;
+    { id: "calendar", label: "Kalender" }, { id: "timetable", label: "Timetable" }, { id: "lesson", label: "Lesson Plan" },
+    { id: "projects", label: "Project & Surat Resmi" }, { id: "assessment", label: "Assessment" }, { id: "attendance", label: "Attendance" },
+    ...(canEditProfile ? [{ id: "import", label: "Import CSV" }] : []),
+  ];
   return (
     <div>
       <div className="flex gap-2 overflow-x-auto pb-2 mb-4 no-scrollbar">
@@ -378,6 +383,12 @@ function HosDashboard({ subrole }: { subrole: AdminSubrole }) {
       {tab === "staff" && <StaffRoster canEdit={canEditProfile} classes={classList} scopeDivision={null} />}
       {tab === "activity" && <AllActivitiesView division={null} />}
       {tab === "announce" && <AnnouncementPanel subrole={subrole} division={null} classes={classList} />}
+      {tab === "calendar" && <CalendarPanel access={{ pw }} classes={classList} canEdit />}
+      {tab === "timetable" && <TimetablePanel access={{ pw }} classes={classList} canEdit />}
+      {tab === "lesson" && <LessonPlanPanel pw={pw} classes={classList} canEdit />}
+      {tab === "projects" && <ProjectPanel pw={pw} classes={classList} canSubmit={false} reviewerRole="hos" reviewerName="Head of School" />}
+      {tab === "assessment" && <AssessmentPanel access={{ pw }} classes={classList} canEdit={false} />}
+      {tab === "attendance" && <AttendancePanel access={{ pw }} classes={classList} canEdit={false} />}
       {tab === "import" && canEditProfile && <CsvImportPanel classes={classList} />}
     </div>
   );
@@ -393,14 +404,16 @@ function StatCard({ label, value, Icon }: { label: string; value: number; Icon: 
 }
 
 function PrincipalDashboard({ division }: { division: string }) {
-  const [tab, setTab] = useState<"overview" | "students" | "classes" | "staff" | "activity" | "announce">("overview");
+  const [tab, setTab] = useState<string>("overview");
   const pw = getStoredPassword();
   const classesAll = useAsync(() => listSchoolClasses({ data: { password: pw } }), [pw]);
   const classes = (classesAll.data && "classes" in classesAll.data ? (classesAll.data.classes ?? []) : []).filter((c: { division: string }) => c.division === division);
   const tabs = [
     { id: "overview", label: "Overview" }, { id: "students", label: "Data Murid" }, { id: "classes", label: "Classes" },
     { id: "staff", label: "Staff" }, { id: "activity", label: "Activity Guru" }, { id: "announce", label: "Pengumuman" },
-  ] as const;
+    { id: "calendar", label: "Kalender" }, { id: "timetable", label: "Timetable" }, { id: "lesson", label: "Lesson Plan" },
+    { id: "projects", label: "Project & Surat Resmi" }, { id: "assessment", label: "Assessment" }, { id: "attendance", label: "Attendance" },
+  ];
   return (
     <div>
       <p className="text-xs text-muted-foreground mb-3">Principal - {DIVISIONS.find((d) => d.id === division)?.label}</p>
@@ -415,6 +428,12 @@ function PrincipalDashboard({ division }: { division: string }) {
       {tab === "staff" && <StaffRoster canEdit classes={classes} scopeDivision={division} />}
       {tab === "activity" && <AllActivitiesView division={division} />}
       {tab === "announce" && <AnnouncementPanel subrole="principal" division={division} classes={classes} />}
+      {tab === "calendar" && <CalendarPanel access={{ pw }} classes={classes} canEdit />}
+      {tab === "timetable" && <TimetablePanel access={{ pw }} classes={classes} canEdit />}
+      {tab === "lesson" && <LessonPlanPanel pw={pw} classes={classes} canEdit />}
+      {tab === "projects" && <ProjectPanel pw={pw} classes={classes} canSubmit={false} reviewerRole="principal" reviewerName="Principal" />}
+      {tab === "assessment" && <AssessmentPanel access={{ pw }} classes={classes} canEdit={false} />}
+      {tab === "attendance" && <AttendancePanel access={{ pw }} classes={classes} canEdit={false} />}
     </div>
   );
 }
@@ -787,6 +806,7 @@ function TeacherDashboard({ staffName, defaultClassId }: { staffName: string; de
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [selectedStudent, setSelectedStudent] = useState<{ id: string; full_name: string } | null>(null);
+  const [tab, setTab] = useState<string>("kelas");
 
   const classList = classes.data && "classes" in classes.data ? (classes.data.classes ?? []) : [];
   const studentList = students.data && "students" in students.data ? (students.data.students ?? []) : [];
@@ -813,42 +833,66 @@ function TeacherDashboard({ staffName, defaultClassId }: { staffName: string; de
     );
   }
 
+  const teacherTabs = [
+    { id: "kelas", label: "Kelas" }, { id: "calendar", label: "Kalender" }, { id: "timetable", label: "Timetable" },
+    { id: "lesson", label: "Lesson Plan" }, { id: "projects", label: "Project & Surat Resmi" },
+    { id: "assessment", label: "Assessment" }, { id: "attendance", label: "Attendance" },
+  ];
+  const teacherClasses = classList as { id: string; name: string }[];
+
   return (
     <div>
-      <select value={classId} onChange={(e) => setClassId(e.target.value)} className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm mb-4">
-        <option value="">pilih kelas</option>
-        {classList.map((c: { id: string; name: string }) => <option key={c.id} value={c.id}>{c.name}</option>)}
-      </select>
-      {classId && (
+      <div className="flex gap-2 overflow-x-auto pb-2 mb-4 no-scrollbar">
+        {teacherTabs.map((t) => (
+          <button key={t.id} onClick={() => setTab(t.id)} className={"shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold border " + (tab === t.id ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>{t.label}</button>
+        ))}
+      </div>
+
+      {tab === "calendar" && <CalendarPanel access={{ pw }} classes={teacherClasses} canEdit />}
+      {tab === "timetable" && <TimetablePanel access={{ pw }} classes={teacherClasses} canEdit />}
+      {tab === "lesson" && <LessonPlanPanel pw={pw} classes={teacherClasses} canEdit />}
+      {tab === "projects" && <ProjectPanel pw={pw} classes={teacherClasses} canSubmit reviewerRole={null} reviewerName={staffName} />}
+      {tab === "assessment" && <AssessmentPanel access={{ pw }} classes={teacherClasses} canEdit />}
+      {tab === "attendance" && <AttendancePanel access={{ pw }} classes={teacherClasses} canEdit />}
+
+      {tab === "kelas" && (
         <>
-          <Section title="Murid" Icon={Baby}>
-            <ul className="space-y-2">
-              {studentList.map((s: { id: string; full_name: string }) => (
-                <li key={s.id}>
-                  <button onClick={() => setSelectedStudent(s)} className="w-full rounded-xl bg-card border border-border p-3 text-left text-sm flex items-center justify-between">
-                    {s.full_name} <span className="text-xs text-muted-foreground">Pesan / Wali</span>
-                  </button>
-                </li>
-              ))}
-              {studentList.length === 0 && <Hint>Belum ada murid di kelas ini.</Hint>}
-            </ul>
-          </Section>
-          <Section title="Daily Activity" Icon={BookOpen}>
-            <div className="rounded-2xl bg-card border border-border p-3 mb-3">
-              <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Judul aktivitas" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm mb-2" />
-              <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={3} placeholder="Cerita" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm" />
-              <button onClick={post} className="mt-2 rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-sm font-semibold flex items-center gap-1"><Save size={13} /> Kirim</button>
-            </div>
-            <ul className="space-y-2">
-              {activityList.map((a: { id: string; title: string; body?: string; activity_date: string; author_name?: string }) => (
-                <li key={a.id} className="rounded-xl bg-card border border-border p-3">
-                  <div className="flex justify-between"><p className="text-sm font-semibold">{a.title}</p><button onClick={() => removeActivity(a.id)} className="text-destructive"><Trash2 size={13} /></button></div>
-                  <p className="text-xs text-muted-foreground mt-0.5">{new Date(a.activity_date).toLocaleDateString()}{a.author_name ? " - " + a.author_name : ""}</p>
-                  {a.body && <p className="text-sm mt-2 whitespace-pre-wrap">{a.body}</p>}
-                </li>
-              ))}
-            </ul>
-          </Section>
+          <select value={classId} onChange={(e) => setClassId(e.target.value)} className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm mb-4">
+            <option value="">pilih kelas</option>
+            {classList.map((c: { id: string; name: string }) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          {classId && (
+            <>
+              <Section title="Murid" Icon={Baby}>
+                <ul className="space-y-2">
+                  {studentList.map((s: { id: string; full_name: string }) => (
+                    <li key={s.id}>
+                      <button onClick={() => setSelectedStudent(s)} className="w-full rounded-xl bg-card border border-border p-3 text-left text-sm flex items-center justify-between">
+                        {s.full_name} <span className="text-xs text-muted-foreground">Pesan / Wali</span>
+                      </button>
+                    </li>
+                  ))}
+                  {studentList.length === 0 && <Hint>Belum ada murid di kelas ini.</Hint>}
+                </ul>
+              </Section>
+              <Section title="Daily Activity" Icon={BookOpen}>
+                <div className="rounded-2xl bg-card border border-border p-3 mb-3">
+                  <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Judul aktivitas" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm mb-2" />
+                  <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={3} placeholder="Cerita" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm" />
+                  <button onClick={post} className="mt-2 rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-sm font-semibold flex items-center gap-1"><Save size={13} /> Kirim</button>
+                </div>
+                <ul className="space-y-2">
+                  {activityList.map((a: { id: string; title: string; body?: string; activity_date: string; author_name?: string }) => (
+                    <li key={a.id} className="rounded-xl bg-card border border-border p-3">
+                      <div className="flex justify-between"><p className="text-sm font-semibold">{a.title}</p><button onClick={() => removeActivity(a.id)} className="text-destructive"><Trash2 size={13} /></button></div>
+                      <p className="text-xs text-muted-foreground mt-0.5">{new Date(a.activity_date).toLocaleDateString()}{a.author_name ? " - " + a.author_name : ""}</p>
+                      {a.body && <p className="text-sm mt-2 whitespace-pre-wrap">{a.body}</p>}
+                    </li>
+                  ))}
+                </ul>
+              </Section>
+            </>
+          )}
         </>
       )}
     </div>
@@ -975,6 +1019,19 @@ function ParentDashboard({ code }: { code: string }) {
           ))}
           {activityList.length === 0 && <Hint>Belum ada laporan aktivitas.</Hint>}
         </ul>
+      </Section>
+
+      <Section title="Kalender Akademik" Icon={Bell}>
+        <CalendarPanel access={{ code }} classes={[]} canEdit={false} />
+      </Section>
+      <Section title="Timetable" Icon={BookOpen}>
+        <TimetablePanel access={{ code }} classes={[]} canEdit={false} />
+      </Section>
+      <Section title="Assessment" Icon={GraduationCap}>
+        <AssessmentPanel access={{ code }} classes={[]} canEdit={false} />
+      </Section>
+      <Section title="Kehadiran" Icon={Baby}>
+        <AttendancePanel access={{ code }} classes={[]} canEdit={false} />
       </Section>
 
       <Section title="Pesan dengan Guru" Icon={MessageSquare}><ParentMessageThread code={code} /></Section>
