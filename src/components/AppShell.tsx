@@ -32,10 +32,12 @@ export function AppShell({
   title,
   children,
   headerExtra,
+  fullWidth = false,
 }: {
   title: string;
   children: ReactNode;
   showFab?: boolean; // retained for backwards compat; ignored
+  fullWidth?: boolean; // hides the desktop Noble sidebar and widens content (School Dashboard)
   headerExtra?: ReactNode; // extra icon buttons rendered before the mic (e.g. Home's Camera/Calculator/Translator shortcuts)
 }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -95,6 +97,8 @@ export function AppShell({
     setInstallEvt(null);
   }
 
+  const wrap = fullWidth ? "mx-auto max-w-md lg:max-w-none" : "mx-auto max-w-md lg:max-w-3xl";
+
   const micWake = mode === "wake";
   const micActive = mode === "active";
 
@@ -108,10 +112,10 @@ export function AppShell({
 
   return (
     <div className="min-h-dvh bg-background text-foreground flex" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-      <Sidebar />
+      {!fullWidth && <Sidebar />}
       <div className="flex-1 min-w-0">
         <header className="sticky top-0 z-30 bg-background/80 backdrop-blur border-b border-border">
-          <div className="mx-auto max-w-md lg:max-w-3xl px-4 lg:px-8 py-3 flex items-center gap-2">
+          <div className={`${wrap} px-4 lg:px-8 py-3 flex items-center gap-2`}>
             <Link to="/" className="text-xs font-semibold uppercase tracking-widest text-primary lg:hidden" aria-label="Home">
               Noble
             </Link>
@@ -180,7 +184,7 @@ export function AppShell({
             </button>
           </div>
           {micActive && (
-            <div className="mx-auto max-w-md lg:max-w-3xl px-4 lg:px-8 pb-3 space-y-2">
+            <div className={`${wrap} px-4 lg:px-8 pb-3 space-y-2`}>
               <p className="text-[10px] text-destructive-foreground/90 bg-destructive/10 border border-destructive/30 rounded-full px-3 py-1.5 text-center">
                 Listening for a command… try "go record" / "buka tugas", etc.
               </p>
@@ -193,14 +197,14 @@ export function AppShell({
             </div>
           )}
           {micWake && !micActive && (
-            <div className="mx-auto max-w-md lg:max-w-3xl px-4 lg:px-8 pb-2">
+            <div className={`${wrap} px-4 lg:px-8 pb-2`}>
               <p className="text-[10px] text-muted-foreground text-center">
                 Wake listener on — say the wake phrase to activate
               </p>
             </div>
           )}
         </header>
-        <main key={pathname} className={`mx-auto max-w-md lg:max-w-3xl px-4 lg:px-8 pt-4 lg:pt-6 pb-24 lg:pb-10 ${anim}`}>
+        <main key={pathname} className={`${wrap} px-4 lg:px-8 pt-4 lg:pt-6 pb-24 lg:pb-10 ${anim}`}>
           {children}
         </main>
         {toast && (
