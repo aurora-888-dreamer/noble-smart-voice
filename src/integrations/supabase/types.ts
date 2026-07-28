@@ -155,6 +155,35 @@ export type Database = {
           },
         ]
       }
+      school_agenda_classes: {
+        Row: {
+          agenda_id: string
+          class_id: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          agenda_id: string
+          class_id: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          agenda_id?: string
+          class_id?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_agenda_classes_agenda_id_fkey"
+            columns: ["agenda_id"]
+            isOneToOne: false
+            referencedRelation: "school_agendas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       school_agenda_pic: {
         Row: {
           agenda_id: string
@@ -200,14 +229,58 @@ export type Database = {
           },
         ]
       }
+      school_agenda_timeline: {
+        Row: {
+          agenda_id: string
+          author_name: string | null
+          author_role: string | null
+          body: string | null
+          created_at: string
+          id: string
+          kind: string
+        }
+        Insert: {
+          agenda_id: string
+          author_name?: string | null
+          author_role?: string | null
+          body?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+        }
+        Update: {
+          agenda_id?: string
+          author_name?: string | null
+          author_role?: string | null
+          body?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_agenda_timeline_agenda_id_fkey"
+            columns: ["agenda_id"]
+            isOneToOne: false
+            referencedRelation: "school_agendas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       school_agendas: {
         Row: {
+          approval_status: string
           created_at: string
           created_by: string | null
+          division: string | null
           end_date: string | null
+          execution_status: string
+          final_report: string | null
           id: string
+          last_review_notes: string | null
           purpose: string | null
           school_id: string
+          scope_level: string
           start_date: string | null
           status: string
           theme: string | null
@@ -215,12 +288,18 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          approval_status?: string
           created_at?: string
           created_by?: string | null
+          division?: string | null
           end_date?: string | null
+          execution_status?: string
+          final_report?: string | null
           id?: string
+          last_review_notes?: string | null
           purpose?: string | null
           school_id: string
+          scope_level?: string
           start_date?: string | null
           status?: string
           theme?: string | null
@@ -228,12 +307,18 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          approval_status?: string
           created_at?: string
           created_by?: string | null
+          division?: string | null
           end_date?: string | null
+          execution_status?: string
+          final_report?: string | null
           id?: string
+          last_review_notes?: string | null
           purpose?: string | null
           school_id?: string
+          scope_level?: string
           start_date?: string | null
           status?: string
           theme?: string | null
