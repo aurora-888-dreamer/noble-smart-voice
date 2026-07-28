@@ -11,7 +11,7 @@ const VALID_TYPES: ItemType[] = ["note", "task", "meeting", "appointment", "cont
 
 export const Route = createFileRoute("/camera")({
   head: () => ({ meta: [{ title: "Camera — Noble" }] }),
-  validateSearch: (search: Record<string, unknown>) => ({
+  validateSearch: (search: Record<string, unknown>): { type?: ItemType } => ({
     type: VALID_TYPES.includes(search.type as ItemType) ? (search.type as ItemType) : undefined,
   }),
   component: CameraPage,
