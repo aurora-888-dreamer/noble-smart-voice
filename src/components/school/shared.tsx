@@ -422,6 +422,7 @@ function StudentRow({ student, canEdit, onDelete }: { student: { id: string; ful
   );
 }
 
+/** Invite Parent — creates a login account (UserID + default PIN) for a guardian. */
 export function GuardianEditor({ studentId, canEdit }: { studentId: string; canEdit: boolean }) {
   const pw = getStoredPassword();
   const [reload, setReload] = useState(0);
@@ -429,34 +430,57 @@ export function GuardianEditor({ studentId, canEdit }: { studentId: string; canE
   const [name, setName] = useState("");
   const [relation, setRelation] = useState<"father" | "mother" | "guardian">("mother");
   const [wa, setWa] = useState("");
-  async function add() {
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [created, setCreated] = useState<{ userId: string; pin: string } | null>(null);
+
+  async function invite() {
     if (!name.trim()) return;
-    await addGuardian({ data: { password: pw, studentId, fullName: name.trim(), relation, whatsapp: wa || undefined } });
-    setName(""); setWa(""); setReload((x) => x + 1);
+    setBusy(true); setErr(null);
+    const res = await inviteParentAccount({
+      data: { password: pw, studentId, fullName: name.trim(), relation, whatsapp: wa || undefined, email: email || undefined },
+    });
+    setBusy(false);
+    if (!res.ok) { setErr(res.error); return; }
+    setCreated({ userId: res.userId, pin: res.defaultPin });
+    setName(""); setWa(""); setEmail(""); setReload((x) => x + 1);
   }
   async function remove(id: string) {
     await deleteGuardian({ data: { password: pw, id } });
     setReload((x) => x + 1);
   }
-  function shareCode(g: { invite_code: string; full_name: string }) {
-    const text = encodeURIComponent("Halo " + g.full_name + "! Kode undangan School Dashboard untuk memantau anak Anda: " + g.invite_code + ". Buka Noble - School Dashboard - Orangtua - masukkan kode ini.");
+  async function resetPin(id: string) {
+    await updateGuardianAccount({ data: { password: pw, id, resetPin: true } });
+    setReload((x) => x + 1);
+  }
+  function shareAccount(g: { full_name: string; user_id?: string | null; invite_code: string }) {
+    const text = encodeURIComponent(
+      `Halo ${g.full_name}! Akun School Dashboard Anda sudah aktif.\nUserID: ${g.user_id || g.invite_code}\nPIN sementara: 123456\n\nPENTING: segera ganti PIN setelah login pertama (menu Ganti PIN).`,
+    );
     window.open("https://wa.me/?text=" + text, "_blank", "noopener");
   }
-  const list = (guardians.data && "guardians" in guardians.data ? (guardians.data.guardians ?? []) : []) as { id: string; full_name: string; relation: string; whatsapp?: string; invite_code: string; invite_used_at?: string }[];
+  const list = (guardians.data && "guardians" in guardians.data ? (guardians.data.guardians ?? []) : []) as {
+    id: string; full_name: string; relation: string; whatsapp?: string; email?: string | null;
+    invite_code: string; invite_used_at?: string; user_id?: string | null; pin_is_default?: boolean;
+  }[];
+
   return (
     <div>
-      <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Guardians</p>
+      <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Orangtua / Wali</p>
       <ul className="space-y-2 mb-3">
         {list.map((g) => (
           <li key={g.id} className="rounded-lg bg-secondary/50 p-2 text-xs">
             <div className="flex items-center justify-between gap-2">
               <span>{g.full_name} - {g.relation}{g.whatsapp ? " - " + g.whatsapp : ""}</span>
-              {canEdit && <button onClick={() => remove(g.id)} className="text-destructive shrink-0"><Trash2 size={12} /></button>}
+              {canEdit && <button onClick={() => remove(g.id)} className="text-destructive shrink-0" aria-label="Hapus wali"><Trash2 size={12} /></button>}
             </div>
-            <div className="flex items-center gap-2 mt-1">
-              <code className="font-mono bg-background rounded px-1.5 py-0.5">{g.invite_code}</code>
-              {g.invite_used_at && <span className="text-primary">sudah dibuka</span>}
-              <button onClick={() => shareCode(g)} className="ml-auto text-primary flex items-center gap-1"><Send size={11} /> Kirim WA</button>
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
+              <code className="font-mono bg-background rounded px-1.5 py-0.5">{g.user_id || "belum ada UserID"}</code>
+              {g.pin_is_default && <span className="text-destructive">PIN masih default</span>}
+              {g.invite_used_at && <span className="text-primary">sudah login</span>}
+              {canEdit && <button onClick={() => resetPin(g.id)} className="text-muted-foreground flex items-center gap-1"><KeyRound size={11} /> Reset PIN</button>}
+              <button onClick={() => shareAccount(g)} className="ml-auto text-primary flex items-center gap-1"><Send size={11} /> Kirim WA</button>
             </div>
           </li>
         ))}
@@ -468,13 +492,19 @@ export function GuardianEditor({ studentId, canEdit }: { studentId: string; canE
           <select value={relation} onChange={(e) => setRelation(e.target.value as "father" | "mother" | "guardian")} className="rounded-lg bg-background border border-border px-2 py-1 text-xs">
             <option value="mother">Ibu</option><option value="father">Ayah</option><option value="guardian">Wali</option>
           </select>
-          <input value={wa} onChange={(e) => setWa(e.target.value)} placeholder="No. WhatsApp" className="col-span-2 rounded-lg bg-background border border-border px-2 py-1 text-xs" />
-          <button onClick={add} className="col-span-2 rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold">Tambah Wali</button>
+          <input value={wa} onChange={(e) => setWa(e.target.value)} placeholder="No. WhatsApp" className="rounded-lg bg-background border border-border px-2 py-1 text-xs" />
+          <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email (untuk reset PIN)" className="rounded-lg bg-background border border-border px-2 py-1 text-xs" />
+          <button onClick={invite} disabled={busy} className="col-span-2 rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold disabled:opacity-50 flex items-center justify-center gap-1">
+            <UserPlus size={12} /> {busy ? "Membuat akun…" : "Invite Parent (buat UserID + PIN)"}
+          </button>
+          {err && <p className="col-span-2 text-xs text-destructive">{err}</p>}
+          {created && <div className="col-span-2"><CredentialCard userId={created.userId} pin={created.pin} onDismiss={() => setCreated(null)} /></div>}
         </div>
       )}
     </div>
   );
 }
+
 
 /* ───────────── import ───────────── */
 export function CsvImportPanel({ classes }: { classes: { id: string; name: string }[] }) {
