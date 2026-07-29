@@ -27,7 +27,12 @@ export const listCalendarEvents = createServerFn({ method: "POST" })
       if (!gate.ok) return gate;
       supabase = gate.supabase;
     }
-    let q = supabase.from("school_calendar_events").select("*, school_staff(full_name)").order("event_date", { ascending: true });
+    // The creator's role + division travel with each event so the client can
+    // render the three calendar models (HoS / Principal / Teacher) from one read.
+    let q = supabase
+      .from("school_calendar_events")
+      .select("*, school_staff(full_name, role, division), school_classes(name, division)")
+      .order("event_date", { ascending: true });
     if (classFilter) q = q.or(`class_id.is.null,class_id.eq.${classFilter}`);
     if (data.from) q = q.gte("event_date", data.from);
     if (data.to) q = q.lte("event_date", data.to);
