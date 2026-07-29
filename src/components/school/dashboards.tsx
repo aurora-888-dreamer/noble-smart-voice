@@ -32,7 +32,7 @@ const ACADEMIC_TABS = [
   { id: "assessment", label: "Assessment" }, { id: "attendance", label: "Attendance" },
 ];
 
-const PIN_TAB = { id: "pin", label: "Change PIN" };
+const SETTINGS_TAB = { id: "settings", label: "Setting" };
 
 export function StaffHeader({ session }: { session: SchoolSession }) {
   const navigate = useNavigate();
@@ -49,26 +49,49 @@ export function StaffHeader({ session }: { session: SchoolSession }) {
         </div>
         <button onClick={() => { schoolLogout(); navigate({ to: "/" }); }} className="text-xs rounded-full border border-border px-3 py-1.5 flex items-center gap-1"><LogOut size={12} /> Keluar</button>
       </div>
-      {session.pinIsDefault && (
-        <p className="mt-2 rounded-lg bg-destructive/10 text-destructive text-[11px] px-3 py-2">
-          PIN Anda masih default (123456). Segera ganti lewat tab “Ganti PIN”.
-        </p>
-      )}
     </div>
   );
 }
 
+/** Setting menu shared by every dashboard: Edit Profile + Ganti PIN. */
+export function SettingsPanel({ staffId }: { staffId?: string }) {
+  const pw = getStoredPassword();
+  return (
+    <div className="grid gap-4 lg:grid-cols-2 items-start">
+      {staffId && (
+        <Section title="Edit Profile" Icon={Users}>
+          <StaffProfileForm pw={pw} staffId={staffId} onSaved={() => {}} mode="settings" />
+        </Section>
+      )}
+      <Section title="Ganti PIN" Icon={Shield}><ChangePinPanel /></Section>
+    </div>
+  );
+}
 
-/** Blocks access to the dashboard until the staff member's own Profile is
- * complete — exempt only for the HoS account with user_id "Noble888". */
+/** First screen after login: complete the Profile AND set a real PIN, side by
+ *  side. Access to the dashboard opens once both are done. */
 export function StaffProfileGate({ session, children }: { session: SchoolSession; children: React.ReactNode }) {
   const pw = getStoredPassword();
   const [reload, setReload] = useState(0);
   const status = useAsync(() => checkMyProfileStatus({ data: { password: pw, staffId: session.id } }), [pw, session.id, reload]);
   if (!status.data) return null;
   if (!status.data.ok) return <p className="text-sm text-destructive">{status.data.error}</p>;
-  if (status.data.exempt || status.data.isComplete) return <>{children}</>;
-  return <StaffProfileForm pw={pw} staffId={session.id} onSaved={() => setReload((x) => x + 1)} />;
+  const profileDone = status.data.exempt || status.data.isComplete;
+  if (profileDone && !session.pinIsDefault) return <>{children}</>;
+  return (
+    <div className="grid gap-4 lg:grid-cols-2 items-start">
+      {!profileDone ? (
+        <StaffProfileForm pw={pw} staffId={session.id} onSaved={() => setReload((x) => x + 1)} />
+      ) : (
+        <div className="rounded-2xl border border-border p-4 text-sm text-muted-foreground">Profile Anda sudah lengkap.</div>
+      )}
+      <div>
+        <h2 className="text-lg font-semibold mb-1">Buat PIN Baru</h2>
+        <p className="text-sm text-muted-foreground mb-3">PIN awal masih default — ganti dulu sebelum masuk dashboard.</p>
+        <ChangePinPanel />
+      </div>
+    </div>
+  );
 }
 
 /** Same, but for Parent — completing their Student's profile (not their own). */
@@ -78,8 +101,18 @@ export function ParentProfileGate({ code, children }: { code: string; children: 
   if (!status.data) return null;
   if (!status.data.ok) return <p className="text-sm text-destructive">{status.data.error}</p>;
   if (status.data.isComplete) return <>{children}</>;
-  return <StudentProfileForm code={code} onSaved={() => setReload((x) => x + 1)} />;
+  return (
+    <div className="grid gap-4 lg:grid-cols-2 items-start">
+      <StudentProfileForm code={code} onSaved={() => setReload((x) => x + 1)} />
+      <div>
+        <h2 className="text-lg font-semibold mb-1">Buat PIN Baru</h2>
+        <p className="text-sm text-muted-foreground mb-3">Ganti PIN default Anda di sini.</p>
+        <ChangePinPanel />
+      </div>
+    </div>
+  );
 }
+
 
 const GENDERS = ["Laki-laki", "Perempuan"];
 const RELIGIONS = ["Islam", "Kristen Protestan", "Katolik", "Hindu", "Buddha", "Konghucu", "Lainnya"];
