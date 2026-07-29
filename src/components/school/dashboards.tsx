@@ -251,7 +251,7 @@ function StudentProfileForm({ code, onSaved }: { code: string; onSaved: () => vo
 /* Read-only academic modules for admin roles — except the
  * Calendar, which HoS and Principal can edit for their OWN agenda entries
  * (everyone still sees everyone else's, per the "stay in sync" rule). */
-function AcademicReadOnly({ tab, classes, reviewerRole, reviewerName, calendarStaffId, timetableStaffId, staffId }: {
+function AcademicReadOnly({ tab, classes, reviewerRole, reviewerName, calendarStaffId, timetableStaffId, staffId, calendarScope, divisionClassIds, myClassIds }: {
   tab: string;
   classes: { id: string; name: string }[];
   reviewerRole: "principal" | "hos" | null;
@@ -259,11 +259,21 @@ function AcademicReadOnly({ tab, classes, reviewerRole, reviewerName, calendarSt
   calendarStaffId?: string | null;
   timetableStaffId?: string | null;
   staffId?: string | null;
+  calendarScope?: CalendarScope;
+  divisionClassIds?: string[] | null;
+  myClassIds?: string[] | null;
 }) {
   const pw = getStoredPassword();
   if (!ACADEMIC_TABS.some((t) => t.id === tab)) return null;
   if (tab === "calendar" && calendarStaffId) {
-    return <CalendarPanel access={{ pw, staffId: calendarStaffId }} classes={classes} canEdit compact />;
+    return (
+      <CalendarWorkspace
+        access={{ pw, staffId: calendarStaffId }} classes={classes} canEdit
+        own={calendarScope ?? "hos"}
+        divisionClassIds={divisionClassIds ?? null}
+        myClassIds={myClassIds ?? null}
+      />
+    );
   }
   if (tab === "timetable" && reviewerRole === "principal" && timetableStaffId) {
     return <TimetablePanel access={{ pw }} classes={classes} canEdit staffId={timetableStaffId} />;
@@ -282,8 +292,15 @@ function AcademicReadOnly({ tab, classes, reviewerRole, reviewerName, calendarSt
   }
   return (
     <div>
-      <ReadOnlyNote />
-      {tab === "calendar" && <CalendarPanel access={{ pw }} classes={classes} canEdit={false} compact />}
+      {tab !== "calendar" && <ReadOnlyNote />}
+      {tab === "calendar" && (
+        <CalendarWorkspace
+          access={{ pw }} classes={classes} canEdit={false}
+          own={calendarScope ?? "hos"}
+          divisionClassIds={divisionClassIds ?? null}
+          myClassIds={myClassIds ?? null}
+        />
+      )}
       {tab === "timetable" && <TimetablePanel access={{ pw }} classes={classes} canEdit={false} />}
       {tab === "lesson" && <LessonPlanPanel pw={pw} classes={classes} canEdit={false} />}
       {tab === "projects" && <ProjectPanel pw={pw} classes={classes} canSubmit={false} reviewerRole={reviewerRole} reviewerName={reviewerName} />}
@@ -292,6 +309,7 @@ function AcademicReadOnly({ tab, classes, reviewerRole, reviewerName, calendarSt
     </div>
   );
 }
+
 
 /* ───────────── HoS ───────────── */
 export function HosDashboard({ staffId }: { staffId: string }) {
