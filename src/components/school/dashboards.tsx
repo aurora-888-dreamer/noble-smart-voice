@@ -156,10 +156,11 @@ function ProfileFields({ f, set }: { f: Row; set: (patch: Row) => void }) {
   );
 }
 
-function StaffProfileForm({ pw, staffId, onSaved }: { pw: string; staffId: string; onSaved: () => void }) {
+function StaffProfileForm({ pw, staffId, onSaved, mode = "first" }: { pw: string; staffId: string; onSaved: () => void; mode?: "first" | "settings" }) {
   const [f, setF] = useState<Row>({});
   const [loaded, setLoaded] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     getMyStaffProfile({ data: { password: pw, staffId } }).then((r) => {
@@ -178,24 +179,33 @@ function StaffProfileForm({ pw, staffId, onSaved }: { pw: string; staffId: strin
   }, [pw, staffId]);
   async function save() {
     if (!f.fullName?.trim()) { setErr("Nama lengkap wajib diisi."); return; }
-    setBusy(true); setErr(null);
+    setBusy(true); setErr(null); setMsg(null);
     const r = await saveMyStaffProfile({ data: { password: pw, staffId, ...f, fullName: f.fullName.trim() } });
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
+    setMsg("Profile tersimpan.");
     onSaved();
   }
   if (!loaded) return null;
   return (
-    <div className="max-w-lg mx-auto">
-      <h2 className="text-lg font-semibold mb-1">Lengkapi Profile Anda</h2>
-      <p className="text-sm text-muted-foreground mb-4">Wajib diisi sebelum bisa mengakses dashboard.</p>
+    <div className={mode === "first" ? "max-w-lg" : ""}>
+      {mode === "first" && (
+        <>
+          <h2 className="text-lg font-semibold mb-1">Lengkapi Profile Anda</h2>
+          <p className="text-sm text-muted-foreground mb-4">Wajib diisi sebelum bisa mengakses dashboard.</p>
+        </>
+      )}
       <ProfileFields f={f} set={(patch) => setF((x) => ({ ...x, ...patch }))} />
       <input value={f.email ?? ""} onChange={(e) => setF((x) => ({ ...x, email: e.target.value }))} placeholder="Email" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm mt-2" />
       {err && <p className="text-xs text-destructive mt-2">{err}</p>}
-      <button onClick={save} disabled={busy} className="mt-3 rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold disabled:opacity-50">Simpan & Lanjutkan</button>
+      {msg && <p className="text-xs text-primary mt-2">{msg}</p>}
+      <button onClick={save} disabled={busy} className="mt-3 rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold disabled:opacity-50">
+        {mode === "first" ? "Simpan & Lanjutkan" : "Simpan Profile"}
+      </button>
     </div>
   );
 }
+
 
 function StudentProfileForm({ code, onSaved }: { code: string; onSaved: () => void }) {
   const [f, setF] = useState<Row>({});
