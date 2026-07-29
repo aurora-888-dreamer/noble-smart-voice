@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { Trash2, Save, Sparkles, Plus, Check, X, BarChart3, Pencil, Upload } from "lucide-react";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell } from "recharts";
 import {
-  listCalendarEvents, saveCalendarEvent, deleteCalendarEvent, bulkImportCalendarEvents,
+  listCalendarEvents, saveCalendarEvent, deleteCalendarEvent, bulkImportCalendarEvents, syncCalendarFromHos,
   listTimetable, saveTimetableSlot, deleteTimetableSlot, bulkImportTimetable,
   listLessonPlans, saveLessonPlan, deleteLessonPlan,
   listProjects, saveProject, reviewProject, listProjectReviews,
@@ -78,18 +78,20 @@ const EVENT_TYPES = [
 
 export type MonthCursor = { y: number; m: number };
 
-/** The three calendar models. Each one reads the same table but keeps only
- *  the rows that concern that level:
+/** The three calendar models. Each level keeps its OWN calendar:
  *   - hos       : everything, school-wide.
- *   - principal : its own unit — every class of the division (so all of its
- *                 teachers' agendas) plus school-wide HoS entries.
- *   - teacher   : only its own class(es) plus school-wide entries.
+ *   - principal : entries of its own unit's classes + entries it created.
+ *   - teacher   : entries of its own class(es) + entries it created.
+ *  School-wide HoS entries are NOT shown automatically — Principal/Teacher
+ *  fill or import their own calendar, then press "Sync dari HoS" to copy the
+ *  HoS entries that concern their unit/class into their own calendar.
  */
 export function scopeCalendarEvents(events: Row[], classIds: string[] | null, staffId?: string): Row[] {
   if (!classIds) return events;
   const set = new Set(classIds);
-  return events.filter((e) => !e.class_id || set.has(e.class_id) || (!!staffId && e.created_by === staffId));
+  return events.filter((e) => (!!staffId && e.created_by === staffId) || (!!e.class_id && set.has(e.class_id)));
 }
+
 
 export function CalendarPanel({
   access, classes, canEdit, compact, scopeClassIds, cursor, onCursorChange, hideUpcoming, hideForm,
@@ -198,10 +200,26 @@ export function CalendarPanel({
     if (fileRef.current) fileRef.current.value = "";
   }
 
+  const canSyncFromHos = canEdit && !!access.pw && !!staffId && Array.isArray(scopeClassIds);
+
+  async function syncFromHos() {
+    if (!access.pw || !staffId) return;
+    setBusy(true); setImportMsg(null);
+    const r = await syncCalendarFromHos({ data: { password: access.pw, staffId, classIds: scopeClassIds ?? [] } });
+    setBusy(false);
+    setImportMsg(r.ok ? `Sync selesai — ${r.added} agenda HoS disalin${r.skipped ? `, ${r.skipped} sudah ada` : ""}.` : `Gagal sync: ${r.error}`);
+    if (r.ok) setReload((x) => x + 1);
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between gap-2 mb-2">
         {!access.code ? <ClassPicker value={classId} onChange={setClassId} classes={classes} /> : <span />}
+        {canSyncFromHos && (
+          <button onClick={syncFromHos} disabled={busy} className="shrink-0 rounded-full border border-primary/40 bg-primary/10 text-primary px-3 py-1.5 text-xs font-semibold">
+            Sync dari Calendar HoS
+          </button>
+        )}
         {canEdit && (
           <>
             <button onClick={() => fileRef.current?.click()} title="Import Agenda Tahunan (CSV)" aria-label="Import Agenda Tahunan" className="shrink-0 rounded-lg border border-border p-2">
@@ -211,6 +229,7 @@ export function CalendarPanel({
           </>
         )}
       </div>
+
       {importMsg && <p className="text-xs mb-2">{importMsg}</p>}
 
       <div className={hideUpcoming ? "" : "grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 items-start"}>
