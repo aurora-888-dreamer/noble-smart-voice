@@ -422,6 +422,52 @@ export function PrincipalDashboard({ division, staffId, staffName }: { division:
   );
 }
 
+/** Daily Activity — teacher sends a note to ONE parent or to every parent of
+ *  the class at once. Each family still gets its own private thread. */
+function DailyActivityPanel({ pw, classes, staffName }: { pw: string; classes: { id: string; name: string }[]; staffName: string }) {
+  const [classId, setClassId] = useState(classes[0]?.id ?? "");
+  const [target, setTarget] = useState("all");
+  const [body, setBody] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const students = useAsync(() => (classId ? listSchoolStudents({ data: { password: pw, classId } }) : Promise.resolve(null)), [pw, classId]);
+  const studentList = (students.data && "students" in students.data ? (students.data.students ?? []) : []) as { id: string; full_name: string }[];
+
+  async function send() {
+    if (!body.trim() || !classId) return;
+    setBusy(true); setErr(null); setMsg(null);
+    const r = target === "all"
+      ? await broadcastMessageToClassParents({ data: { password: pw, schoolId: getSchoolIdSync(), classId, body, authorName: staffName } })
+      : await postMessageAsTeacher({ data: { password: pw, schoolId: getSchoolIdSync(), studentId: target, body, authorName: staffName } });
+    setBusy(false);
+    if (!r.ok) { setErr(r.error); return; }
+    setBody("");
+    setMsg(target === "all" ? `Terkirim ke ${"sent" in r ? r.sent : 0} orangtua.` : "Pesan terkirim.");
+  }
+
+  return (
+    <Section title="Daily Activity — kirim ke orangtua" Icon={MessageSquare}>
+      <div className="rounded-2xl bg-card border border-border p-3 space-y-2">
+        <select value={classId} onChange={(e) => { setClassId(e.target.value); setTarget("all"); }} className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm">
+          <option value="">pilih kelas</option>
+          {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+        <select value={target} onChange={(e) => setTarget(e.target.value)} className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm">
+          <option value="all">All Parents ({studentList.length})</option>
+          {studentList.map((s) => <option key={s.id} value={s.id}>{s.full_name}</option>)}
+        </select>
+        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={4} placeholder="Pesan aktivitas hari ini…" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm" />
+        {err && <p className="text-xs text-destructive">{err}</p>}
+        {msg && <p className="text-xs text-primary">{msg}</p>}
+        <button onClick={send} disabled={busy || !body.trim() || !classId} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-sm font-semibold flex items-center gap-1 disabled:opacity-50">
+          <Save size={13} /> Kirim
+        </button>
+      </div>
+    </Section>
+  );
+}
+
 
 /* ───────────── Teacher ───────────── */
 export function TeacherDashboard({ staffId, staffName, role, defaultClassId, division }: { staffId: string; staffName: string; role: string | null; defaultClassId: string | null; division?: string | null }) {
