@@ -424,15 +424,17 @@ export function PrincipalDashboard({ division, staffId, staffName }: { division:
 
 
 /* ───────────── Teacher ───────────── */
-export function TeacherDashboard({ staffId, staffName, role, defaultClassId }: { staffId: string; staffName: string; role: string | null; defaultClassId: string | null }) {
+export function TeacherDashboard({ staffId, staffName, role, defaultClassId, division }: { staffId: string; staffName: string; role: string | null; defaultClassId: string | null; division?: string | null }) {
   const pw = getStoredPassword();
   const [reload, setReload] = useState(0);
   const allClasses = useClasses();
+  const divisionClasses = useClasses(division ?? undefined);
   const isHomeroom = role === "teacher_homeroom";
   const isSubject = role === "teacher_subject";
   // Homeroom teachers are scoped to their assigned class everywhere (Kelas tab,
   // Attendance, Assessment …) so every tab always shows the same class.
   const classList = isHomeroom && defaultClassId ? allClasses.filter((c) => c.id === defaultClassId) : allClasses;
+
   const [classId, setClassId] = useState(defaultClassId ?? "");
   const students = useAsync(() => (classId ? listSchoolStudents({ data: { password: pw, classId } }) : Promise.resolve(null)), [pw, classId, reload]);
   const activities = useAsync(() => (classId ? listActivitiesForClass({ data: { password: pw, classId } }) : Promise.resolve(null)), [pw, classId, reload]);
