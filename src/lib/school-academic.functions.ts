@@ -13,22 +13,39 @@ type Fail = { ok: false; error: string };
 
 // ————— 1. Academic calendar —————
 export const listCalendarEvents = createServerFn({ method: "POST" })
-  .inputValidator((input: { password?: string; code?: string; classId?: string; from?: string; to?: string }) => input)
+  .inputValidator((input: { password?: string; code?: string; classId?: string; division?: string; from?: string; to?: string; scopeAll?: boolean }) => input)
   .handler(async ({ data }): Promise<{ ok: true; events: Row[] } | Fail> => {
     let supabase;
     let classFilter = data.classId ?? null;
+    let divisionFilter = data.division ?? null;
     if (data.code) {
       const scope = await parentScope(data.code);
       if (!scope.ok) return scope;
       supabase = scope.supabase;
       classFilter = scope.classId;
+      const { data: cls } = await scope.supabase.from("school_classes").select("division").eq("id", scope.classId).maybeSingle();
+      divisionFilter = cls?.division ?? null;
     } else {
       const gate = staffClient(data.password ?? "");
       if (!gate.ok) return gate;
       supabase = gate.supabase;
     }
     let q = supabase.from("school_calendar_events").select("*, school_staff(full_name)").order("event_date", { ascending: true });
-    if (classFilter) q = q.or(`class_id.is.null,class_id.eq.${classFilter}`);
+    // scopeAll (HoS with no class/division picked) sees every event, no filter.
+    if (!data.scopeAll) {
+      if (classFilter && divisionFilter) {
+        // Parent or Teacher pinned to one class: whole-school + whole-division
+        // (division-wide, not tied to a class) + their own class specifically.
+        q = q.or(`division.is.null,and(division.eq.${divisionFilter},class_id.is.null),class_id.eq.${classFilter}`);
+      } else if (classFilter) {
+        q = q.or(`division.is.null,class_id.eq.${classFilter}`);
+      } else if (divisionFilter) {
+        // Principal viewing their whole division: whole-school + anything in their division (including class-specific).
+        q = q.or(`division.is.null,division.eq.${divisionFilter}`);
+      } else {
+        q = q.is("division", null).is("class_id", null); // fallback: whole-school only
+      }
+    }
     if (data.from) q = q.gte("event_date", data.from);
     if (data.to) q = q.lte("event_date", data.to);
     const { data: rows, error } = await q;
@@ -41,14 +58,21 @@ export const saveCalendarEvent = createServerFn({ method: "POST" })
     (input: {
       password: string; id?: string; classId?: string; title: string;
       description?: string; eventDate: string; eventType: string; staffId: string;
+      divisionScope?: string; // used only when classId is empty (whole-school = undefined, whole-division = the division id)
     }) => input,
   )
   .handler(async ({ data }): Promise<{ ok: true; event: Row } | Fail> => {
     const gate = staffClient(data.password);
     if (!gate.ok) return gate;
+    let division: string | null = data.divisionScope || null;
+    if (data.classId) {
+      const { data: cls } = await gate.supabase.from("school_classes").select("division").eq("id", data.classId).maybeSingle();
+      division = cls?.division ?? null;
+    }
     const payload = {
       school_id: schoolId(),
       class_id: data.classId || null,
+      division,
       title: data.title.trim(),
       description: data.description || null,
       event_date: data.eventDate,
@@ -96,17 +120,27 @@ export const bulkImportCalendarEvents = createServerFn({ method: "POST" })
   .inputValidator(
     (input: {
       password: string; staffId: string;
-      rows: { title: string; eventDate: string; eventType?: string; description?: string; classId?: string }[];
+      rows: { title: string; eventDate: string; eventType?: string; description?: string; classId?: string; division?: string }[];
     }) => input,
   )
   .handler(async ({ data }): Promise<{ ok: true; added: number } | Fail> => {
     const gate = staffClient(data.password);
     if (!gate.ok) return gate;
+    // Resolve division from classId when given (so a class-scoped row is
+    // always consistent with its class's division), else use the row's own
+    // division value (blank = whole-school).
+    const classIds = [...new Set(data.rows.map((r) => r.classId).filter(Boolean))] as string[];
+    let classDivision: Record<string, string> = {};
+    if (classIds.length > 0) {
+      const { data: classes } = await gate.supabase.from("school_classes").select("id, division").in("id", classIds);
+      classDivision = Object.fromEntries((classes ?? []).map((c: Row) => [c.id, c.division]));
+    }
     const payload = data.rows
       .filter((r) => r.title?.trim() && r.eventDate?.trim())
       .map((r) => ({
         school_id: schoolId(),
         class_id: r.classId || null,
+        division: r.classId ? (classDivision[r.classId] ?? null) : (r.division || null),
         title: r.title.trim(),
         description: r.description || null,
         event_date: r.eventDate.trim(),
