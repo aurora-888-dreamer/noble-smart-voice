@@ -340,8 +340,9 @@ export function HosDashboard({ staffId }: { staffId: string }) {
         {tab === "laporan" && <CasePanel access={{ pw }} role="hos" staffId={staffId} staffName="Head of School" classes={classes} />}
         {tab === "activity" && <AllActivitiesView division={null} />}
         {tab === "announce" && <AnnouncementPanel subrole="hos" division={null} classes={classes} />}
-        {tab === "pin" && <ChangePinPanel />}
-        <AcademicReadOnly tab={tab} classes={classes} reviewerRole="hos" reviewerName="Head of School" calendarStaffId={staffId} />
+        {tab === "settings" && <SettingsPanel staffId={staffId} />}
+        <AcademicReadOnly tab={tab} classes={classes} reviewerRole="hos" reviewerName="Head of School" calendarStaffId={staffId} calendarScope="hos" />
+
       </Tabs>
     </div>
   );
