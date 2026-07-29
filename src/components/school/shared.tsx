@@ -26,6 +26,12 @@ import {
 
 export type AdminSubrole = "hos" | "admin_hos" | "principal";
 
+// Considered "online" if a heartbeat landed within the last 2 minutes.
+function isRecentlyOnline(lastSeenAt?: string | null): boolean {
+  if (!lastSeenAt) return false;
+  return Date.now() - new Date(lastSeenAt).getTime() < 2 * 60 * 1000;
+}
+
 export const DIVISIONS = [
   { id: "kindergarten", label: "Kindergarten" },
   { id: "primary", label: "Primary (1–6)" },
@@ -411,7 +417,10 @@ function StaffRow({ staff, classes, canEdit, onChanged, onRemove }: {
     <li className="rounded-xl bg-card border border-border p-3 text-sm">
       <div className="flex justify-between gap-2">
         <div>
-          <p className="font-semibold">{staff.full_name}{staff.is_active === false && <span className="ml-2 text-[10px] text-destructive">nonaktif</span>}</p>
+          <p className="font-semibold flex items-center gap-1.5">
+            <span className={"inline-block w-2 h-2 rounded-full shrink-0 " + (isRecentlyOnline(staff.last_seen_at) ? "bg-emerald-500" : "bg-muted-foreground/40")} title={isRecentlyOnline(staff.last_seen_at) ? "Online" : "Offline"} />
+            {staff.full_name}{staff.is_active === false && <span className="ml-2 text-[10px] text-destructive">nonaktif</span>}
+          </p>
           <p className="text-xs text-muted-foreground">
             {roleLabel(staff.role)}{staff.division ? " · " + (DIVISIONS.find((d) => d.id === staff.division)?.label ?? staff.division) : ""}
           </p>

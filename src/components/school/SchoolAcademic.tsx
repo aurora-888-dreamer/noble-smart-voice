@@ -61,6 +61,12 @@ const btn = "rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-sm f
 const today = () => new Date().toISOString().slice(0, 10);
 
 function ClassPicker({ value, onChange, classes, allLabel = "semua kelas" }: { value: string; onChange: (v: string) => void; classes: ClassOpt[]; allLabel?: string }) {
+  useEffect(() => {
+    if (classes.length === 1 && value !== classes[0].id) onChange(classes[0].id);
+  }, [classes, value, onChange]);
+  if (classes.length === 1) {
+    return <p className="text-sm font-semibold mb-3">Kelas: {classes[0].name}</p>;
+  }
   return (
     <select value={value} onChange={(e) => onChange(e.target.value)} className={field + " mb-3"}>
       <option value="">{allLabel}</option>
@@ -166,6 +172,7 @@ export function CalendarPanel({ access, classes, canEdit, compact }: { access: A
         eventType: idx("eventtype") >= 0 ? cols[idx("eventtype")] : "acara",
         description: idx("description") >= 0 ? cols[idx("description")] : undefined,
         classId: matchedClass?.id,
+        division: idx("division") >= 0 ? cols[idx("division")] : undefined,
       };
     });
     const r = await bulkImportCalendarEvents({ data: { password: access.pw, staffId: staffId ?? "", rows } });

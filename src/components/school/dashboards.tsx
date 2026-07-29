@@ -20,6 +20,8 @@ import {
   listSchoolStaff, listSchoolStudents, postSchoolActivity, deleteSchoolActivity, listActivitiesForClass,
   getStudentForCode, listActivitiesForCode, listAnnouncementsForCode, type SchoolRole,
 } from "@/lib/school.functions";
+import { getPendingCounts } from "@/lib/school-pending-counts.functions";
+import { sendHeartbeat } from "@/lib/school-presence.functions";
 import { schoolLogout, type SchoolSession } from "@/lib/school-store";
 import {
   checkMyProfileStatus, getMyStaffProfile, saveMyStaffProfile,
@@ -36,7 +38,13 @@ const PIN_TAB = { id: "pin", label: "Change PIN" };
 
 export function StaffHeader({ session }: { session: SchoolSession }) {
   const navigate = useNavigate();
+  const pw = getStoredPassword();
   const divisionLabel = session.division ? (DIVISIONS.find((d) => d.id === session.division)?.label ?? session.division) : null;
+  useEffect(() => {
+    sendHeartbeat({ data: { password: pw, staffId: session.id } });
+    const t = setInterval(() => sendHeartbeat({ data: { password: pw, staffId: session.id } }), 45000);
+    return () => clearInterval(t);
+  }, [pw, session.id]);
   return (
     <div className="mb-4">
       <div className="flex items-center justify-between">
@@ -146,7 +154,7 @@ function StaffProfileForm({ pw, staffId, onSaved }: { pw: string; staffId: strin
   async function save() {
     if (!f.fullName?.trim()) { setErr("Nama lengkap wajib diisi."); return; }
     setBusy(true); setErr(null);
-    const r = await saveMyStaffProfile({ data: { password: pw, staffId, ...(f as Row), fullName: String(f.fullName) } });
+    const r = await saveMyStaffProfile({ data: { password: pw, staffId, ...f } });
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     onSaved();
@@ -187,7 +195,7 @@ function StudentProfileForm({ code, onSaved }: { code: string; onSaved: () => vo
   async function save() {
     if (!f.fullName?.trim()) { setErr("Nama lengkap wajib diisi."); return; }
     setBusy(true); setErr(null);
-    const r = await saveMyStudentProfile({ data: { code, ...(f as Row), fullName: String(f.fullName) } });
+    const r = await saveMyStudentProfile({ data: { code, ...f } });
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     onSaved();
@@ -205,8 +213,8 @@ function StudentProfileForm({ code, onSaved }: { code: string; onSaved: () => vo
 }
 
 
-// Read-only view of the academic modules, except Calendar, where HoS and
-// Principal can edit their own agenda entries while staying in sync.
+ * Calendar, which HoS and Principal can edit for their OWN agenda entries
+ * (everyone still sees everyone else's, per the "stay in sync" rule). */
 function AcademicReadOnly({ tab, classes, reviewerRole, reviewerName, calendarStaffId, timetableStaffId, staffId }: {
   tab: string;
   classes: { id: string; name: string }[];
@@ -256,10 +264,14 @@ export function HosDashboard({ staffId }: { staffId: string }) {
   const classes = useClasses();
   const staff = useAsync(() => listSchoolStaff({ data: { password: pw } }), [pw]);
   const staffList = (staff.data && "staff" in staff.data ? (staff.data.staff ?? []) : []) as unknown[];
+  const counts = useAsync(() => getPendingCounts({ data: { password: pw, role: "hos" } }), [pw]);
+  const pending = counts.data && "ok" in counts.data && counts.data.ok ? counts.data : { officialLetters: 0, agendas: 0, reports: 0 };
+  const withCount = (label: string, n: number) => (n > 0 ? `${label} (${n})` : label);
+  const academicTabsWithCount = ACADEMIC_TABS.map((t) => t.id === "projects" ? { ...t, label: withCount(t.label, pending.officialLetters) } : t);
   const tabs = [
-    { id: "overview", label: "Overview" }, { id: "staff", label: "Staff & Role" }, { id: "agenda", label: "Agenda" },
-    { id: "message", label: "Message" }, { id: "laporan", label: "Report" },
-    { id: "activity", label: "Teacher Activity" }, { id: "announce", label: "Announcements" }, ...ACADEMIC_TABS, PIN_TAB,
+    { id: "overview", label: "Overview" }, { id: "staff", label: "Staff & Role" }, { id: "agenda", label: withCount("Agenda", pending.agendas) },
+    { id: "message", label: "Message" }, { id: "laporan", label: withCount("Report", pending.reports) },
+    { id: "activity", label: "Teacher Activity" }, { id: "announce", label: "Announcements" }, ...academicTabsWithCount, PIN_TAB,
   ];
   return (
     <div>
@@ -326,10 +338,14 @@ export function PrincipalDashboard({ division, staffId, staffName }: { division:
   const [tab, setTab] = useState("overview");
   const pw = getStoredPassword();
   const classes = useClasses(division);
+  const counts = useAsync(() => getPendingCounts({ data: { password: pw, role: "principal", division } }), [pw, division]);
+  const pending = counts.data && "ok" in counts.data && counts.data.ok ? counts.data : { officialLetters: 0, agendas: 0, reports: 0 };
+  const withCount = (label: string, n: number) => (n > 0 ? `${label} (${n})` : label);
+  const academicTabsWithCount = ACADEMIC_TABS.map((t) => t.id === "projects" ? { ...t, label: withCount(t.label, pending.officialLetters) } : t);
   const tabs = [
     { id: "overview", label: "Overview" }, { id: "students", label: "Student" },
-    { id: "staff", label: "Staff" }, { id: "message", label: "Message" }, { id: "agenda", label: "Agenda" }, { id: "laporan", label: "Report" }, { id: "activity", label: "Teacher Activity" },
-    { id: "announce", label: "Announcements" }, ...ACADEMIC_TABS, PIN_TAB,
+    { id: "staff", label: "Staff" }, { id: "message", label: "Message" }, { id: "agenda", label: "Agenda" }, { id: "laporan", label: withCount("Report", pending.reports) }, { id: "activity", label: "Teacher Activity" },
+    { id: "announce", label: "Announcements" }, ...academicTabsWithCount, PIN_TAB,
   ];
   return (
     <div>
@@ -352,7 +368,7 @@ export function PrincipalDashboard({ division, staffId, staffName }: { division:
 
 
 /* ───────────── Teacher ───────────── */
-export function TeacherDashboard({ staffId, staffName, role, defaultClassId }: { staffId: string; staffName: string; role: string | null; defaultClassId: string | null; division?: string | null }) {
+export function TeacherDashboard({ staffId, staffName, role, defaultClassId }: { staffId: string; staffName: string; role: string | null; defaultClassId: string | null }) {
   const pw = getStoredPassword();
   const [reload, setReload] = useState(0);
   const allClasses = useClasses();
@@ -420,10 +436,14 @@ export function TeacherDashboard({ staffId, staffName, role, defaultClassId }: {
 
         {tab === "kelas" && (
           <>
-            <select value={classId} onChange={(e) => setClassId(e.target.value)} className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm mb-4">
-              <option value="">pilih kelas</option>
-              {classList.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+            {isHomeroom ? (
+              <p className="text-sm font-semibold mb-4">Kelas: {classList[0]?.name ?? "-"}</p>
+            ) : (
+              <select value={classId} onChange={(e) => setClassId(e.target.value)} className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm mb-4">
+                <option value="">pilih kelas</option>
+                {classList.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            )}
 
             {classId && (
               <>
