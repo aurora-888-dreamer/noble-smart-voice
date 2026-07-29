@@ -213,10 +213,11 @@ export function CalendarPanel({
       </div>
       {importMsg && <p className="text-xs mb-2">{importMsg}</p>}
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 items-start">
+      <div className={hideUpcoming ? "" : "grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 items-start"}>
         <div>
           <CalendarGrid
             events={events} canEdit={canEdit} staffId={staffId} onRemove={remove} onEditRow={startEdit} compact={compact}
+            cursor={cursor} onCursorChange={onCursorChange}
             onQuickAdd={async (evtDate, evtTitle, evtDesc, evtType) => {
               if (!access.pw) return { ok: false, error: "Tidak bisa menambah dari sini." };
               const r = await saveCalendarEvent({ data: { password: access.pw, classId: classId || undefined, title: evtTitle, description: evtDesc, eventDate: evtDate, eventType: evtType, staffId: staffId ?? "" } });
@@ -224,7 +225,7 @@ export function CalendarPanel({
               return r.ok ? { ok: true } : { ok: false, error: r.error };
             }}
           />
-          {canEdit && (
+          {canEdit && !hideForm && (
             <div className={card + " mt-3 grid gap-2"}>
               {editingId && <p className="text-xs text-primary font-semibold">Mengedit event — Simpan untuk update, atau Batal.</p>}
               <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Judul event" className={field} />
@@ -243,8 +244,9 @@ export function CalendarPanel({
           )}
         </div>
 
-        <UpcomingAgenda events={events} canEdit={canEdit} staffId={staffId} onEdit={startEdit} onRemove={remove} />
+        {!hideUpcoming && <UpcomingAgenda events={events} canEdit={canEdit} staffId={staffId} onEdit={startEdit} onRemove={remove} />}
       </div>
+
     </div>
   );
 }
