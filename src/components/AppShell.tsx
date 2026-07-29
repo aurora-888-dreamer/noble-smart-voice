@@ -33,11 +33,13 @@ export function AppShell({
   children,
   headerExtra,
   fullWidth = false,
+  hideAppTools = false,
 }: {
   title: string;
   children: ReactNode;
   showFab?: boolean; // retained for backwards compat; ignored
   fullWidth?: boolean; // hides the desktop Noble sidebar and widens content (School Dashboard)
+  hideAppTools?: boolean; // hides the Noble camera/calc/translate/settings/mic cluster (School Dashboard has its own)
   headerExtra?: ReactNode; // extra icon buttons rendered before the mic (e.g. Home's Camera/Calculator/Translator shortcuts)
 }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
