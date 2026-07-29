@@ -314,7 +314,8 @@ function AcademicReadOnly({ tab, classes, reviewerRole, reviewerName, calendarSt
 
 /* ───────────── HoS ───────────── */
 export function HosDashboard({ staffId }: { staffId: string }) {
-  const [tab, setTab] = useState("overview");
+  const [tab, setTab] = useState("calendar");
+
   const pw = getStoredPassword();
   const classes = useClasses();
   const staff = useAsync(() => listSchoolStaff({ data: { password: pw } }), [pw]);
