@@ -200,10 +200,26 @@ export function CalendarPanel({
     if (fileRef.current) fileRef.current.value = "";
   }
 
+  const canSyncFromHos = canEdit && !!access.pw && !!staffId && Array.isArray(scopeClassIds);
+
+  async function syncFromHos() {
+    if (!access.pw || !staffId) return;
+    setBusy(true); setImportMsg(null);
+    const r = await syncCalendarFromHos({ data: { password: access.pw, staffId, classIds: scopeClassIds ?? [] } });
+    setBusy(false);
+    setImportMsg(r.ok ? `Sync selesai — ${r.added} agenda HoS disalin${r.skipped ? `, ${r.skipped} sudah ada` : ""}.` : `Gagal sync: ${r.error}`);
+    if (r.ok) setReload((x) => x + 1);
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between gap-2 mb-2">
         {!access.code ? <ClassPicker value={classId} onChange={setClassId} classes={classes} /> : <span />}
+        {canSyncFromHos && (
+          <button onClick={syncFromHos} disabled={busy} className="shrink-0 rounded-full border border-primary/40 bg-primary/10 text-primary px-3 py-1.5 text-xs font-semibold">
+            Sync dari Calendar HoS
+          </button>
+        )}
         {canEdit && (
           <>
             <button onClick={() => fileRef.current?.click()} title="Import Agenda Tahunan (CSV)" aria-label="Import Agenda Tahunan" className="shrink-0 rounded-lg border border-border p-2">
@@ -213,6 +229,7 @@ export function CalendarPanel({
           </>
         )}
       </div>
+
       {importMsg && <p className="text-xs mb-2">{importMsg}</p>}
 
       <div className={hideUpcoming ? "" : "grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 items-start"}>
