@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useSchoolSession } from "@/lib/school-store";
-import { PrincipalDashboard, StaffHeader, NotSignedIn } from "@/components/school/dashboards";
+import { PrincipalDashboard, StaffHeader, NotSignedIn, StaffProfileGate } from "@/components/school/dashboards";
 
 export const Route = createFileRoute("/school/principal")({
   head: () => ({
@@ -23,7 +23,9 @@ function PrincipalPage() {
   return (
     <div>
       <StaffHeader session={session} />
-      <PrincipalDashboard division={session.division || "kindergarten"} staffId={session.id} staffName={session.name} />
+      <StaffProfileGate session={session}>
+        <PrincipalDashboard division={session.division || "kindergarten"} staffId={session.id} staffName={session.name} />
+      </StaffProfileGate>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useParentCode } from "@/lib/school-store";
-import { ParentDashboard, NotSignedIn } from "@/components/school/dashboards";
+import { ParentDashboard, NotSignedIn, ParentProfileGate } from "@/components/school/dashboards";
 
 export const Route = createFileRoute("/school/parent")({
   head: () => ({
@@ -19,5 +19,9 @@ export const Route = createFileRoute("/school/parent")({
 function ParentPage() {
   const code = useParentCode();
   if (!code) return <NotSignedIn />;
-  return <ParentDashboard code={code} />;
+  return (
+    <ParentProfileGate code={code}>
+      <ParentDashboard code={code} />
+    </ParentProfileGate>
+  );
 }

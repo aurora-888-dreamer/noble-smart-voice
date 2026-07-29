@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useSchoolSession } from "@/lib/school-store";
-import { TeacherDashboard, StaffHeader, NotSignedIn } from "@/components/school/dashboards";
+import { TeacherDashboard, StaffHeader, NotSignedIn, StaffProfileGate } from "@/components/school/dashboards";
 
 const TEACHER_ROLES = ["teacher_homeroom", "teacher_subject", "teacher_shadow"];
 
@@ -25,7 +25,9 @@ function TeacherPage() {
   return (
     <div>
       <StaffHeader session={session} />
-      <TeacherDashboard staffId={session.id} staffName={session.name} role={session.role ?? null} defaultClassId={session.classId} />
+      <StaffProfileGate session={session}>
+        <TeacherDashboard staffId={session.id} staffName={session.name} role={session.role ?? null} defaultClassId={session.classId} />
+      </StaffProfileGate>
     </div>
   );
 }
