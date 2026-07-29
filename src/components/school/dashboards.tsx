@@ -20,7 +20,7 @@ import {
 import {
   listSchoolStaff, listSchoolStudents, postSchoolActivity, deleteSchoolActivity, listActivitiesForClass,
   getStudentForCode, listActivitiesForCode, listAnnouncementsForCode,
-  broadcastMessageToClassParents, postMessageAsTeacher, type SchoolRole,
+  postMessageAsTeacher, type SchoolRole,
 } from "@/lib/school.functions";
 
 import { schoolLogout, useSchoolSession, type SchoolSession } from "@/lib/school-store";
