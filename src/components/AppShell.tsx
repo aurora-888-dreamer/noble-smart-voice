@@ -133,7 +133,7 @@ export function AppShell({
               </button>
             )}
             {headerExtra}
-            <div className="flex items-center gap-1.5 lg:hidden">
+            {!hideAppTools && <div className="flex items-center gap-1.5 lg:hidden">
               {hasCamera && (
                 <Link
                   to="/camera"
@@ -168,8 +168,8 @@ export function AppShell({
               >
                 <SettingsIcon size={19} />
               </Link>
-            </div>
-            <button
+            </div>}
+            {!hideAppTools && <button
               onClick={handleMicTap}
               disabled={!supported}
               aria-label="Mic"
@@ -183,7 +183,7 @@ export function AppShell({
             >
               {micActive && <span className="absolute inset-0 rounded-full bg-destructive mic-pulse" />}
               <Mic size={18} className="relative" />
-            </button>
+            </button>}
           </div>
           {micActive && (
             <div className={`${wrap} px-4 lg:px-8 pb-3 space-y-2`}>
