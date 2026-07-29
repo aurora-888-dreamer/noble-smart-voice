@@ -62,7 +62,7 @@ function SchoolLayout() {
   }
 
   return (
-    <AppShell title="School Dashboard" fullWidth headerExtra={<SchoolTools />}>
+    <AppShell title="School Dashboard" fullWidth hideAppTools headerExtra={<SchoolTools />}>
       <PreviewProvider>
         <Outlet />
         <PreviewPanel />
