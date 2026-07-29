@@ -364,12 +364,12 @@ export function RoleManager({ classes }: { classes: { id: string; name: string }
 
 /* ───────────── Admin HoS ───────────── */
 export function AdminHosDashboard() {
-  const [tab, setTab] = useState("import");
+  const [tab, setTab] = useState("calendar");
   const classes = useClasses();
   const tabs = [
     { id: "import", label: "Import Data" }, { id: "students", label: "Students" },
     { id: "staff", label: "Staff" }, { id: "personnel", label: "Manage Personnel" },
-    { id: "announce", label: "Announcements" }, ...ACADEMIC_TABS, PIN_TAB,
+    { id: "announce", label: "Announcements" }, ...ACADEMIC_TABS, SETTINGS_TAB,
   ];
   return (
     <div>
@@ -379,8 +379,8 @@ export function AdminHosDashboard() {
         {tab === "staff" && <StaffRoster canEdit classes={classes} scopeDivision={null} />}
         {tab === "personnel" && <PersonnelManager classes={classes} />}
         {tab === "announce" && <AnnouncementPanel subrole="admin_hos" division={null} classes={classes} />}
-        {tab === "pin" && <ChangePinPanel />}
-        <AcademicReadOnly tab={tab} classes={classes} reviewerRole={null} />
+        {tab === "settings" && <SettingsPanel />}
+        <AcademicReadOnly tab={tab} classes={classes} reviewerRole={null} calendarScope="hos" />
       </Tabs>
     </div>
   );
@@ -388,13 +388,15 @@ export function AdminHosDashboard() {
 
 /* ───────────── Principal ───────────── */
 export function PrincipalDashboard({ division, staffId, staffName }: { division: string; staffId: string; staffName: string }) {
-  const [tab, setTab] = useState("overview");
+  const [tab, setTab] = useState("calendar");
   const pw = getStoredPassword();
   const classes = useClasses(division);
+  // The Principal's unit = every class of its own division.
+  const divisionClassIds = classes.map((c) => c.id);
   const tabs = [
     { id: "overview", label: "Overview" }, { id: "students", label: "Student" },
     { id: "staff", label: "Staff" }, { id: "message", label: "Message" }, { id: "agenda", label: "Agenda" }, { id: "laporan", label: "Report" }, { id: "activity", label: "Teacher Activity" },
-    { id: "announce", label: "Announcements" }, ...ACADEMIC_TABS, PIN_TAB,
+    { id: "announce", label: "Announcements" }, ...ACADEMIC_TABS, SETTINGS_TAB,
   ];
   return (
     <div>
@@ -408,8 +410,13 @@ export function PrincipalDashboard({ division, staffId, staffName }: { division:
         {tab === "laporan" && <CasePanel access={{ pw }} role="principal" staffId={staffId} staffName={staffName} division={division} classes={classes} />}
         {tab === "activity" && <AllActivitiesView division={division} />}
         {tab === "announce" && <AnnouncementPanel subrole="principal" division={division} classes={classes} />}
-        {tab === "pin" && <ChangePinPanel />}
-        <AcademicReadOnly tab={tab} classes={classes} reviewerRole="principal" reviewerName="Principal" calendarStaffId={staffId} timetableStaffId={staffId} staffId={staffId} />
+        {tab === "settings" && <SettingsPanel staffId={staffId} />}
+        <AcademicReadOnly
+          tab={tab} classes={classes} reviewerRole="principal" reviewerName="Principal"
+          calendarStaffId={staffId} timetableStaffId={staffId} staffId={staffId}
+          calendarScope="principal" divisionClassIds={divisionClassIds} myClassIds={divisionClassIds}
+        />
+
       </Tabs>
     </div>
   );
