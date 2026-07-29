@@ -27,12 +27,7 @@ export const listCalendarEvents = createServerFn({ method: "POST" })
       if (!gate.ok) return gate;
       supabase = gate.supabase;
     }
-    // The creator's role + division travel with each event so the client can
-    // render the three calendar models (HoS / Principal / Teacher) from one read.
-    let q = supabase
-      .from("school_calendar_events")
-      .select("*, school_staff(full_name, role, division), school_classes(name, division)")
-      .order("event_date", { ascending: true });
+    let q = supabase.from("school_calendar_events").select("*, school_staff(full_name)").order("event_date", { ascending: true });
     if (classFilter) q = q.or(`class_id.is.null,class_id.eq.${classFilter}`);
     if (data.from) q = q.gte("event_date", data.from);
     if (data.to) q = q.lte("event_date", data.to);
@@ -123,50 +118,6 @@ export const bulkImportCalendarEvents = createServerFn({ method: "POST" })
     if (error) return { ok: false, error: error.message };
     return { ok: true, added: payload.length };
   });
-
-// Principal / Teacher calendars start empty: they fill or import their own
-// academic calendar first, then pull the HoS entries that concern them with
-// this Sync (school-wide entries + entries tied to their own unit/classes).
-// Copies are made under the caller's own staff id, so they can edit/delete
-// them afterwards; already-copied entries (same title + date) are skipped.
-export const syncCalendarFromHos = createServerFn({ method: "POST" })
-  .inputValidator((input: { password: string; staffId: string; classIds?: string[] }) => input)
-  .handler(async ({ data }): Promise<{ ok: true; added: number; skipped: number } | Fail> => {
-    const gate = staffClient(data.password);
-    if (!gate.ok) return gate;
-    if (!data.staffId) return { ok: false, error: "Staff tidak dikenali." };
-    const { data: rows, error } = await gate.supabase
-      .from("school_calendar_events")
-      .select("*, school_staff(role)")
-      .order("event_date", { ascending: true });
-    if (error) return { ok: false, error: error.message };
-    const mine = new Set(data.classIds ?? []);
-    const own = (rows ?? []).filter((r: Row) => r.created_by === data.staffId);
-    const ownKeys = new Set(own.map((r: Row) => `${r.title}|${String(r.event_date).slice(0, 10)}`));
-    const source = (rows ?? []).filter((r: Row) => {
-      const role = r.school_staff?.role as string | undefined;
-      if (role !== "hos" && role !== "vice_hos" && role !== "admin_hos") return false;
-      return !r.class_id || mine.has(r.class_id);
-    });
-    const payload = source
-      .filter((r: Row) => !ownKeys.has(`${r.title}|${String(r.event_date).slice(0, 10)}`))
-      .map((r: Row) => ({
-        school_id: schoolId(),
-        class_id: r.class_id ?? null,
-        title: r.title,
-        description: r.description ?? null,
-        event_date: String(r.event_date).slice(0, 10),
-        event_type: r.event_type,
-        created_by: data.staffId,
-      }));
-    const skipped = source.length - payload.length;
-    if (payload.length === 0) return { ok: true, added: 0, skipped };
-    const { error: insErr } = await gate.supabase.from("school_calendar_events").insert(payload);
-    if (insErr) return { ok: false, error: insErr.message };
-    return { ok: true, added: payload.length, skipped };
-  });
-
-
 
 // ————— 2. Timetable —————
 export const listTimetable = createServerFn({ method: "POST" })
@@ -426,7 +377,7 @@ export const listCompetencies = createServerFn({ method: "POST" })
     const gate = staffClient(data.password);
     if (!gate.ok) return gate;
     let q = gate.supabase.from("school_competencies").select("*").order("sort_order", { ascending: true });
-    if (data.subject) q = q.or(`subject.is.null,subject.eq.${data.subject}`);
+    q = data.subject ? q.or(`subject.is.null,subject.eq.${data.subject}`) : q.is("subject", null);
     const { data: rows, error } = await q;
     if (error) return { ok: false, error: error.message };
     return { ok: true, competencies: rows ?? [] };
