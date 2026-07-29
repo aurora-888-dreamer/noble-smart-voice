@@ -449,6 +449,101 @@ function CalendarGrid({ events, canEdit, staffId, onRemove, onEditRow, compact, 
   );
 }
 
+/* ── Calendar workspace: one calendar per level, or all three side by side ── */
+export type CalendarScope = "hos" | "principal" | "teacher";
+
+const SCOPE_LABEL: Record<CalendarScope, string> = {
+  hos: "Calendar HoS — seluruh sekolah",
+  principal: "Calendar Principal — unit / divisi",
+  teacher: "Calendar Teacher — kelas",
+};
+
+/**
+ * Renders the calendar model that belongs to the signed-in role, with a
+ * "Show All Calendar" switch that puts HoS / Principal / Teacher side by side
+ * and a "Sync" switch that locks all three onto the same month.
+ */
+export function CalendarWorkspace({
+  access, classes, canEdit, own, divisionClassIds, myClassIds,
+}: {
+  access: Access;
+  classes: ClassOpt[];
+  canEdit: boolean;
+  own: CalendarScope;
+  /** Classes of the Principal's unit — null means every class. */
+  divisionClassIds: string[] | null;
+  /** Classes the signed-in teacher handles — null means every class. */
+  myClassIds: string[] | null;
+}) {
+  const [showAll, setShowAll] = useState(false);
+  const now = new Date();
+  const [sync, setSync] = useState(true);
+  const [cursor, setCursor] = useState<MonthCursor>({ y: now.getFullYear(), m: now.getMonth() });
+
+  const scopeIds: Record<CalendarScope, string[] | null> = {
+    hos: null,
+    principal: divisionClassIds,
+    teacher: myClassIds,
+  };
+
+  const toolbar = (
+    <div className="flex flex-wrap items-center gap-2 mb-3">
+      <button
+        onClick={() => setShowAll((v) => !v)}
+        className={"rounded-full px-3 py-1.5 text-xs font-semibold border " + (showAll ? "bg-primary text-primary-foreground border-primary" : "border-border")}
+      >
+        {showAll ? "Tampilkan 1 Calendar" : "Show All Calendar"}
+      </button>
+      {showAll && (
+        <button
+          onClick={() => setSync((v) => !v)}
+          className={"rounded-full px-3 py-1.5 text-xs font-semibold border " + (sync ? "bg-primary/15 text-primary border-primary/40" : "border-border")}
+        >
+          Sync bulan: {sync ? "ON" : "OFF"}
+        </button>
+      )}
+      {showAll && sync && (
+        <span className="text-[11px] text-muted-foreground">{MONTHS[cursor.m]} {cursor.y}</span>
+      )}
+    </div>
+  );
+
+  if (!showAll) {
+    return (
+      <div>
+        {toolbar}
+        <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-2">{SCOPE_LABEL[own]}</p>
+        <CalendarPanel access={access} classes={classes} canEdit={canEdit} scopeClassIds={scopeIds[own]} />
+      </div>
+    );
+  }
+
+  const columns: CalendarScope[] = ["hos", "principal", "teacher"];
+  return (
+    <div>
+      {toolbar}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 items-start">
+        {columns.map((s) => (
+          <div key={s}>
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">{SCOPE_LABEL[s]}</p>
+            <CalendarPanel
+              access={access}
+              classes={classes}
+              canEdit={canEdit && s === own}
+              compact
+              hideUpcoming
+              hideForm
+              scopeClassIds={scopeIds[s]}
+              cursor={sync ? cursor : undefined}
+              onCursorChange={sync ? setCursor : undefined}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 
 /* ───────────── 2. Timetable ───────────── */
 const DAYS = [
