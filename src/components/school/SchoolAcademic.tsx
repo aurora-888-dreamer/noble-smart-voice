@@ -308,12 +308,16 @@ const MONTHS = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", 
 const WEEKDAYS = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
 
 /** Visual month grid with the day cells highlighted when they carry events. */
-function CalendarGrid({ events, canEdit, staffId, onRemove, onEditRow, compact, onQuickAdd }: {
+function CalendarGrid({ events, canEdit, staffId, onRemove, onEditRow, compact, onQuickAdd, cursor: cursorProp, onCursorChange }: {
   events: Row[]; canEdit: boolean; staffId?: string; onRemove: (id: string) => void; onEditRow?: (e: Row) => void; compact?: boolean;
   onQuickAdd?: (eventDate: string, title: string, description: string, eventType: string) => Promise<{ ok: boolean; error?: string }>;
+  cursor?: MonthCursor; onCursorChange?: (c: MonthCursor) => void;
 }) {
   const now = new Date();
-  const [cursor, setCursor] = useState({ y: now.getFullYear(), m: now.getMonth() });
+  // Month navigation is controlled when a cursor is supplied (that's how the
+  // "Sync" button keeps the three calendars on the same month).
+  const [ownCursor, setOwnCursor] = useState<MonthCursor>({ y: now.getFullYear(), m: now.getMonth() });
+  const cursor = cursorProp ?? ownCursor;
   const [selected, setSelected] = useState<string | null>(null);
   const [quickTitle, setQuickTitle] = useState("");
   const [quickDesc, setQuickDesc] = useState("");
@@ -335,9 +339,11 @@ function CalendarGrid({ events, canEdit, staffId, onRemove, onEditRow, compact, 
   const key = (d: number) => `${cursor.y}-${String(cursor.m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
   const shift = (delta: number) => {
     const d = new Date(cursor.y, cursor.m + delta, 1);
-    setCursor({ y: d.getFullYear(), m: d.getMonth() });
+    const next = { y: d.getFullYear(), m: d.getMonth() };
+    if (onCursorChange) onCursorChange(next); else setOwnCursor(next);
     setSelected(null);
   };
+
   const todayKey = new Date().toISOString().slice(0, 10);
   const selectedEvents = selected ? (byDate.get(selected) ?? []) : [];
 
