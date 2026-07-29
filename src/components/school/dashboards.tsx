@@ -322,7 +322,7 @@ export function HosDashboard({ staffId }: { staffId: string }) {
   const tabs = [
     { id: "overview", label: "Overview" }, { id: "staff", label: "Staff & Role" }, { id: "agenda", label: "Agenda" },
     { id: "message", label: "Message" }, { id: "laporan", label: "Report" },
-    { id: "activity", label: "Teacher Activity" }, { id: "announce", label: "Announcements" }, ...ACADEMIC_TABS, PIN_TAB,
+    { id: "activity", label: "Teacher Activity" }, { id: "announce", label: "Announcements" }, ...ACADEMIC_TABS, SETTINGS_TAB,
   ];
   return (
     <div>
