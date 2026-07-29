@@ -489,7 +489,7 @@ export function TeacherDashboard({ staffId, staffName, role, defaultClassId, div
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [selectedStudent, setSelectedStudent] = useState<{ id: string; full_name: string } | null>(null);
-  const [tab, setTab] = useState("kelas");
+  const [tab, setTab] = useState("calendar");
 
   const studentList = (students.data && "students" in students.data ? (students.data.students ?? []) : []) as { id: string; full_name: string }[];
   const activityList = (activities.data && "activities" in activities.data ? (activities.data.activities ?? []) : []) as { id: string; title: string; body?: string; activity_date: string; author_name?: string }[];
