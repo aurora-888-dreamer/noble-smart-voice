@@ -205,9 +205,8 @@ function StudentProfileForm({ code, onSaved }: { code: string; onSaved: () => vo
 }
 
 
-/* Read-only view of the academic modules, except
- * Calendar, which HoS and Principal can edit for their OWN agenda entries
- * (everyone still sees everyone else's, per the "stay in sync" rule). */
+// Read-only view of the academic modules, except Calendar, where HoS and
+// Principal can edit their own agenda entries while staying in sync.
 function AcademicReadOnly({ tab, classes, reviewerRole, reviewerName, calendarStaffId, timetableStaffId, staffId }: {
   tab: string;
   classes: { id: string; name: string }[];
