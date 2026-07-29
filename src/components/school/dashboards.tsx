@@ -146,7 +146,7 @@ function StaffProfileForm({ pw, staffId, onSaved }: { pw: string; staffId: strin
   async function save() {
     if (!f.fullName?.trim()) { setErr("Nama lengkap wajib diisi."); return; }
     setBusy(true); setErr(null);
-    const r = await saveMyStaffProfile({ data: { password: pw, staffId, ...f } });
+    const r = await saveMyStaffProfile({ data: { password: pw, staffId, ...f, fullName: f.fullName.trim() } });
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     onSaved();
@@ -187,7 +187,7 @@ function StudentProfileForm({ code, onSaved }: { code: string; onSaved: () => vo
   async function save() {
     if (!f.fullName?.trim()) { setErr("Nama lengkap wajib diisi."); return; }
     setBusy(true); setErr(null);
-    const r = await saveMyStudentProfile({ data: { code, ...f } });
+    const r = await saveMyStudentProfile({ data: { code, ...f, fullName: f.fullName.trim() } });
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     onSaved();
@@ -205,6 +205,7 @@ function StudentProfileForm({ code, onSaved }: { code: string; onSaved: () => vo
 }
 
 
+/* Read-only academic modules for admin roles — except the
  * Calendar, which HoS and Principal can edit for their OWN agenda entries
  * (everyone still sees everyone else's, per the "stay in sync" rule). */
 function AcademicReadOnly({ tab, classes, reviewerRole, reviewerName, calendarStaffId, timetableStaffId, staffId }: {

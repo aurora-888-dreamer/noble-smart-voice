@@ -68,7 +68,7 @@ export const saveAgenda = createServerFn({ method: "POST" })
         .from("school_agendas").insert({ ...payload, created_by: data.staffId || null }).select().single();
       if (error) return { ok: false, error: error.message };
       agendaId = row.id;
-      await addTimelineEntry(gate.supabase, agendaId, "System", undefined, `Agenda created by ${data.role}.`, "system");
+      await addTimelineEntry(gate.supabase, row.id as string, "System", undefined, `Agenda created by ${data.role}.`, "system");
     }
     if (agendaId && data.scopeLevel === "class" && data.classIds) {
       await gate.supabase.from("school_agenda_classes").delete().eq("agenda_id", agendaId);

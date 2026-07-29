@@ -1207,64 +1207,97 @@ export type Database = {
       }
       school_staff: {
         Row: {
+          allergies: string | null
           bio: string | null
+          birth_date: string | null
+          birthplace: string | null
           class_id: string | null
           created_at: string
           division: string
           email: string | null
           full_name: string
+          gender: string | null
+          health_notes: string | null
+          home_address: string | null
           id: string
+          id_card_address: string | null
           is_active: boolean
+          is_profile_complete: boolean
+          nickname: string | null
           phone: string | null
           photo_url: string | null
           pin: string | null
           pin_is_default: boolean
           pin_updated_at: string | null
+          religion: string | null
           role: string
           school_id: string
           subjects: string[]
           updated_at: string
           user_id: string | null
+          whatsapp: string | null
         }
         Insert: {
+          allergies?: string | null
           bio?: string | null
+          birth_date?: string | null
+          birthplace?: string | null
           class_id?: string | null
           created_at?: string
           division: string
           email?: string | null
           full_name: string
+          gender?: string | null
+          health_notes?: string | null
+          home_address?: string | null
           id?: string
+          id_card_address?: string | null
           is_active?: boolean
+          is_profile_complete?: boolean
+          nickname?: string | null
           phone?: string | null
           photo_url?: string | null
           pin?: string | null
           pin_is_default?: boolean
           pin_updated_at?: string | null
+          religion?: string | null
           role: string
           school_id: string
           subjects?: string[]
           updated_at?: string
           user_id?: string | null
+          whatsapp?: string | null
         }
         Update: {
+          allergies?: string | null
           bio?: string | null
+          birth_date?: string | null
+          birthplace?: string | null
           class_id?: string | null
           created_at?: string
           division?: string
           email?: string | null
           full_name?: string
+          gender?: string | null
+          health_notes?: string | null
+          home_address?: string | null
           id?: string
+          id_card_address?: string | null
           is_active?: boolean
+          is_profile_complete?: boolean
+          nickname?: string | null
           phone?: string | null
           photo_url?: string | null
           pin?: string | null
           pin_is_default?: boolean
           pin_updated_at?: string | null
+          religion?: string | null
           role?: string
           school_id?: string
           subjects?: string[]
           updated_at?: string
           user_id?: string | null
+          whatsapp?: string | null
         }
         Relationships: [
           {
@@ -1369,6 +1402,8 @@ export type Database = {
           full_name: string
           gender: string | null
           id: string
+          id_card_address: string | null
+          is_profile_complete: boolean
           joined_at: string | null
           nickname: string | null
           notes: string | null
@@ -1379,6 +1414,7 @@ export type Database = {
           status: string
           student_number: string | null
           updated_at: string
+          whatsapp: string | null
         }
         Insert: {
           address?: string | null
@@ -1395,6 +1431,8 @@ export type Database = {
           full_name: string
           gender?: string | null
           id?: string
+          id_card_address?: string | null
+          is_profile_complete?: boolean
           joined_at?: string | null
           nickname?: string | null
           notes?: string | null
@@ -1405,6 +1443,7 @@ export type Database = {
           status?: string
           student_number?: string | null
           updated_at?: string
+          whatsapp?: string | null
         }
         Update: {
           address?: string | null
@@ -1421,6 +1460,8 @@ export type Database = {
           full_name?: string
           gender?: string | null
           id?: string
+          id_card_address?: string | null
+          is_profile_complete?: boolean
           joined_at?: string | null
           nickname?: string | null
           notes?: string | null
@@ -1431,6 +1472,7 @@ export type Database = {
           status?: string
           student_number?: string | null
           updated_at?: string
+          whatsapp?: string | null
         }
         Relationships: [
           {
