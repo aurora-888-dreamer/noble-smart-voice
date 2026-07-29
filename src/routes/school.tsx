@@ -5,6 +5,7 @@ import { usePlugin } from "@/lib/plugins-store";
 import { useLicenseInfo } from "@/lib/auth-store";
 import { getSchoolId } from "@/lib/school.functions";
 import { SchoolTools } from "@/components/SchoolTools";
+import { PreviewProvider, PreviewPanel } from "@/lib/preview-context";
 
 
 export const Route = createFileRoute("/school")({
@@ -62,7 +63,10 @@ function SchoolLayout() {
 
   return (
     <AppShell title="School Dashboard" fullWidth headerExtra={<SchoolTools />}>
-      <Outlet />
+      <PreviewProvider>
+        <Outlet />
+        <PreviewPanel />
+      </PreviewProvider>
     </AppShell>
   );
 }
