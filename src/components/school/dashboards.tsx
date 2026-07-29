@@ -146,7 +146,7 @@ function StaffProfileForm({ pw, staffId, onSaved }: { pw: string; staffId: strin
   async function save() {
     if (!f.fullName?.trim()) { setErr("Nama lengkap wajib diisi."); return; }
     setBusy(true); setErr(null);
-    const r = await saveMyStaffProfile({ data: { password: pw, staffId, ...f } });
+    const r = await saveMyStaffProfile({ data: { password: pw, staffId, ...f, fullName: f.fullName.trim() } });
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     onSaved();
