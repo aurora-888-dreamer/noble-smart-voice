@@ -19,8 +19,10 @@ import {
 } from "./shared";
 import {
   listSchoolStaff, listSchoolStudents, postSchoolActivity, deleteSchoolActivity, listActivitiesForClass,
-  getStudentForCode, listActivitiesForCode, listAnnouncementsForCode, type SchoolRole,
+  getStudentForCode, listActivitiesForCode, listAnnouncementsForCode,
+  broadcastMessageToClassParents, postMessageAsTeacher, type SchoolRole,
 } from "@/lib/school.functions";
+
 import { schoolLogout, type SchoolSession } from "@/lib/school-store";
 import {
   checkMyProfileStatus, getMyStaffProfile, saveMyStaffProfile,
