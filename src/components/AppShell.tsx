@@ -33,13 +33,11 @@ export function AppShell({
   children,
   headerExtra,
   fullWidth = false,
-  hideAppTools = false,
 }: {
   title: string;
   children: ReactNode;
   showFab?: boolean; // retained for backwards compat; ignored
   fullWidth?: boolean; // hides the desktop Noble sidebar and widens content (School Dashboard)
-  hideAppTools?: boolean; // hides the Noble camera/calculator/translator/settings + mic cluster (host page provides its own tools)
   headerExtra?: ReactNode; // extra icon buttons rendered before the mic (e.g. Home's Camera/Calculator/Translator shortcuts)
 }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -118,7 +116,7 @@ export function AppShell({
       <div className="flex-1 min-w-0">
         <header className="sticky top-0 z-30 bg-background/80 backdrop-blur border-b border-border">
           <div className={`${wrap} px-4 lg:px-8 py-3 flex items-center gap-2`}>
-            <Link to="/" className={"text-xs font-semibold uppercase tracking-widest text-primary" + (fullWidth ? "" : " lg:hidden")} aria-label="Home">
+            <Link to={fullWidth ? "/school" : "/"} className={"text-xs font-semibold uppercase tracking-widest text-primary" + (fullWidth ? "" : " lg:hidden")} aria-label="Home">
               Noble
             </Link>
             <h1 className="ml-2 lg:ml-0 text-base lg:text-xl font-semibold flex-1 truncate">{title}</h1>
@@ -133,7 +131,7 @@ export function AppShell({
               </button>
             )}
             {headerExtra}
-            <div className={`items-center gap-1.5 lg:hidden ${hideAppTools ? "hidden" : "flex"}`}>
+            <div className="flex items-center gap-1.5 lg:hidden">
               {hasCamera && (
                 <Link
                   to="/camera"
@@ -169,7 +167,6 @@ export function AppShell({
                 <SettingsIcon size={19} />
               </Link>
             </div>
-            {!hideAppTools && (
             <button
               onClick={handleMicTap}
               disabled={!supported}
@@ -185,7 +182,6 @@ export function AppShell({
               {micActive && <span className="absolute inset-0 rounded-full bg-destructive mic-pulse" />}
               <Mic size={18} className="relative" />
             </button>
-            )}
           </div>
           {micActive && (
             <div className={`${wrap} px-4 lg:px-8 pb-3 space-y-2`}>
