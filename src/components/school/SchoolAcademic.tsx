@@ -78,18 +78,20 @@ const EVENT_TYPES = [
 
 export type MonthCursor = { y: number; m: number };
 
-/** The three calendar models. Each one reads the same table but keeps only
- *  the rows that concern that level:
+/** The three calendar models. Each level keeps its OWN calendar:
  *   - hos       : everything, school-wide.
- *   - principal : its own unit — every class of the division (so all of its
- *                 teachers' agendas) plus school-wide HoS entries.
- *   - teacher   : only its own class(es) plus school-wide entries.
+ *   - principal : entries of its own unit's classes + entries it created.
+ *   - teacher   : entries of its own class(es) + entries it created.
+ *  School-wide HoS entries are NOT shown automatically — Principal/Teacher
+ *  fill or import their own calendar, then press "Sync dari HoS" to copy the
+ *  HoS entries that concern their unit/class into their own calendar.
  */
 export function scopeCalendarEvents(events: Row[], classIds: string[] | null, staffId?: string): Row[] {
   if (!classIds) return events;
   const set = new Set(classIds);
-  return events.filter((e) => !e.class_id || set.has(e.class_id) || (!!staffId && e.created_by === staffId));
+  return events.filter((e) => (!!staffId && e.created_by === staffId) || (!!e.class_id && set.has(e.class_id)));
 }
+
 
 export function CalendarPanel({
   access, classes, canEdit, compact, scopeClassIds, cursor, onCursorChange, hideUpcoming, hideForm,
