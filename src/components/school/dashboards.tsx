@@ -216,7 +216,7 @@ function StudentProfileForm({ code, onSaved }: { code: string; onSaved: () => vo
 /** Read-only academic viewer shared by HoS / Admin HoS / Principal — except
  * Calendar, which HoS and Principal can edit for their OWN agenda entries
  * (everyone still sees everyone else's, per the "stay in sync" rule). */
-function AcademicReadOnly({ tab, classes, reviewerRole, reviewerName, calendarStaffId, timetableStaffId, staffId }: {
+function AcademicReadOnly({ tab, classes, reviewerRole, reviewerName, calendarStaffId, timetableStaffId, staffId, division }: {
   tab: string;
   classes: { id: string; name: string }[];
   reviewerRole: "principal" | "hos" | null;
@@ -224,11 +224,12 @@ function AcademicReadOnly({ tab, classes, reviewerRole, reviewerName, calendarSt
   calendarStaffId?: string | null;
   timetableStaffId?: string | null;
   staffId?: string | null;
+  division?: string | null;
 }) {
   const pw = getStoredPassword();
   if (!ACADEMIC_TABS.some((t) => t.id === tab)) return null;
   if (tab === "calendar" && calendarStaffId) {
-    return <CalendarPanel access={{ pw, staffId: calendarStaffId }} classes={classes} canEdit compact />;
+    return <CalendarPanel access={{ pw, staffId: calendarStaffId }} classes={classes} canEdit compact division={reviewerRole === "principal" ? (division ?? undefined) : undefined} />;
   }
   if (tab === "timetable" && reviewerRole === "principal" && timetableStaffId) {
     return <TimetablePanel access={{ pw }} classes={classes} canEdit staffId={timetableStaffId} />;
@@ -361,7 +362,7 @@ export function PrincipalDashboard({ division, staffId, staffName }: { division:
         {tab === "activity" && <AllActivitiesView division={division} />}
         {tab === "announce" && <AnnouncementPanel subrole="principal" division={division} classes={classes} />}
         {tab === "pin" && <ChangePinPanel />}
-        <AcademicReadOnly tab={tab} classes={classes} reviewerRole="principal" reviewerName="Principal" calendarStaffId={staffId} timetableStaffId={staffId} staffId={staffId} />
+        <AcademicReadOnly tab={tab} classes={classes} reviewerRole="principal" reviewerName="Principal" calendarStaffId={staffId} timetableStaffId={staffId} staffId={staffId} division={division} />
       </Tabs>
     </div>
   );
@@ -424,7 +425,7 @@ export function TeacherDashboard({ staffId, staffName, role, defaultClassId }: {
   return (
     <div>
       <Tabs tabs={tabs} tab={tab} onChange={setTab}>
-        {tab === "calendar" && <CalendarPanel access={{ pw, staffId }} classes={classList} canEdit />}
+        {tab === "calendar" && <CalendarPanel access={{ pw, staffId }} classes={classList} canEdit division={classList[0]?.division} />}
         {tab === "timetable" && <TimetablePanel access={{ pw }} classes={classList} canEdit={false} />}
         {tab === "lesson" && <LessonPlanPanel pw={pw} classes={classList} canEdit />}
         {tab === "projects" && <ProjectPanel pw={pw} classes={classList} canSubmit reviewerRole={null} reviewerName={staffName} staffId={staffId} />}

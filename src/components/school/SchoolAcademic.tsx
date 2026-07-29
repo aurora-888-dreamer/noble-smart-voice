@@ -82,7 +82,7 @@ const EVENT_TYPES = [
   { v: "acara", label: "Acara", cls: "bg-blue-500/15 text-blue-600" },
 ];
 
-export function CalendarPanel({ access, classes, canEdit, compact }: { access: Access; classes: ClassOpt[]; canEdit: boolean; compact?: boolean }) {
+export function CalendarPanel({ access, classes, canEdit, compact, division }: { access: Access; classes: ClassOpt[]; canEdit: boolean; compact?: boolean; division?: string }) {
   const [classId, setClassId] = useState("");
   const [reload, setReload] = useState(0);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -97,7 +97,11 @@ export function CalendarPanel({ access, classes, canEdit, compact }: { access: A
   const staffId = access.staffId;
 
   const res = useAsync(
-    () => listCalendarEvents({ data: access.code ? { code: access.code } : { password: access.pw, classId: classId || undefined } }),
+    () => listCalendarEvents({
+      data: access.code
+        ? { code: access.code }
+        : { password: access.pw, classId: classId || undefined, division: !classId ? division : undefined, scopeAll: !classId && !division },
+    }),
     [access.pw, access.code, classId, reload],
   );
   const events: Row[] = res.data && res.data.ok ? res.data.events : [];
@@ -116,7 +120,7 @@ export function CalendarPanel({ access, classes, canEdit, compact }: { access: A
   async function add() {
     if (!title.trim() || !access.pw) return;
     setBusy(true); setErr(null);
-    const r = await saveCalendarEvent({ data: { password: access.pw, id: editingId || undefined, classId: classId || undefined, title, description: desc, eventDate: date, eventType: type, staffId: staffId ?? "" } });
+    const r = await saveCalendarEvent({ data: { password: access.pw, id: editingId || undefined, classId: classId || undefined, divisionScope: !classId ? division : undefined, title, description: desc, eventDate: date, eventType: type, staffId: staffId ?? "" } });
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     resetForm(); setReload((x) => x + 1);
@@ -202,7 +206,7 @@ export function CalendarPanel({ access, classes, canEdit, compact }: { access: A
             events={events} canEdit={canEdit} staffId={staffId} onRemove={remove} onEditRow={startEdit} compact={compact}
             onQuickAdd={async (evtDate, evtTitle, evtDesc, evtType) => {
               if (!access.pw) return { ok: false, error: "Tidak bisa menambah dari sini." };
-              const r = await saveCalendarEvent({ data: { password: access.pw, classId: classId || undefined, title: evtTitle, description: evtDesc, eventDate: evtDate, eventType: evtType, staffId: staffId ?? "" } });
+              const r = await saveCalendarEvent({ data: { password: access.pw, classId: classId || undefined, divisionScope: !classId ? division : undefined, title: evtTitle, description: evtDesc, eventDate: evtDate, eventType: evtType, staffId: staffId ?? "" } });
               if (r.ok) setReload((x) => x + 1);
               return r.ok ? { ok: true } : { ok: false, error: r.error };
             }}
