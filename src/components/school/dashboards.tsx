@@ -20,10 +20,10 @@ import {
 import {
   listSchoolStaff, listSchoolStudents, postSchoolActivity, deleteSchoolActivity, listActivitiesForClass,
   getStudentForCode, listActivitiesForCode, listAnnouncementsForCode,
-  broadcastMessageToClassParents, postMessageAsTeacher, type SchoolRole,
+  postMessageAsTeacher, type SchoolRole,
 } from "@/lib/school.functions";
 
-import { schoolLogout, type SchoolSession } from "@/lib/school-store";
+import { schoolLogout, useSchoolSession, type SchoolSession } from "@/lib/school-store";
 import {
   checkMyProfileStatus, getMyStaffProfile, saveMyStaffProfile,
   checkMyStudentProfileStatus, getMyStudentProfile, saveMyStudentProfile,
@@ -100,18 +100,29 @@ export function StaffProfileGate({ session, children }: { session: SchoolSession
 /** Same, but for Parent — completing their Student's profile (not their own). */
 export function ParentProfileGate({ code, children }: { code: string; children: React.ReactNode }) {
   const [reload, setReload] = useState(0);
+  const { session } = useSchoolSession();
+  const pinIsDefault = session?.pinIsDefault !== false;
   const status = useAsync(() => checkMyStudentProfileStatus({ data: { code } }), [code, reload]);
   if (!status.data) return null;
   if (!status.data.ok) return <p className="text-sm text-destructive">{status.data.error}</p>;
-  if (status.data.isComplete) return <>{children}</>;
+  const profileDone = status.data.isComplete;
+  // Once the PIN has been changed once, the change-PIN form is no longer part
+  // of the first-login flow — it lives in Setting instead.
+  if (profileDone && !pinIsDefault) return <>{children}</>;
   return (
     <div className="grid gap-4 lg:grid-cols-2 items-start">
-      <StudentProfileForm code={code} onSaved={() => setReload((x) => x + 1)} />
-      <div>
-        <h2 className="text-lg font-semibold mb-1">Buat PIN Baru</h2>
-        <p className="text-sm text-muted-foreground mb-3">Ganti PIN default Anda di sini.</p>
-        <ChangePinPanel />
-      </div>
+      {!profileDone ? (
+        <StudentProfileForm code={code} onSaved={() => setReload((x) => x + 1)} />
+      ) : (
+        <div className="rounded-2xl border border-border p-4 text-sm text-muted-foreground">Profile anak Anda sudah lengkap.</div>
+      )}
+      {pinIsDefault && (
+        <div>
+          <h2 className="text-lg font-semibold mb-1">Buat PIN Baru</h2>
+          <p className="text-sm text-muted-foreground mb-3">Ganti PIN default Anda di sini.</p>
+          <ChangePinPanel />
+        </div>
+      )}
     </div>
   );
 }
@@ -210,11 +221,12 @@ function StaffProfileForm({ pw, staffId, onSaved, mode = "first" }: { pw: string
 }
 
 
-function StudentProfileForm({ code, onSaved }: { code: string; onSaved: () => void }) {
+function StudentProfileForm({ code, onSaved, mode = "first" }: { code: string; onSaved: () => void; mode?: "first" | "settings" }) {
   const [f, setF] = useState<Row>({});
   const [loaded, setLoaded] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
   useEffect(() => {
     getMyStudentProfile({ data: { code } }).then((r) => {
       if (r.ok) {
@@ -236,16 +248,22 @@ function StudentProfileForm({ code, onSaved }: { code: string; onSaved: () => vo
     const r = await saveMyStudentProfile({ data: { code, ...f, fullName: f.fullName.trim() } });
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
+    setSaved(true);
     onSaved();
   }
   if (!loaded) return null;
   return (
-    <div className="max-w-lg mx-auto">
-      <h2 className="text-lg font-semibold mb-1">Lengkapi Profile Anak Anda</h2>
-      <p className="text-sm text-muted-foreground mb-4">Wajib diisi sebelum bisa mengakses dashboard Parent.</p>
+    <div className={mode === "first" ? "max-w-lg mx-auto" : ""}>
+      {mode === "first" && (
+        <>
+          <h2 className="text-lg font-semibold mb-1">Lengkapi Profile Anak Anda</h2>
+          <p className="text-sm text-muted-foreground mb-4">Wajib diisi sebelum bisa mengakses dashboard Parent.</p>
+        </>
+      )}
       <ProfileFields f={f} set={(patch) => setF((x) => ({ ...x, ...patch }))} />
       {err && <p className="text-xs text-destructive mt-2">{err}</p>}
-      <button onClick={save} disabled={busy} className="mt-3 rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold disabled:opacity-50">Simpan & Lanjutkan</button>
+      {saved && mode === "settings" && <p className="text-xs text-primary mt-2">Profile tersimpan.</p>}
+      <button onClick={save} disabled={busy} className="mt-3 rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold disabled:opacity-50">{mode === "first" ? "Simpan & Lanjutkan" : "Simpan Profile"}</button>
     </div>
   );
 }
@@ -429,6 +447,7 @@ export function PrincipalDashboard({ division, staffId, staffName }: { division:
 function DailyActivityPanel({ pw, classes, staffName }: { pw: string; classes: { id: string; name: string }[]; staffName: string }) {
   const [classId, setClassId] = useState(classes[0]?.id ?? "");
   const [target, setTarget] = useState("all");
+  const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -439,13 +458,15 @@ function DailyActivityPanel({ pw, classes, staffName }: { pw: string; classes: {
   async function send() {
     if (!body.trim() || !classId) return;
     setBusy(true); setErr(null); setMsg(null);
+    // "All Parents" lands in the parents' Daily Activity feed (not their
+    // private Messages thread); a single student still gets a private note.
     const r = target === "all"
-      ? await broadcastMessageToClassParents({ data: { password: pw, schoolId: getSchoolIdSync(), classId, body, authorName: staffName } })
+      ? await postSchoolActivity({ data: { password: pw, schoolId: getSchoolIdSync(), classId, title: title.trim() || "Daily Activity", body, authorName: staffName } })
       : await postMessageAsTeacher({ data: { password: pw, schoolId: getSchoolIdSync(), studentId: target, body, authorName: staffName } });
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     setBody("");
-    setMsg(target === "all" ? `Terkirim ke ${"sent" in r ? r.sent : 0} orangtua.` : "Pesan terkirim.");
+    setMsg(target === "all" ? "Masuk ke Daily Activity semua orangtua kelas ini." : "Catatan pribadi terkirim ke Messages orangtua.");
   }
 
   return (
@@ -459,6 +480,7 @@ function DailyActivityPanel({ pw, classes, staffName }: { pw: string; classes: {
           <option value="all">All Parents ({studentList.length})</option>
           {studentList.map((s) => <option key={s.id} value={s.id}>{s.full_name}</option>)}
         </select>
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Judul aktivitas (untuk All Parents)" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm" />
         <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={4} placeholder="Pesan aktivitas hari ini…" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm" />
         {err && <p className="text-xs text-destructive">{err}</p>}
         {msg && <p className="text-xs text-primary">{msg}</p>}
@@ -601,7 +623,7 @@ export function ParentDashboard({ code }: { code: string }) {
   const info = useAsync(() => getStudentForCode({ data: { code } }), [code]);
   const activities = useAsync(() => listActivitiesForCode({ data: { code } }), [code]);
   const announcements = useAsync(() => listAnnouncementsForCode({ data: { code } }), [code]);
-  const student = (info.data && "student" in info.data ? info.data.student : null) as { nickname?: string | null; full_name: string; id: string } | null;
+  const student = (info.data && "student" in info.data ? info.data.student : null) as { nickname?: string | null; full_name: string; id: string; photo_url?: string | null } | null;
   const activityList = (activities.data && "activities" in activities.data ? (activities.data.activities ?? []) : []) as { id: string; title: string; body?: string; activity_date: string }[];
   const announcementList = (announcements.data && "announcements" in announcements.data ? (announcements.data.announcements ?? []) : []) as { id: string; title: string; body?: string; created_at: string }[];
 
@@ -610,12 +632,20 @@ export function ParentDashboard({ code }: { code: string }) {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <div className="rounded-full bg-primary/15 text-primary px-3 py-1.5 text-sm font-semibold flex items-center gap-1.5"><Baby size={14} /> {student.nickname || student.full_name}</div>
-        <button onClick={() => { schoolLogout(); navigate({ to: "/" }); }} className="text-xs rounded-full border border-border px-3 py-1.5 flex items-center gap-1"><LogOut size={12} /> Keluar</button>
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <div className="flex items-center gap-3 min-w-0">
+          {student.photo_url ? (
+            <img src={student.photo_url} alt={student.nickname || student.full_name} className="w-14 h-14 rounded-full object-cover border border-border" />
+          ) : (
+            <div className="w-14 h-14 rounded-full bg-primary/15 text-primary grid place-items-center"><Baby size={22} /></div>
+          )}
+          <div className="min-w-0">
+            <p className="text-base font-semibold truncate">{student.nickname || student.full_name}</p>
+            <p className="text-xs text-muted-foreground truncate">{student.full_name}</p>
+          </div>
+        </div>
+        <button onClick={() => { schoolLogout(); navigate({ to: "/" }); }} className="text-xs rounded-full border border-border px-3 py-1.5 flex items-center gap-1 shrink-0"><LogOut size={12} /> Keluar</button>
       </div>
-
-      <Section title="Change PIN" Icon={Shield}><ChangePinPanel /></Section>
 
 
       <Section title="Announcements" Icon={Megaphone}>
@@ -642,6 +672,19 @@ export function ParentDashboard({ code }: { code: string }) {
       <Section title="Attendance" Icon={Baby}><AttendancePanel access={{ code }} classes={[]} canEdit={false} /></Section>
       <Section title="Messages with Teacher" Icon={MessageSquare}><ParentMessageThread code={code} /></Section>
       <Section title="Report" Icon={Shield}><CasePanel access={{ code }} role="parent" classes={[]} /></Section>
+
+      <Section title="Setting" Icon={Shield}>
+        <div className="grid gap-4 lg:grid-cols-2 items-start">
+          <div className="rounded-2xl bg-card border border-border p-3">
+            <p className="text-sm font-semibold mb-2">Edit Profile Anak</p>
+            <StudentProfileForm code={code} mode="settings" onSaved={() => {}} />
+          </div>
+          <div className="rounded-2xl bg-card border border-border p-3">
+            <p className="text-sm font-semibold mb-2">Ganti PIN</p>
+            <ChangePinPanel />
+          </div>
+        </div>
+      </Section>
     </div>
   );
 }
