@@ -76,7 +76,29 @@ const EVENT_TYPES = [
   { v: "acara", label: "Acara", cls: "bg-blue-500/15 text-blue-600" },
 ];
 
-export function CalendarPanel({ access, classes, canEdit, compact }: { access: Access; classes: ClassOpt[]; canEdit: boolean; compact?: boolean }) {
+export type MonthCursor = { y: number; m: number };
+
+/** The three calendar models. Each one reads the same table but keeps only
+ *  the rows that concern that level:
+ *   - hos       : everything, school-wide.
+ *   - principal : its own unit — every class of the division (so all of its
+ *                 teachers' agendas) plus school-wide HoS entries.
+ *   - teacher   : only its own class(es) plus school-wide entries.
+ */
+export function scopeCalendarEvents(events: Row[], classIds: string[] | null, staffId?: string): Row[] {
+  if (!classIds) return events;
+  const set = new Set(classIds);
+  return events.filter((e) => !e.class_id || set.has(e.class_id) || (!!staffId && e.created_by === staffId));
+}
+
+export function CalendarPanel({
+  access, classes, canEdit, compact, scopeClassIds, cursor, onCursorChange, hideUpcoming, hideForm,
+}: {
+  access: Access; classes: ClassOpt[]; canEdit: boolean; compact?: boolean;
+  scopeClassIds?: string[] | null;
+  cursor?: MonthCursor; onCursorChange?: (c: MonthCursor) => void;
+  hideUpcoming?: boolean; hideForm?: boolean;
+}) {
   const [classId, setClassId] = useState("");
   const [reload, setReload] = useState(0);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -94,7 +116,9 @@ export function CalendarPanel({ access, classes, canEdit, compact }: { access: A
     () => listCalendarEvents({ data: access.code ? { code: access.code } : { password: access.pw, classId: classId || undefined } }),
     [access.pw, access.code, classId, reload],
   );
-  const events: Row[] = res.data && res.data.ok ? res.data.events : [];
+  const allEvents: Row[] = res.data && res.data.ok ? res.data.events : [];
+  const events = scopeCalendarEvents(allEvents, scopeClassIds ?? null, staffId);
+
 
   function startEdit(e: Row) {
     setEditingId(e.id);
