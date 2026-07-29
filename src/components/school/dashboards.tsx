@@ -468,20 +468,28 @@ export function TeacherDashboard({ staffId, staffName, role, defaultClassId, div
   }
 
   const tabs = [
-    { id: "kelas", label: "Class" }, { id: "calendar", label: "Calendar" }, { id: "timetable", label: "Timetable" },
+    { id: "calendar", label: "Calendar" }, { id: "kelas", label: "Class" },
+    { id: "daily", label: "Daily Activity" }, { id: "timetable", label: "Timetable" },
     { id: "lesson", label: "Lesson Plan" }, { id: "projects", label: "Official Letter" },
     { id: "assessment", label: "Assessment" },
     ...(isHomeroom ? [{ id: "attendance", label: "Attendance" }] : []),
     { id: "message", label: "Message" },
     { id: "agenda", label: "Agenda" },
     { id: "laporan", label: "Report" },
-    PIN_TAB,
+    SETTINGS_TAB,
   ];
 
   return (
     <div>
       <Tabs tabs={tabs} tab={tab} onChange={setTab}>
-        {tab === "calendar" && <CalendarPanel access={{ pw, staffId }} classes={classList} canEdit />}
+        {tab === "calendar" && (
+          <CalendarWorkspace
+            access={{ pw, staffId }} classes={classList} canEdit own="teacher"
+            divisionClassIds={divisionClasses.map((c) => c.id)}
+            myClassIds={classList.map((c) => c.id)}
+          />
+        )}
+        {tab === "daily" && <DailyActivityPanel pw={pw} classes={classList} staffName={staffName} />}
         {tab === "timetable" && <TimetablePanel access={{ pw }} classes={classList} canEdit={false} />}
         {tab === "lesson" && <LessonPlanPanel pw={pw} classes={classList} canEdit />}
         {tab === "projects" && <ProjectPanel pw={pw} classes={classList} canSubmit reviewerRole={null} reviewerName={staffName} staffId={staffId} />}
@@ -490,7 +498,8 @@ export function TeacherDashboard({ staffId, staffName, role, defaultClassId, div
         {tab === "message" && <StaffMessagePanel pw={pw} staffId={staffId} />}
         {tab === "agenda" && <AgendaPanel pw={pw} role="teacher" staffId={staffId} staffName={staffName} classes={classList} />}
         {tab === "laporan" && <CasePanel access={{ pw }} role="teacher" staffId={staffId} staffName={staffName} classes={classList} />}
-        {tab === "pin" && <ChangePinPanel />}
+        {tab === "settings" && <SettingsPanel staffId={staffId} />}
+
 
         {tab === "kelas" && (
           <>
