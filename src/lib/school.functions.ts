@@ -799,6 +799,29 @@ export const listMessagesForCode = createServerFn({ method: "POST" })
     return { ok: true as const, messages: rows ?? [] };
   });
 
+// Broadcast one Daily Activity message to EVERY parent of a class — one
+// thread row per student so each family keeps its own private conversation.
+export const broadcastMessageToClassParents = createServerFn({ method: "POST" })
+  .inputValidator((input: { password: string; schoolId: string; classId: string; body: string; authorName?: string }) => input)
+  .handler(async ({ data }) => {
+    if (!checkSchoolPassword(data.password)) return { ok: false as const, error: "Wrong password." };
+    const supabase = createLovableSchoolSupabase();
+    if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
+    const body = data.body.trim();
+    if (!body) return { ok: false as const, error: "Pesan tidak boleh kosong." };
+    const { data: students, error: sErr } = await supabase
+      .from("school_students").select("id").eq("class_id", data.classId);
+    if (sErr) return { ok: false as const, error: sErr.message };
+    const rows = (students ?? []).map((s: { id: string }) => ({
+      school_id: data.schoolId, student_id: s.id, from_side: "teacher",
+      author_name: data.authorName || null, body,
+    }));
+    if (rows.length === 0) return { ok: false as const, error: "Kelas ini belum punya murid." };
+    const { error } = await supabase.from("school_messages").insert(rows);
+    if (error) return { ok: false as const, error: error.message };
+    return { ok: true as const, sent: rows.length };
+  });
+
 // "Close" = mark every message FROM THE OTHER SIDE as read/dismissed on
 // this side — this is what makes the notification go away until a new
 // message arrives again.
