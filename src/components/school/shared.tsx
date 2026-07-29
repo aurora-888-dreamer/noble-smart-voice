@@ -4,9 +4,11 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Shield, Users, Trash2, UserPlus, Upload, Send, Megaphone, Bell, X, GraduationCap,
-  KeyRound, Copy, Check, Pencil, Power,
+  KeyRound, Copy, Check, Pencil, Power, Eye,
 } from "lucide-react";
 import { getStoredSchoolPassword, changeSchoolPin, useSchoolSession } from "@/lib/school-store";
+import { usePreview } from "@/lib/preview-context";
+import { getStaffProfileForViewer, getStudentProfileForViewer } from "@/lib/school-profile.functions";
 import { CREATABLE_ROLES, ROLE_LABELS, roleLabel, type SchoolRole } from "@/lib/school-roles";
 import {
   listSchoolClasses, createSchoolClass, listSchoolStaff, deleteSchoolStaff,
@@ -282,6 +284,82 @@ export function StaffRoster({
   );
 }
 
+function StaffProfilePreviewButton({ staffId, fullName }: { staffId: string; fullName: string }) {
+  const pw = getStoredPassword();
+  const { session } = useSchoolSession();
+  const { openPreview } = usePreview();
+  if (!session || session.kind !== "staff") return null;
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); openPreview({ title: fullName, body: <StaffProfilePreviewBody pw={pw} viewerId={session.id} targetStaffId={staffId} /> }); }}
+      className="text-muted-foreground" aria-label="Lihat Profile"
+    >
+      <Eye size={14} />
+    </button>
+  );
+}
+
+function StaffProfilePreviewBody({ pw, viewerId, targetStaffId }: { pw: string; viewerId: string; targetStaffId: string }) {
+  const res = useAsync(() => getStaffProfileForViewer({ data: { password: pw, viewerId, targetStaffId } }), [pw, viewerId, targetStaffId]);
+  const p = res.data && "ok" in res.data && res.data.ok ? res.data.profile : null;
+  if (!p) return <Hint>Memuat profile…</Hint>;
+  const rows: [string, unknown][] = [
+    ["Nama", p.full_name], ["Panggilan", p.nickname], ["Jenis kelamin", p.gender],
+    ["Tempat, tanggal lahir", [p.birthplace, p.birth_date].filter(Boolean).join(", ")],
+    ["Alamat tinggal", p.home_address], ["Alamat KTP", p.id_card_address],
+    ["WhatsApp", p.whatsapp], ["Email", p.email], ["Agama", p.religion],
+    ["Alergi", p.allergies], ["Catatan kesehatan", p.health_notes],
+  ];
+  return (
+    <div className="space-y-3">
+      {p.photo_url && <img src={p.photo_url} alt={p.full_name} className="w-24 h-24 rounded-full object-cover border border-border" />}
+      <ul className="space-y-1.5 text-sm">
+        {rows.filter(([, v]) => v).map(([label, v]) => (
+          <li key={label}><span className="text-muted-foreground text-xs">{label}: </span>{String(v)}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function StudentProfilePreviewButton({ studentId, fullName }: { studentId: string; fullName: string }) {
+  const pw = getStoredPassword();
+  const { session } = useSchoolSession();
+  const { openPreview } = usePreview();
+  if (!session || session.kind !== "staff") return null;
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); openPreview({ title: fullName, body: <StudentProfilePreviewBody pw={pw} viewerId={session.id} targetStudentId={studentId} /> }); }}
+      className="text-muted-foreground" aria-label="Lihat Profile"
+    >
+      <Eye size={14} />
+    </button>
+  );
+}
+
+function StudentProfilePreviewBody({ pw, viewerId, targetStudentId }: { pw: string; viewerId: string; targetStudentId: string }) {
+  const res = useAsync(() => getStudentProfileForViewer({ data: { password: pw, viewerId, targetStudentId } }), [pw, viewerId, targetStudentId]);
+  const p = res.data && "ok" in res.data && res.data.ok ? res.data.profile : null;
+  if (!p) return <Hint>Memuat profile…</Hint>;
+  const rows: [string, unknown][] = [
+    ["Nama", p.full_name], ["Panggilan", p.nickname], ["Jenis kelamin", p.gender],
+    ["Tempat, tanggal lahir", [p.pob, p.dob].filter(Boolean).join(", ")],
+    ["Alamat tinggal", p.address], ["Alamat KTP", p.id_card_address],
+    ["WhatsApp", p.whatsapp], ["Agama", p.religion],
+    ["Alergi", p.allergies], ["Catatan kesehatan", p.notes],
+  ];
+  return (
+    <div className="space-y-3">
+      {p.photo_url && <img src={p.photo_url} alt={p.full_name} className="w-24 h-24 rounded-full object-cover border border-border" />}
+      <ul className="space-y-1.5 text-sm">
+        {rows.filter(([, v]) => v).map(([label, v]) => (
+          <li key={label}><span className="text-muted-foreground text-xs">{label}: </span>{String(v)}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function StaffRow({ staff, classes, canEdit, onChanged, onRemove }: {
   staff: StaffRow; classes: { id: string; name: string }[]; canEdit: boolean; onChanged: () => void; onRemove: () => void;
 }) {
@@ -344,6 +422,7 @@ function StaffRow({ staff, classes, canEdit, onChanged, onRemove }: {
         </div>
         {canEdit && (
           <div className="flex items-start gap-2">
+            <StaffProfilePreviewButton staffId={staff.id} fullName={staff.full_name} />
             <button onClick={() => setOpen((v) => !v)} className="text-muted-foreground" aria-label="Edit"><Pencil size={14} /></button>
             <button onClick={onRemove} className="text-destructive" aria-label="Hapus"><Trash2 size={14} /></button>
           </div>
@@ -452,10 +531,13 @@ function StudentRow({ student, canEdit, onDelete }: { student: { id: string; ful
   const [open, setOpen] = useState(false);
   return (
     <li className="rounded-xl bg-card border border-border p-3">
-      <button onClick={() => setOpen((v) => !v)} className="w-full flex items-center justify-between">
+      <div onClick={() => setOpen((v) => !v)} className="w-full flex items-center justify-between cursor-pointer">
         <div className="text-left"><p className="text-sm font-semibold">{student.full_name}</p>{student.student_number && <p className="text-xs text-muted-foreground">{student.student_number}</p>}</div>
-        <span className="text-xs text-muted-foreground">{open ? "v" : ">"}</span>
-      </button>
+        <div className="flex items-center gap-2">
+          <StudentProfilePreviewButton studentId={student.id} fullName={student.full_name} />
+          <span className="text-xs text-muted-foreground">{open ? "v" : ">"}</span>
+        </div>
+      </div>
       {open && (
         <div className="mt-3 pt-3 border-t border-border">
           <GuardianEditor studentId={student.id} canEdit={canEdit} />

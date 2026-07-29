@@ -1,6 +1,7 @@
 // UI panels for the 6 academic modules of the School Dashboard.
 // Pure presentation + calls into src/lib/school-academic.functions.ts.
 // Style matches the existing /school tabs (rounded-2xl cards, pill tabs).
+import { usePreview, PreviewButton } from "@/lib/preview-context";
 import { useEffect, useRef, useState } from "react";
 import { Trash2, Save, Sparkles, Plus, Check, X, BarChart3, Pencil, Upload } from "lucide-react";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell } from "recharts";
@@ -765,16 +766,19 @@ function ProjectRow({
 
   return (
     <li className="rounded-xl bg-card border border-border p-3">
-      <button onClick={() => setOpen((v) => !v)} className="w-full text-left">
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-sm font-semibold">{project.title}</p>
-          <span className={"shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase " + badge.cls}>{badge.label}</span>
-        </div>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          {project.school_classes?.name}{project.school_staff?.full_name ? " - " + project.school_staff.full_name : ""}
-          {project.requires_hos === false && <span className="ml-2 text-[10px] uppercase text-muted-foreground">· Final di Principal</span>}
-        </p>
-      </button>
+      <div className="flex items-start justify-between gap-2">
+        <button onClick={() => setOpen((v) => !v)} className="flex-1 min-w-0 text-left">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-semibold">{project.title}</p>
+            <span className={"shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase " + badge.cls}>{badge.label}</span>
+          </div>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {project.school_classes?.name}{project.school_staff?.full_name ? " - " + project.school_staff.full_name : ""}
+            {project.requires_hos === false && <span className="ml-2 text-[10px] uppercase text-muted-foreground">· Final di Principal</span>}
+          </p>
+        </button>
+        <PreviewButton title={project.title} body={<ProjectLetterPreview project={project} pw={pw} badge={badge} />} />
+      </div>
       {open && (
         <div className="mt-3 pt-3 border-t border-border space-y-3">
           {project.description && <p className="text-sm whitespace-pre-wrap">{project.description}</p>}
@@ -813,6 +817,38 @@ function ProjectRow({
         </div>
       )}
     </li>
+  );
+}
+
+/** Self-contained preview body for Official Letter — fetches its own
+ * review history so it's correct whenever opened in the Preview panel. */
+function ProjectLetterPreview({ project, pw, badge }: { project: Row; pw: string; badge: { label: string; cls: string } }) {
+  const history = useAsync(() => listProjectReviews({ data: { password: pw, projectId: project.id } }), [pw, project.id]);
+  const reviews: Row[] = history.data && history.data.ok ? history.data.reviews : [];
+  return (
+    <div className="space-y-4">
+      <div>
+        <span className={"rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase " + badge.cls}>{badge.label}</span>
+        <p className="text-xs text-muted-foreground mt-1.5">
+          {project.school_classes?.name}{project.school_staff?.full_name ? " - " + project.school_staff.full_name : ""}
+        </p>
+        {project.description && <p className="text-sm mt-2 whitespace-pre-wrap">{project.description}</p>}
+      </div>
+      {project.last_review_notes && (
+        <p className="text-xs rounded-lg bg-secondary/50 p-2"><span className="text-muted-foreground">Catatan terakhir: </span>{project.last_review_notes}</p>
+      )}
+      <div>
+        <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Riwayat Revisi & Review</p>
+        <ul className="space-y-1.5">
+          {reviews.map((r) => (
+            <li key={r.id} className="text-xs rounded-lg bg-secondary/40 p-2">
+              {new Date(r.reviewed_at).toLocaleDateString()} - {r.reviewer_role} - {r.decision}{r.notes ? ": " + r.notes : ""}
+            </li>
+          ))}
+          {reviews.length === 0 && <Hint>Belum ada riwayat review.</Hint>}
+        </ul>
+      </div>
+    </div>
   );
 }
 
@@ -1386,23 +1422,26 @@ function AgendaRow({ agenda, pw, role, staffName, staffList, open, onToggle, onR
 
   return (
     <li className="rounded-xl bg-card border border-border p-3">
-      <button onClick={onToggle} className="w-full text-left">
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-sm font-semibold">{agenda.title}</p>
-          <span className={"shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase " + badge.cls}>{badge.label}</span>
-        </div>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          {agenda.scope_level === "school" ? "Whole School" : agenda.scope_level === "division" ? "Whole Division" : classNames || "Class"}
-          {" · "}{agenda.theme ? agenda.theme + " · " : ""}
-          {agenda.start_date ? new Date(agenda.start_date).toLocaleDateString() : ""}{agenda.end_date ? " – " + new Date(agenda.end_date).toLocaleDateString() : ""}
-          {agenda.execution_status === "closed" ? " · Closed" : agenda.execution_status === "in_progress" ? " · In Progress" : ""}
-        </p>
-        {picList.length > 0 && (
-          <p className="text-[11px] text-muted-foreground mt-1">
-            PIC: {picList.map((p) => p.is_external ? p.external_name : p.school_staff?.full_name).join(", ")}
+      <div className="flex items-start justify-between gap-2">
+        <button onClick={onToggle} className="flex-1 min-w-0 text-left">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-semibold">{agenda.title}</p>
+            <span className={"shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase " + badge.cls}>{badge.label}</span>
+          </div>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {agenda.scope_level === "school" ? "Whole School" : agenda.scope_level === "division" ? "Whole Division" : classNames || "Class"}
+            {" · "}{agenda.theme ? agenda.theme + " · " : ""}
+            {agenda.start_date ? new Date(agenda.start_date).toLocaleDateString() : ""}{agenda.end_date ? " – " + new Date(agenda.end_date).toLocaleDateString() : ""}
+            {agenda.execution_status === "closed" ? " · Closed" : agenda.execution_status === "in_progress" ? " · In Progress" : ""}
           </p>
-        )}
-      </button>
+          {picList.length > 0 && (
+            <p className="text-[11px] text-muted-foreground mt-1">
+              PIC: {picList.map((p) => p.is_external ? p.external_name : p.school_staff?.full_name).join(", ")}
+            </p>
+          )}
+        </button>
+        <PreviewButton title={agenda.title} body={<AgendaTimelinePreview agenda={agenda} pw={pw} badge={badge} classNames={classNames} picList={picList} />} />
+      </div>
       {open && (
         <div className="mt-3 pt-3 border-t border-border space-y-3">
           {agenda.purpose && <p className="text-sm"><span className="text-muted-foreground">Purpose: </span>{agenda.purpose}</p>}
@@ -1514,8 +1553,51 @@ function AgendaRow({ agenda, pw, role, staffName, staffList, open, onToggle, onR
   );
 }
 
+/** Self-contained preview body for the Agenda — fetches its own timeline so
+ * it renders correctly whenever it's opened in the Preview panel. */
+function AgendaTimelinePreview({ agenda, pw, badge, classNames, picList }: { agenda: Row; pw: string; badge: { label: string; cls: string }; classNames: string; picList: Row[] }) {
+  const timelineRes = useAsync(() => listAgendaTimeline({ data: { password: pw, agendaId: agenda.id } }), [pw, agenda.id]);
+  const timeline: Row[] = timelineRes.data && timelineRes.data.ok ? timelineRes.data.entries : [];
+  return (
+    <div className="space-y-4">
+      <div>
+        <span className={"rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase " + badge.cls}>{badge.label}</span>
+        <p className="text-xs text-muted-foreground mt-1.5">
+          {agenda.scope_level === "school" ? "Whole School" : agenda.scope_level === "division" ? "Whole Division" : classNames || "Class"}
+          {" · "}{agenda.theme ? agenda.theme + " · " : ""}
+          {agenda.start_date ? new Date(agenda.start_date).toLocaleDateString() : ""}{agenda.end_date ? " – " + new Date(agenda.end_date).toLocaleDateString() : ""}
+        </p>
+        {agenda.purpose && <p className="text-sm mt-2"><span className="text-muted-foreground">Purpose: </span>{agenda.purpose}</p>}
+      </div>
+      {picList.length > 0 && (
+        <div>
+          <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold mb-1">PIC</p>
+          <p className="text-sm">{picList.map((p) => p.is_external ? p.external_name + " (external)" : p.school_staff?.full_name).join(", ")}</p>
+        </div>
+      )}
+      {agenda.final_report && (
+        <div className="rounded-lg bg-emerald-500/10 p-2">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold mb-1">Final Report</p>
+          <p className="text-sm">{agenda.final_report}</p>
+        </div>
+      )}
+      <div>
+        <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Timeline</p>
+        <ul className="space-y-1.5">
+          {timeline.map((t) => (
+            <li key={t.id} className={"text-xs rounded-lg p-2 " + (t.entry_type === "system" ? "bg-secondary/40 text-muted-foreground italic" : "bg-secondary/60")}>
+              <span className="font-semibold not-italic">{t.author_name}</span>{t.author_role ? " (" + t.author_role + ")" : ""}: {t.body}
+              <span className="block text-[10px] opacity-60 mt-0.5">{new Date(t.created_at).toLocaleString()}</span>
+            </li>
+          ))}
+          {timeline.length === 0 && <Hint>No timeline entries yet.</Hint>}
+        </ul>
+      </div>
+    </div>
+  );
+}
 
-/* ───────────── 8. Staff Messaging (HoS<->Principal, Principal<->Teacher) ───────────── */
+
 export function StaffMessagePanel({ pw, staffId }: { pw: string; staffId: string }) {
   const [otherId, setOtherId] = useState("");
   const [body, setBody] = useState("");
@@ -1739,15 +1821,18 @@ function CaseRow({ kase, access, role, staffId, staffName, open, onToggle, onCha
 
   return (
     <li className="rounded-xl bg-card border border-border p-3">
-      <button onClick={onToggle} className="w-full text-left">
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-sm font-semibold">{kase.title}</p>
-          <span className={"shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase " + badge.cls}>{badge.label}</span>
-        </div>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          {kase.school_students?.full_name ?? kase.school_classes?.name ?? ""}
-        </p>
-      </button>
+      <div className="flex items-start justify-between gap-2">
+        <button onClick={onToggle} className="flex-1 min-w-0 text-left">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-semibold">{kase.title}</p>
+            <span className={"shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase " + badge.cls}>{badge.label}</span>
+          </div>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {kase.school_students?.full_name ?? kase.school_classes?.name ?? ""}
+          </p>
+        </button>
+        {!access.code && <PreviewButton title={kase.title} body={<CaseTimelinePreview kase={kase} access={access} badge={badge} />} />}
+      </div>
       {open && (
         <div className="mt-3 pt-3 border-t border-border space-y-3">
           {kase.description && <p className="text-sm whitespace-pre-wrap">{kase.description}</p>}
@@ -1811,6 +1896,33 @@ function CaseRow({ kase, access, role, staffId, staffName, open, onToggle, onCha
         </div>
       )}
     </li>
+  );
+}
+
+/** Self-contained preview body for a Report/Case — fetches its own timeline. */
+function CaseTimelinePreview({ kase, access, badge }: { kase: Row; access: Access; badge: { label: string; cls: string } }) {
+  const timelineRes = useAsync(() => listCaseTimeline({ data: { password: access.pw!, caseId: kase.id } }), [access.pw, kase.id]);
+  const timeline: Row[] = timelineRes.data && timelineRes.data.ok ? timelineRes.data.entries : [];
+  return (
+    <div className="space-y-4">
+      <div>
+        <span className={"rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase " + badge.cls}>{badge.label}</span>
+        <p className="text-xs text-muted-foreground mt-1.5">{kase.school_students?.full_name ?? kase.school_classes?.name ?? ""}</p>
+        {kase.description && <p className="text-sm mt-2 whitespace-pre-wrap">{kase.description}</p>}
+      </div>
+      <div>
+        <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Timeline</p>
+        <ul className="space-y-1.5">
+          {timeline.map((t) => (
+            <li key={t.id} className={"text-xs rounded-lg p-2 " + (t.entry_type === "system" ? "bg-secondary/40 text-muted-foreground italic" : "bg-secondary/60")}>
+              <span className="font-semibold not-italic">{t.author_name}</span>{t.author_role ? " (" + t.author_role + ")" : ""}: {t.body}
+              <span className="block text-[10px] opacity-60 mt-0.5">{new Date(t.created_at).toLocaleString()}</span>
+            </li>
+          ))}
+          {timeline.length === 0 && <Hint>Belum ada riwayat.</Hint>}
+        </ul>
+      </div>
+    </div>
   );
 }
 
