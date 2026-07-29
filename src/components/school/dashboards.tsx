@@ -1,6 +1,8 @@
 // Role-specific School dashboards. Each one is rendered by its own route
 // under /school/* — see src/routes/school.*.tsx.
-import { useState } from "react";
+import { useState, useEffect } from "react";
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Row = Record<string, any>;
 import {
   GraduationCap, Users, Baby, BookOpen, MessageSquare, Megaphone, Bell, Save, Trash2, LogOut, Shield,
 } from "lucide-react";
@@ -19,6 +21,10 @@ import {
   getStudentForCode, listActivitiesForCode, listAnnouncementsForCode, type SchoolRole,
 } from "@/lib/school.functions";
 import { schoolLogout, type SchoolSession } from "@/lib/school-store";
+import {
+  checkMyProfileStatus, getMyStaffProfile, saveMyStaffProfile,
+  checkMyStudentProfileStatus, getMyStudentProfile, saveMyStudentProfile,
+} from "@/lib/school-profile.functions";
 
 const ACADEMIC_TABS = [
   { id: "calendar", label: "Calendar" }, { id: "timetable", label: "Timetable" },
@@ -53,7 +59,152 @@ export function StaffHeader({ session }: { session: SchoolSession }) {
 }
 
 
-/** Read-only academic viewer shared by HoS / Admin HoS / Principal — except
+/** Blocks access to the dashboard until the staff member's own Profile is
+ * complete — exempt only for the HoS account with user_id "Noble888". */
+export function StaffProfileGate({ session, children }: { session: SchoolSession; children: React.ReactNode }) {
+  const pw = getStoredPassword();
+  const [reload, setReload] = useState(0);
+  const status = useAsync(() => checkMyProfileStatus({ data: { password: pw, staffId: session.id } }), [pw, session.id, reload]);
+  if (!status.data) return null;
+  if (!status.data.ok) return <p className="text-sm text-destructive">{status.data.error}</p>;
+  if (status.data.exempt || status.data.isComplete) return <>{children}</>;
+  return <StaffProfileForm pw={pw} staffId={session.id} onSaved={() => setReload((x) => x + 1)} />;
+}
+
+/** Same, but for Parent — completing their Student's profile (not their own). */
+export function ParentProfileGate({ code, children }: { code: string; children: React.ReactNode }) {
+  const [reload, setReload] = useState(0);
+  const status = useAsync(() => checkMyStudentProfileStatus({ data: { code } }), [code, reload]);
+  if (!status.data) return null;
+  if (!status.data.ok) return <p className="text-sm text-destructive">{status.data.error}</p>;
+  if (status.data.isComplete) return <>{children}</>;
+  return <StudentProfileForm code={code} onSaved={() => setReload((x) => x + 1)} />;
+}
+
+const GENDERS = ["Laki-laki", "Perempuan"];
+const RELIGIONS = ["Islam", "Kristen Protestan", "Katolik", "Hindu", "Buddha", "Konghucu", "Lainnya"];
+
+function ProfileFields({ f, set }: { f: Row; set: (patch: Row) => void }) {
+  return (
+    <div className="grid gap-2">
+      <input value={f.fullName ?? ""} onChange={(e) => set({ fullName: e.target.value })} placeholder="Nama lengkap *" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm" />
+      <input value={f.nickname ?? ""} onChange={(e) => set({ nickname: e.target.value })} placeholder="Nama panggilan" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm" />
+      <select value={f.gender ?? ""} onChange={(e) => set({ gender: e.target.value })} className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm">
+        <option value="">Jenis kelamin</option>
+        {GENDERS.map((g) => <option key={g} value={g}>{g}</option>)}
+      </select>
+      <div className="grid grid-cols-2 gap-2">
+        <input value={f.birthplace ?? ""} onChange={(e) => set({ birthplace: e.target.value })} placeholder="Tempat lahir" className="rounded-lg bg-background border border-border px-3 py-2 text-sm" />
+        <input type="date" value={f.birthDate ?? ""} onChange={(e) => set({ birthDate: e.target.value })} className="rounded-lg bg-background border border-border px-3 py-2 text-sm" />
+      </div>
+      <textarea value={f.homeAddress ?? ""} onChange={(e) => set({ homeAddress: e.target.value })} rows={2} placeholder="Alamat tinggal" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm" />
+      <textarea value={f.idCardAddress ?? ""} onChange={(e) => set({ idCardAddress: e.target.value })} rows={2} placeholder="Alamat sesuai KTP" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm" />
+      <div className="grid grid-cols-2 gap-2">
+        <input value={f.whatsapp ?? ""} onChange={(e) => set({ whatsapp: e.target.value })} placeholder="Nomor WhatsApp" className="rounded-lg bg-background border border-border px-3 py-2 text-sm" />
+        <select value={f.religion ?? ""} onChange={(e) => set({ religion: e.target.value })} className="rounded-lg bg-background border border-border px-3 py-2 text-sm">
+          <option value="">Agama</option>
+          {RELIGIONS.map((r) => <option key={r} value={r}>{r}</option>)}
+        </select>
+      </div>
+      <input value={f.allergies ?? ""} onChange={(e) => set({ allergies: e.target.value })} placeholder="Alergi (kalau ada)" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm" />
+      <textarea value={f.healthNotes ?? ""} onChange={(e) => set({ healthNotes: e.target.value })} rows={2} placeholder="Catatan kesehatan lainnya (kalau ada)" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm" />
+      <div>
+        <label className="text-xs text-muted-foreground block mb-1">Foto Profile</label>
+        <input type="file" accept="image/*" onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = () => set({ photoUrl: String(reader.result) });
+          reader.readAsDataURL(file);
+        }} className="text-xs" />
+        {f.photoUrl && <img src={f.photoUrl} alt="preview" className="mt-2 w-20 h-20 rounded-full object-cover border border-border" />}
+      </div>
+    </div>
+  );
+}
+
+function StaffProfileForm({ pw, staffId, onSaved }: { pw: string; staffId: string; onSaved: () => void }) {
+  const [f, setF] = useState<Row>({});
+  const [loaded, setLoaded] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    getMyStaffProfile({ data: { password: pw, staffId } }).then((r) => {
+      if (r.ok) {
+        const p = r.profile;
+        setF({
+          fullName: p.full_name ?? "", nickname: p.nickname ?? "", gender: p.gender ?? "",
+          homeAddress: p.home_address ?? "", idCardAddress: p.id_card_address ?? "",
+          birthplace: p.birthplace ?? "", birthDate: p.birth_date ?? "", whatsapp: p.whatsapp ?? "",
+          email: p.email ?? "", religion: p.religion ?? "", allergies: p.allergies ?? "",
+          healthNotes: p.health_notes ?? "", photoUrl: p.photo_url ?? "",
+        });
+      }
+      setLoaded(true);
+    });
+  }, [pw, staffId]);
+  async function save() {
+    if (!f.fullName?.trim()) { setErr("Nama lengkap wajib diisi."); return; }
+    setBusy(true); setErr(null);
+    const r = await saveMyStaffProfile({ data: { password: pw, staffId, ...f } });
+    setBusy(false);
+    if (!r.ok) { setErr(r.error); return; }
+    onSaved();
+  }
+  if (!loaded) return null;
+  return (
+    <div className="max-w-lg mx-auto">
+      <h2 className="text-lg font-semibold mb-1">Lengkapi Profile Anda</h2>
+      <p className="text-sm text-muted-foreground mb-4">Wajib diisi sebelum bisa mengakses dashboard.</p>
+      <ProfileFields f={f} set={(patch) => setF((x) => ({ ...x, ...patch }))} />
+      <input value={f.email ?? ""} onChange={(e) => setF((x) => ({ ...x, email: e.target.value }))} placeholder="Email" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm mt-2" />
+      {err && <p className="text-xs text-destructive mt-2">{err}</p>}
+      <button onClick={save} disabled={busy} className="mt-3 rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold disabled:opacity-50">Simpan & Lanjutkan</button>
+    </div>
+  );
+}
+
+function StudentProfileForm({ code, onSaved }: { code: string; onSaved: () => void }) {
+  const [f, setF] = useState<Row>({});
+  const [loaded, setLoaded] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    getMyStudentProfile({ data: { code } }).then((r) => {
+      if (r.ok) {
+        const p = r.profile;
+        setF({
+          fullName: p.full_name ?? "", nickname: p.nickname ?? "", gender: p.gender ?? "",
+          homeAddress: p.address ?? "", idCardAddress: p.id_card_address ?? "",
+          birthplace: p.pob ?? "", birthDate: p.dob ?? "", whatsapp: p.whatsapp ?? "",
+          religion: p.religion ?? "", allergies: p.allergies ?? "", healthNotes: p.notes ?? "",
+          photoUrl: p.photo_url ?? "",
+        });
+      }
+      setLoaded(true);
+    });
+  }, [code]);
+  async function save() {
+    if (!f.fullName?.trim()) { setErr("Nama lengkap wajib diisi."); return; }
+    setBusy(true); setErr(null);
+    const r = await saveMyStudentProfile({ data: { code, ...f } });
+    setBusy(false);
+    if (!r.ok) { setErr(r.error); return; }
+    onSaved();
+  }
+  if (!loaded) return null;
+  return (
+    <div className="max-w-lg mx-auto">
+      <h2 className="text-lg font-semibold mb-1">Lengkapi Profile Anak Anda</h2>
+      <p className="text-sm text-muted-foreground mb-4">Wajib diisi sebelum bisa mengakses dashboard Parent.</p>
+      <ProfileFields f={f} set={(patch) => setF((x) => ({ ...x, ...patch }))} />
+      {err && <p className="text-xs text-destructive mt-2">{err}</p>}
+      <button onClick={save} disabled={busy} className="mt-3 rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold disabled:opacity-50">Simpan & Lanjutkan</button>
+    </div>
+  );
+}
+
+
  * Calendar, which HoS and Principal can edit for their OWN agenda entries
  * (everyone still sees everyone else's, per the "stay in sync" rule). */
 function AcademicReadOnly({ tab, classes, reviewerRole, reviewerName, calendarStaffId, timetableStaffId, staffId }: {

@@ -2,7 +2,7 @@
 // Pure presentation + calls into src/lib/school-academic.functions.ts.
 // Style matches the existing /school tabs (rounded-2xl cards, pill tabs).
 import { useEffect, useRef, useState } from "react";
-import { Trash2, Save, Sparkles, Plus, Check, X, BarChart3, Pencil } from "lucide-react";
+import { Trash2, Save, Sparkles, Plus, Check, X, BarChart3, Pencil, Upload } from "lucide-react";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell } from "recharts";
 import {
   listCalendarEvents, saveCalendarEvent, deleteCalendarEvent, bulkImportCalendarEvents,
@@ -78,6 +78,7 @@ const EVENT_TYPES = [
 export function CalendarPanel({ access, classes, canEdit, compact }: { access: Access; classes: ClassOpt[]; canEdit: boolean; compact?: boolean }) {
   const [classId, setClassId] = useState("");
   const [reload, setReload] = useState(0);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [desc, setDesc] = useState("");
   const [date, setDate] = useState(today());
@@ -94,31 +95,68 @@ export function CalendarPanel({ access, classes, canEdit, compact }: { access: A
   );
   const events: Row[] = res.data && res.data.ok ? res.data.events : [];
 
+  function startEdit(e: Row) {
+    setEditingId(e.id);
+    setTitle(e.title);
+    setDesc(e.description ?? "");
+    setDate(String(e.event_date).slice(0, 10));
+    setType(e.event_type);
+  }
+  function resetForm() {
+    setEditingId(null); setTitle(""); setDesc(""); setDate(today()); setType("acara");
+  }
+
   async function add() {
     if (!title.trim() || !access.pw) return;
     setBusy(true); setErr(null);
-    const r = await saveCalendarEvent({ data: { password: access.pw, classId: classId || undefined, title, description: desc, eventDate: date, eventType: type, staffId: staffId ?? "" } });
+    const r = await saveCalendarEvent({ data: { password: access.pw, id: editingId || undefined, classId: classId || undefined, title, description: desc, eventDate: date, eventType: type, staffId: staffId ?? "" } });
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
-    setTitle(""); setDesc(""); setReload((x) => x + 1);
+    resetForm(); setReload((x) => x + 1);
   }
   async function remove(id: string) {
     if (!access.pw) return;
     const r = await deleteCalendarEvent({ data: { password: access.pw, id, staffId: staffId ?? "" } });
     if (!r.ok) { setErr(r.error); return; }
+    if (editingId === id) resetForm();
     setReload((x) => x + 1);
+  }
+
+  // Accepts CSV with either plain or quoted fields (handles commas inside
+  // quotes) so exports from Excel/Sheets that quote text fields still parse.
+  function parseCsvLine(line: string): string[] {
+    const out: string[] = [];
+    let cur = ""; let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQuotes && line[i + 1] === '"') { cur += '"'; i++; } else { inQuotes = !inQuotes; }
+      } else if (ch === "," && !inQuotes) {
+        out.push(cur.trim()); cur = "";
+      } else {
+        cur += ch;
+      }
+    }
+    out.push(cur.trim());
+    return out;
   }
 
   async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file || !access.pw) return;
     setImportMsg(null);
+    const name = file.name.toLowerCase();
+    if (name.endsWith(".xlsx") || name.endsWith(".xls")) {
+      setImportMsg("File Excel (.xlsx/.xls) belum didukung langsung — silakan export/simpan sebagai CSV dulu dari Excel/Google Sheets, lalu upload file .csv itu.");
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
     const text = await file.text();
     const lines = text.split(/\r?\n/).filter((l) => l.trim());
-    const headers = (lines[0] ?? "").split(",").map((h) => h.trim().toLowerCase());
+    const headers = parseCsvLine(lines[0] ?? "").map((h) => h.trim().toLowerCase());
     const idx = (key: string) => headers.indexOf(key);
     const rows = lines.slice(1).map((line) => {
-      const cols = line.split(",").map((c) => c.trim());
+      const cols = parseCsvLine(line);
       const className = idx("classname") >= 0 ? cols[idx("classname")] : "";
       const matchedClass = classes.find((c) => c.name.toLowerCase() === (className ?? "").toLowerCase());
       return {
@@ -137,37 +175,104 @@ export function CalendarPanel({ access, classes, canEdit, compact }: { access: A
 
   return (
     <div>
-      {!access.code && <ClassPicker value={classId} onChange={setClassId} classes={classes} />}
-      {canEdit && (
-        <div className={card + " mb-3 grid gap-2"}>
-          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Judul event" className={field} />
-          <textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={2} placeholder="Deskripsi (opsional)" className={field} />
-          <div className="flex gap-2 flex-wrap">
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm" />
-            <select value={type} onChange={(e) => setType(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm">
-              {EVENT_TYPES.map((t) => <option key={t.v} value={t.v}>{t.label}</option>)}
-            </select>
-            <button onClick={add} disabled={busy} className={btn}><Plus size={13} /> Tambah Event</button>
-          </div>
-          <p className="text-[11px] text-muted-foreground">Anda hanya bisa mengubah/menghapus agenda yang Anda buat sendiri — agenda milik orang lain tetap bisa dilihat. Atau langsung klik tanggal di kalender di bawah untuk isi cepat.</p>
-          <div className="flex items-center gap-2 pt-1 border-t border-border mt-1">
-            <button onClick={() => fileRef.current?.click()} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold">Import Agenda Tahunan (CSV)</button>
-            <input ref={fileRef} type="file" accept=".csv,text/csv,text/plain,application/vnd.ms-excel,text/comma-separated-values" onChange={handleImportFile} className="hidden" />
-            <span className="text-[10px] text-muted-foreground">Kolom: title, eventDate (YYYY-MM-DD), eventType, description, className (opsional)</span>
-          </div>
-          {importMsg && <p className="text-xs">{importMsg}</p>}
-          <Err msg={err} />
+      <div className="flex items-center justify-between gap-2 mb-2">
+        {!access.code ? <ClassPicker value={classId} onChange={setClassId} classes={classes} /> : <span />}
+        {canEdit && (
+          <>
+            <button onClick={() => fileRef.current?.click()} title="Import Agenda Tahunan (CSV)" aria-label="Import Agenda Tahunan" className="shrink-0 rounded-lg border border-border p-2">
+              <Upload size={15} />
+            </button>
+            <input ref={fileRef} type="file" accept=".csv,text/csv,text/plain,application/vnd.ms-excel,text/comma-separated-values,.xlsx,.xls" onChange={handleImportFile} className="hidden" />
+          </>
+        )}
+      </div>
+      {importMsg && <p className="text-xs mb-2">{importMsg}</p>}
+
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 items-start">
+        <div>
+          <CalendarGrid
+            events={events} canEdit={canEdit} staffId={staffId} onRemove={remove} onEditRow={startEdit} compact={compact}
+            onQuickAdd={async (evtDate, evtTitle, evtDesc, evtType) => {
+              if (!access.pw) return { ok: false, error: "Tidak bisa menambah dari sini." };
+              const r = await saveCalendarEvent({ data: { password: access.pw, classId: classId || undefined, title: evtTitle, description: evtDesc, eventDate: evtDate, eventType: evtType, staffId: staffId ?? "" } });
+              if (r.ok) setReload((x) => x + 1);
+              return r.ok ? { ok: true } : { ok: false, error: r.error };
+            }}
+          />
+          {canEdit && (
+            <div className={card + " mt-3 grid gap-2"}>
+              {editingId && <p className="text-xs text-primary font-semibold">Mengedit event — Simpan untuk update, atau Batal.</p>}
+              <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Judul event" className={field} />
+              <textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={2} placeholder="Deskripsi (opsional)" className={field} />
+              <div className="flex gap-2 flex-wrap">
+                <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm" />
+                <select value={type} onChange={(e) => setType(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm">
+                  {EVENT_TYPES.map((t) => <option key={t.v} value={t.v}>{t.label}</option>)}
+                </select>
+                <button onClick={add} disabled={busy} className={btn}><Plus size={13} /> {editingId ? "Simpan" : "Tambah Event"}</button>
+                {editingId && <button onClick={resetForm} className="rounded-lg border border-border px-3 py-1.5 text-sm">Batal</button>}
+              </div>
+              <p className="text-[11px] text-muted-foreground">Anda hanya bisa mengubah/menghapus agenda yang Anda buat sendiri.</p>
+              <Err msg={err} />
+            </div>
+          )}
         </div>
-      )}
-      <CalendarGrid
-        events={events} canEdit={canEdit} staffId={staffId} onRemove={remove} compact={compact}
-        onQuickAdd={async (evtDate, evtTitle, evtDesc, evtType) => {
-          if (!access.pw) return { ok: false, error: "Tidak bisa menambah dari sini." };
-          const r = await saveCalendarEvent({ data: { password: access.pw, classId: classId || undefined, title: evtTitle, description: evtDesc, eventDate: evtDate, eventType: evtType, staffId: staffId ?? "" } });
-          if (r.ok) setReload((x) => x + 1);
-          return r.ok ? { ok: true } : { ok: false, error: r.error };
-        }}
-      />
+
+        <UpcomingAgenda events={events} canEdit={canEdit} staffId={staffId} onEdit={startEdit} onRemove={remove} />
+      </div>
+    </div>
+  );
+}
+
+/** Today / H+1 / H+2 / H+3 agenda list — click an item to edit, or delete directly. */
+function UpcomingAgenda({ events, canEdit, staffId, onEdit, onRemove }: {
+  events: Row[]; canEdit: boolean; staffId?: string; onEdit: (e: Row) => void; onRemove: (id: string) => void;
+}) {
+  const days = Array.from({ length: 4 }, (_, i) => {
+    const d = new Date(); d.setDate(d.getDate() + i);
+    return d;
+  });
+  const key = (d: Date) => d.toISOString().slice(0, 10);
+  const LABELS = ["Hari Ini", "H+1", "H+2", "H+3"];
+  const byDate = new Map<string, Row[]>();
+  for (const e of events) {
+    const k = String(e.event_date).slice(0, 10);
+    byDate.set(k, [...(byDate.get(k) ?? []), e]);
+  }
+  return (
+    <div className="rounded-2xl bg-card border border-border p-3 space-y-3">
+      {days.map((d, i) => {
+        const k = key(d);
+        const dayEvents = byDate.get(k) ?? [];
+        return (
+          <div key={k}>
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold mb-1">
+              {LABELS[i]} · {d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}
+            </p>
+            {dayEvents.length === 0 ? (
+              <p className="text-xs text-muted-foreground">-</p>
+            ) : (
+              <ul className="space-y-1">
+                {dayEvents.map((e) => {
+                  const t = EVENT_TYPES.find((x) => x.v === e.event_type) ?? EVENT_TYPES[2];
+                  const isOwn = !!staffId && e.created_by === staffId;
+                  return (
+                    <li key={e.id} className="rounded-lg bg-secondary/40 px-2 py-1.5 flex items-center justify-between gap-1.5">
+                      <button onClick={() => canEdit && isOwn && onEdit(e)} className={"text-left text-xs flex-1 min-w-0 " + (canEdit && isOwn ? "" : "cursor-default")}>
+                        <span className={"inline-block w-1.5 h-1.5 rounded-full mr-1.5 align-middle " + t.cls.split(" ")[0]} />
+                        <span className="truncate align-middle">{e.title}</span>
+                      </button>
+                      {canEdit && isOwn && (
+                        <button onClick={() => onRemove(e.id)} className="text-destructive shrink-0"><Trash2 size={12} /></button>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -176,8 +281,8 @@ const MONTHS = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", 
 const WEEKDAYS = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
 
 /** Visual month grid with the day cells highlighted when they carry events. */
-function CalendarGrid({ events, canEdit, staffId, onRemove, compact, onQuickAdd }: {
-  events: Row[]; canEdit: boolean; staffId?: string; onRemove: (id: string) => void; compact?: boolean;
+function CalendarGrid({ events, canEdit, staffId, onRemove, onEditRow, compact, onQuickAdd }: {
+  events: Row[]; canEdit: boolean; staffId?: string; onRemove: (id: string) => void; onEditRow?: (e: Row) => void; compact?: boolean;
   onQuickAdd?: (eventDate: string, title: string, description: string, eventType: string) => Promise<{ ok: boolean; error?: string }>;
 }) {
   const now = new Date();
@@ -277,7 +382,12 @@ function CalendarGrid({ events, canEdit, staffId, onRemove, compact, onQuickAdd 
                           {e.school_staff?.full_name ? "oleh " + e.school_staff.full_name : ""}
                         </p>
                         {e.description && <p className="text-xs mt-1 whitespace-pre-wrap">{e.description}</p>}
-                        {canEdit && isOwn && <button onClick={() => onRemove(e.id)} className="mt-1.5 text-[10px] text-destructive flex items-center gap-1"><Trash2 size={11} /> Hapus</button>}
+                        {canEdit && isOwn && (
+                          <div className="flex gap-2 mt-1.5">
+                            {onEditRow && <button onClick={() => onEditRow(e)} className="text-[10px] text-primary flex items-center gap-1"><Pencil size={11} /> Edit</button>}
+                            <button onClick={() => onRemove(e.id)} className="text-[10px] text-destructive flex items-center gap-1"><Trash2 size={11} /> Hapus</button>
+                          </div>
+                        )}
                       </li>
                     );
                   })}
