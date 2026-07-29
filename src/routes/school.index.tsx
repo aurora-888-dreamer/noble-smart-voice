@@ -1,6 +1,6 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Lock, KeyRound, ArrowLeft } from "lucide-react";
+import { Lock, KeyRound, ArrowLeft, LogOut } from "lucide-react";
 import { schoolLogin, forgotSchoolPin, useSchoolSession, routeForRole } from "@/lib/school-store";
 
 export const Route = createFileRoute("/school/")({
@@ -79,6 +79,9 @@ function LoginForm({ onForgot }: { onForgot: () => void }) {
         </button>
         <button type="button" onClick={onForgot} className="w-full text-center text-xs text-primary underline">Lupa PIN?</button>
       </form>
+      <Link to="/" className="mt-4 w-full flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+        <LogOut size={12} /> Kembali ke Homepage NSV
+      </Link>
       <p className="text-[11px] text-muted-foreground text-center mt-4">
         UserID staff dibuat oleh Head of School. UserID orangtua dikirim oleh Guru kelas.
       </p>
