@@ -8,8 +8,9 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
-  CalendarPanel, TimetablePanel, LessonPlanPanel, ProjectPanel, AssessmentPanel, AttendancePanel, AgendaPanel, StaffMessagePanel, CasePanel, CompetencyManager,
+  CalendarPanel, CalendarWorkspace, type CalendarScope, TimetablePanel, LessonPlanPanel, ProjectPanel, AssessmentPanel, AttendancePanel, AgendaPanel, StaffMessagePanel, CasePanel, CompetencyManager,
 } from "./SchoolAcademic";
+
 import {
   DIVISIONS, ROLE_LABEL, Hint, Section, StatCard, Tabs, ReadOnlyNote, useAsync, useClasses,
   getStoredPassword, getSchoolIdSync, StaffRoster, StudentRoster, GuardianEditor, CsvImportPanel,
@@ -18,8 +19,10 @@ import {
 } from "./shared";
 import {
   listSchoolStaff, listSchoolStudents, postSchoolActivity, deleteSchoolActivity, listActivitiesForClass,
-  getStudentForCode, listActivitiesForCode, listAnnouncementsForCode, type SchoolRole,
+  getStudentForCode, listActivitiesForCode, listAnnouncementsForCode,
+  broadcastMessageToClassParents, postMessageAsTeacher, type SchoolRole,
 } from "@/lib/school.functions";
+
 import { schoolLogout, type SchoolSession } from "@/lib/school-store";
 import {
   checkMyProfileStatus, getMyStaffProfile, saveMyStaffProfile,
@@ -32,7 +35,7 @@ const ACADEMIC_TABS = [
   { id: "assessment", label: "Assessment" }, { id: "attendance", label: "Attendance" },
 ];
 
-const PIN_TAB = { id: "pin", label: "Change PIN" };
+const SETTINGS_TAB = { id: "settings", label: "Setting" };
 
 export function StaffHeader({ session }: { session: SchoolSession }) {
   const navigate = useNavigate();
@@ -49,26 +52,49 @@ export function StaffHeader({ session }: { session: SchoolSession }) {
         </div>
         <button onClick={() => { schoolLogout(); navigate({ to: "/" }); }} className="text-xs rounded-full border border-border px-3 py-1.5 flex items-center gap-1"><LogOut size={12} /> Keluar</button>
       </div>
-      {session.pinIsDefault && (
-        <p className="mt-2 rounded-lg bg-destructive/10 text-destructive text-[11px] px-3 py-2">
-          PIN Anda masih default (123456). Segera ganti lewat tab “Ganti PIN”.
-        </p>
-      )}
     </div>
   );
 }
 
+/** Setting menu shared by every dashboard: Edit Profile + Ganti PIN. */
+export function SettingsPanel({ staffId }: { staffId?: string }) {
+  const pw = getStoredPassword();
+  return (
+    <div className="grid gap-4 lg:grid-cols-2 items-start">
+      {staffId && (
+        <Section title="Edit Profile" Icon={Users}>
+          <StaffProfileForm pw={pw} staffId={staffId} onSaved={() => {}} mode="settings" />
+        </Section>
+      )}
+      <Section title="Ganti PIN" Icon={Shield}><ChangePinPanel /></Section>
+    </div>
+  );
+}
 
-/** Blocks access to the dashboard until the staff member's own Profile is
- * complete — exempt only for the HoS account with user_id "Noble888". */
+/** First screen after login: complete the Profile AND set a real PIN, side by
+ *  side. Access to the dashboard opens once both are done. */
 export function StaffProfileGate({ session, children }: { session: SchoolSession; children: React.ReactNode }) {
   const pw = getStoredPassword();
   const [reload, setReload] = useState(0);
   const status = useAsync(() => checkMyProfileStatus({ data: { password: pw, staffId: session.id } }), [pw, session.id, reload]);
   if (!status.data) return null;
   if (!status.data.ok) return <p className="text-sm text-destructive">{status.data.error}</p>;
-  if (status.data.exempt || status.data.isComplete) return <>{children}</>;
-  return <StaffProfileForm pw={pw} staffId={session.id} onSaved={() => setReload((x) => x + 1)} />;
+  const profileDone = status.data.exempt || status.data.isComplete;
+  if (profileDone && !session.pinIsDefault) return <>{children}</>;
+  return (
+    <div className="grid gap-4 lg:grid-cols-2 items-start">
+      {!profileDone ? (
+        <StaffProfileForm pw={pw} staffId={session.id} onSaved={() => setReload((x) => x + 1)} />
+      ) : (
+        <div className="rounded-2xl border border-border p-4 text-sm text-muted-foreground">Profile Anda sudah lengkap.</div>
+      )}
+      <div>
+        <h2 className="text-lg font-semibold mb-1">Buat PIN Baru</h2>
+        <p className="text-sm text-muted-foreground mb-3">PIN awal masih default — ganti dulu sebelum masuk dashboard.</p>
+        <ChangePinPanel />
+      </div>
+    </div>
+  );
 }
 
 /** Same, but for Parent — completing their Student's profile (not their own). */
@@ -78,8 +104,18 @@ export function ParentProfileGate({ code, children }: { code: string; children: 
   if (!status.data) return null;
   if (!status.data.ok) return <p className="text-sm text-destructive">{status.data.error}</p>;
   if (status.data.isComplete) return <>{children}</>;
-  return <StudentProfileForm code={code} onSaved={() => setReload((x) => x + 1)} />;
+  return (
+    <div className="grid gap-4 lg:grid-cols-2 items-start">
+      <StudentProfileForm code={code} onSaved={() => setReload((x) => x + 1)} />
+      <div>
+        <h2 className="text-lg font-semibold mb-1">Buat PIN Baru</h2>
+        <p className="text-sm text-muted-foreground mb-3">Ganti PIN default Anda di sini.</p>
+        <ChangePinPanel />
+      </div>
+    </div>
+  );
 }
+
 
 const GENDERS = ["Laki-laki", "Perempuan"];
 const RELIGIONS = ["Islam", "Kristen Protestan", "Katolik", "Hindu", "Buddha", "Konghucu", "Lainnya"];
@@ -123,10 +159,11 @@ function ProfileFields({ f, set }: { f: Row; set: (patch: Row) => void }) {
   );
 }
 
-function StaffProfileForm({ pw, staffId, onSaved }: { pw: string; staffId: string; onSaved: () => void }) {
+function StaffProfileForm({ pw, staffId, onSaved, mode = "first" }: { pw: string; staffId: string; onSaved: () => void; mode?: "first" | "settings" }) {
   const [f, setF] = useState<Row>({});
   const [loaded, setLoaded] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     getMyStaffProfile({ data: { password: pw, staffId } }).then((r) => {
@@ -145,24 +182,33 @@ function StaffProfileForm({ pw, staffId, onSaved }: { pw: string; staffId: strin
   }, [pw, staffId]);
   async function save() {
     if (!f.fullName?.trim()) { setErr("Nama lengkap wajib diisi."); return; }
-    setBusy(true); setErr(null);
+    setBusy(true); setErr(null); setMsg(null);
     const r = await saveMyStaffProfile({ data: { password: pw, staffId, ...f, fullName: f.fullName.trim() } });
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
+    setMsg("Profile tersimpan.");
     onSaved();
   }
   if (!loaded) return null;
   return (
-    <div className="max-w-lg mx-auto">
-      <h2 className="text-lg font-semibold mb-1">Lengkapi Profile Anda</h2>
-      <p className="text-sm text-muted-foreground mb-4">Wajib diisi sebelum bisa mengakses dashboard.</p>
+    <div className={mode === "first" ? "max-w-lg" : ""}>
+      {mode === "first" && (
+        <>
+          <h2 className="text-lg font-semibold mb-1">Lengkapi Profile Anda</h2>
+          <p className="text-sm text-muted-foreground mb-4">Wajib diisi sebelum bisa mengakses dashboard.</p>
+        </>
+      )}
       <ProfileFields f={f} set={(patch) => setF((x) => ({ ...x, ...patch }))} />
       <input value={f.email ?? ""} onChange={(e) => setF((x) => ({ ...x, email: e.target.value }))} placeholder="Email" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm mt-2" />
       {err && <p className="text-xs text-destructive mt-2">{err}</p>}
-      <button onClick={save} disabled={busy} className="mt-3 rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold disabled:opacity-50">Simpan & Lanjutkan</button>
+      {msg && <p className="text-xs text-primary mt-2">{msg}</p>}
+      <button onClick={save} disabled={busy} className="mt-3 rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold disabled:opacity-50">
+        {mode === "first" ? "Simpan & Lanjutkan" : "Simpan Profile"}
+      </button>
     </div>
   );
 }
+
 
 function StudentProfileForm({ code, onSaved }: { code: string; onSaved: () => void }) {
   const [f, setF] = useState<Row>({});
@@ -208,7 +254,7 @@ function StudentProfileForm({ code, onSaved }: { code: string; onSaved: () => vo
 /* Read-only academic modules for admin roles — except the
  * Calendar, which HoS and Principal can edit for their OWN agenda entries
  * (everyone still sees everyone else's, per the "stay in sync" rule). */
-function AcademicReadOnly({ tab, classes, reviewerRole, reviewerName, calendarStaffId, timetableStaffId, staffId }: {
+function AcademicReadOnly({ tab, classes, reviewerRole, reviewerName, calendarStaffId, timetableStaffId, staffId, calendarScope, divisionClassIds, myClassIds }: {
   tab: string;
   classes: { id: string; name: string }[];
   reviewerRole: "principal" | "hos" | null;
@@ -216,11 +262,21 @@ function AcademicReadOnly({ tab, classes, reviewerRole, reviewerName, calendarSt
   calendarStaffId?: string | null;
   timetableStaffId?: string | null;
   staffId?: string | null;
+  calendarScope?: CalendarScope;
+  divisionClassIds?: string[] | null;
+  myClassIds?: string[] | null;
 }) {
   const pw = getStoredPassword();
   if (!ACADEMIC_TABS.some((t) => t.id === tab)) return null;
   if (tab === "calendar" && calendarStaffId) {
-    return <CalendarPanel access={{ pw, staffId: calendarStaffId }} classes={classes} canEdit compact />;
+    return (
+      <CalendarWorkspace
+        access={{ pw, staffId: calendarStaffId }} classes={classes} canEdit
+        own={calendarScope ?? "hos"}
+        divisionClassIds={divisionClassIds ?? null}
+        myClassIds={myClassIds ?? null}
+      />
+    );
   }
   if (tab === "timetable" && reviewerRole === "principal" && timetableStaffId) {
     return <TimetablePanel access={{ pw }} classes={classes} canEdit staffId={timetableStaffId} />;
@@ -239,8 +295,15 @@ function AcademicReadOnly({ tab, classes, reviewerRole, reviewerName, calendarSt
   }
   return (
     <div>
-      <ReadOnlyNote />
-      {tab === "calendar" && <CalendarPanel access={{ pw }} classes={classes} canEdit={false} compact />}
+      {tab !== "calendar" && <ReadOnlyNote />}
+      {tab === "calendar" && (
+        <CalendarWorkspace
+          access={{ pw }} classes={classes} canEdit={false}
+          own={calendarScope ?? "hos"}
+          divisionClassIds={divisionClassIds ?? null}
+          myClassIds={myClassIds ?? null}
+        />
+      )}
       {tab === "timetable" && <TimetablePanel access={{ pw }} classes={classes} canEdit={false} />}
       {tab === "lesson" && <LessonPlanPanel pw={pw} classes={classes} canEdit={false} />}
       {tab === "projects" && <ProjectPanel pw={pw} classes={classes} canSubmit={false} reviewerRole={reviewerRole} reviewerName={reviewerName} />}
@@ -250,9 +313,11 @@ function AcademicReadOnly({ tab, classes, reviewerRole, reviewerName, calendarSt
   );
 }
 
+
 /* ───────────── HoS ───────────── */
 export function HosDashboard({ staffId }: { staffId: string }) {
-  const [tab, setTab] = useState("overview");
+  const [tab, setTab] = useState("calendar");
+
   const pw = getStoredPassword();
   const classes = useClasses();
   const staff = useAsync(() => listSchoolStaff({ data: { password: pw } }), [pw]);
@@ -260,7 +325,7 @@ export function HosDashboard({ staffId }: { staffId: string }) {
   const tabs = [
     { id: "overview", label: "Overview" }, { id: "staff", label: "Staff & Role" }, { id: "agenda", label: "Agenda" },
     { id: "message", label: "Message" }, { id: "laporan", label: "Report" },
-    { id: "activity", label: "Teacher Activity" }, { id: "announce", label: "Announcements" }, ...ACADEMIC_TABS, PIN_TAB,
+    { id: "activity", label: "Teacher Activity" }, { id: "announce", label: "Announcements" }, ...ACADEMIC_TABS, SETTINGS_TAB,
   ];
   return (
     <div>
@@ -277,8 +342,9 @@ export function HosDashboard({ staffId }: { staffId: string }) {
         {tab === "laporan" && <CasePanel access={{ pw }} role="hos" staffId={staffId} staffName="Head of School" classes={classes} />}
         {tab === "activity" && <AllActivitiesView division={null} />}
         {tab === "announce" && <AnnouncementPanel subrole="hos" division={null} classes={classes} />}
-        {tab === "pin" && <ChangePinPanel />}
-        <AcademicReadOnly tab={tab} classes={classes} reviewerRole="hos" reviewerName="Head of School" calendarStaffId={staffId} />
+        {tab === "settings" && <SettingsPanel staffId={staffId} />}
+        <AcademicReadOnly tab={tab} classes={classes} reviewerRole="hos" reviewerName="Head of School" calendarStaffId={staffId} calendarScope="hos" />
+
       </Tabs>
     </div>
   );
@@ -300,12 +366,12 @@ export function RoleManager({ classes }: { classes: { id: string; name: string }
 
 /* ───────────── Admin HoS ───────────── */
 export function AdminHosDashboard() {
-  const [tab, setTab] = useState("import");
+  const [tab, setTab] = useState("calendar");
   const classes = useClasses();
   const tabs = [
     { id: "import", label: "Import Data" }, { id: "students", label: "Students" },
     { id: "staff", label: "Staff" }, { id: "personnel", label: "Manage Personnel" },
-    { id: "announce", label: "Announcements" }, ...ACADEMIC_TABS, PIN_TAB,
+    { id: "announce", label: "Announcements" }, ...ACADEMIC_TABS, SETTINGS_TAB,
   ];
   return (
     <div>
@@ -315,8 +381,8 @@ export function AdminHosDashboard() {
         {tab === "staff" && <StaffRoster canEdit classes={classes} scopeDivision={null} />}
         {tab === "personnel" && <PersonnelManager classes={classes} />}
         {tab === "announce" && <AnnouncementPanel subrole="admin_hos" division={null} classes={classes} />}
-        {tab === "pin" && <ChangePinPanel />}
-        <AcademicReadOnly tab={tab} classes={classes} reviewerRole={null} />
+        {tab === "settings" && <SettingsPanel />}
+        <AcademicReadOnly tab={tab} classes={classes} reviewerRole={null} calendarScope="hos" />
       </Tabs>
     </div>
   );
@@ -324,13 +390,15 @@ export function AdminHosDashboard() {
 
 /* ───────────── Principal ───────────── */
 export function PrincipalDashboard({ division, staffId, staffName }: { division: string; staffId: string; staffName: string }) {
-  const [tab, setTab] = useState("overview");
+  const [tab, setTab] = useState("calendar");
   const pw = getStoredPassword();
   const classes = useClasses(division);
+  // The Principal's unit = every class of its own division.
+  const divisionClassIds = classes.map((c) => c.id);
   const tabs = [
     { id: "overview", label: "Overview" }, { id: "students", label: "Student" },
     { id: "staff", label: "Staff" }, { id: "message", label: "Message" }, { id: "agenda", label: "Agenda" }, { id: "laporan", label: "Report" }, { id: "activity", label: "Teacher Activity" },
-    { id: "announce", label: "Announcements" }, ...ACADEMIC_TABS, PIN_TAB,
+    { id: "announce", label: "Announcements" }, ...ACADEMIC_TABS, SETTINGS_TAB,
   ];
   return (
     <div>
@@ -344,31 +412,84 @@ export function PrincipalDashboard({ division, staffId, staffName }: { division:
         {tab === "laporan" && <CasePanel access={{ pw }} role="principal" staffId={staffId} staffName={staffName} division={division} classes={classes} />}
         {tab === "activity" && <AllActivitiesView division={division} />}
         {tab === "announce" && <AnnouncementPanel subrole="principal" division={division} classes={classes} />}
-        {tab === "pin" && <ChangePinPanel />}
-        <AcademicReadOnly tab={tab} classes={classes} reviewerRole="principal" reviewerName="Principal" calendarStaffId={staffId} timetableStaffId={staffId} staffId={staffId} />
+        {tab === "settings" && <SettingsPanel staffId={staffId} />}
+        <AcademicReadOnly
+          tab={tab} classes={classes} reviewerRole="principal" reviewerName="Principal"
+          calendarStaffId={staffId} timetableStaffId={staffId} staffId={staffId}
+          calendarScope="principal" divisionClassIds={divisionClassIds} myClassIds={divisionClassIds}
+        />
+
       </Tabs>
     </div>
   );
 }
 
+/** Daily Activity — teacher sends a note to ONE parent or to every parent of
+ *  the class at once. Each family still gets its own private thread. */
+function DailyActivityPanel({ pw, classes, staffName }: { pw: string; classes: { id: string; name: string }[]; staffName: string }) {
+  const [classId, setClassId] = useState(classes[0]?.id ?? "");
+  const [target, setTarget] = useState("all");
+  const [body, setBody] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const students = useAsync(() => (classId ? listSchoolStudents({ data: { password: pw, classId } }) : Promise.resolve(null)), [pw, classId]);
+  const studentList = (students.data && "students" in students.data ? (students.data.students ?? []) : []) as { id: string; full_name: string }[];
+
+  async function send() {
+    if (!body.trim() || !classId) return;
+    setBusy(true); setErr(null); setMsg(null);
+    const r = target === "all"
+      ? await broadcastMessageToClassParents({ data: { password: pw, schoolId: getSchoolIdSync(), classId, body, authorName: staffName } })
+      : await postMessageAsTeacher({ data: { password: pw, schoolId: getSchoolIdSync(), studentId: target, body, authorName: staffName } });
+    setBusy(false);
+    if (!r.ok) { setErr(r.error); return; }
+    setBody("");
+    setMsg(target === "all" ? `Terkirim ke ${"sent" in r ? r.sent : 0} orangtua.` : "Pesan terkirim.");
+  }
+
+  return (
+    <Section title="Daily Activity — kirim ke orangtua" Icon={MessageSquare}>
+      <div className="rounded-2xl bg-card border border-border p-3 space-y-2">
+        <select value={classId} onChange={(e) => { setClassId(e.target.value); setTarget("all"); }} className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm">
+          <option value="">pilih kelas</option>
+          {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+        <select value={target} onChange={(e) => setTarget(e.target.value)} className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm">
+          <option value="all">All Parents ({studentList.length})</option>
+          {studentList.map((s) => <option key={s.id} value={s.id}>{s.full_name}</option>)}
+        </select>
+        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={4} placeholder="Pesan aktivitas hari ini…" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm" />
+        {err && <p className="text-xs text-destructive">{err}</p>}
+        {msg && <p className="text-xs text-primary">{msg}</p>}
+        <button onClick={send} disabled={busy || !body.trim() || !classId} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-sm font-semibold flex items-center gap-1 disabled:opacity-50">
+          <Save size={13} /> Kirim
+        </button>
+      </div>
+    </Section>
+  );
+}
+
 
 /* ───────────── Teacher ───────────── */
-export function TeacherDashboard({ staffId, staffName, role, defaultClassId }: { staffId: string; staffName: string; role: string | null; defaultClassId: string | null }) {
+export function TeacherDashboard({ staffId, staffName, role, defaultClassId, division }: { staffId: string; staffName: string; role: string | null; defaultClassId: string | null; division?: string | null }) {
   const pw = getStoredPassword();
   const [reload, setReload] = useState(0);
   const allClasses = useClasses();
+  const divisionClasses = useClasses(division ?? undefined);
   const isHomeroom = role === "teacher_homeroom";
   const isSubject = role === "teacher_subject";
   // Homeroom teachers are scoped to their assigned class everywhere (Kelas tab,
   // Attendance, Assessment …) so every tab always shows the same class.
   const classList = isHomeroom && defaultClassId ? allClasses.filter((c) => c.id === defaultClassId) : allClasses;
+
   const [classId, setClassId] = useState(defaultClassId ?? "");
   const students = useAsync(() => (classId ? listSchoolStudents({ data: { password: pw, classId } }) : Promise.resolve(null)), [pw, classId, reload]);
   const activities = useAsync(() => (classId ? listActivitiesForClass({ data: { password: pw, classId } }) : Promise.resolve(null)), [pw, classId, reload]);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [selectedStudent, setSelectedStudent] = useState<{ id: string; full_name: string } | null>(null);
-  const [tab, setTab] = useState("kelas");
+  const [tab, setTab] = useState("calendar");
 
   const studentList = (students.data && "students" in students.data ? (students.data.students ?? []) : []) as { id: string; full_name: string }[];
   const activityList = (activities.data && "activities" in activities.data ? (activities.data.activities ?? []) : []) as { id: string; title: string; body?: string; activity_date: string; author_name?: string }[];
@@ -395,20 +516,28 @@ export function TeacherDashboard({ staffId, staffName, role, defaultClassId }: {
   }
 
   const tabs = [
-    { id: "kelas", label: "Class" }, { id: "calendar", label: "Calendar" }, { id: "timetable", label: "Timetable" },
+    { id: "calendar", label: "Calendar" }, { id: "kelas", label: "Class" },
+    { id: "daily", label: "Daily Activity" }, { id: "timetable", label: "Timetable" },
     { id: "lesson", label: "Lesson Plan" }, { id: "projects", label: "Official Letter" },
     { id: "assessment", label: "Assessment" },
     ...(isHomeroom ? [{ id: "attendance", label: "Attendance" }] : []),
     { id: "message", label: "Message" },
     { id: "agenda", label: "Agenda" },
     { id: "laporan", label: "Report" },
-    PIN_TAB,
+    SETTINGS_TAB,
   ];
 
   return (
     <div>
       <Tabs tabs={tabs} tab={tab} onChange={setTab}>
-        {tab === "calendar" && <CalendarPanel access={{ pw, staffId }} classes={classList} canEdit />}
+        {tab === "calendar" && (
+          <CalendarWorkspace
+            access={{ pw, staffId }} classes={classList} canEdit own="teacher"
+            divisionClassIds={divisionClasses.map((c) => c.id)}
+            myClassIds={classList.map((c) => c.id)}
+          />
+        )}
+        {tab === "daily" && <DailyActivityPanel pw={pw} classes={classList} staffName={staffName} />}
         {tab === "timetable" && <TimetablePanel access={{ pw }} classes={classList} canEdit={false} />}
         {tab === "lesson" && <LessonPlanPanel pw={pw} classes={classList} canEdit />}
         {tab === "projects" && <ProjectPanel pw={pw} classes={classList} canSubmit reviewerRole={null} reviewerName={staffName} staffId={staffId} />}
@@ -417,7 +546,8 @@ export function TeacherDashboard({ staffId, staffName, role, defaultClassId }: {
         {tab === "message" && <StaffMessagePanel pw={pw} staffId={staffId} />}
         {tab === "agenda" && <AgendaPanel pw={pw} role="teacher" staffId={staffId} staffName={staffName} classes={classList} />}
         {tab === "laporan" && <CasePanel access={{ pw }} role="teacher" staffId={staffId} staffName={staffName} classes={classList} />}
-        {tab === "pin" && <ChangePinPanel />}
+        {tab === "settings" && <SettingsPanel staffId={staffId} />}
+
 
         {tab === "kelas" && (
           <>

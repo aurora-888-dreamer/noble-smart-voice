@@ -26,7 +26,7 @@ function TeacherPage() {
     <div>
       <StaffHeader session={session} />
       <StaffProfileGate session={session}>
-        <TeacherDashboard staffId={session.id} staffName={session.name} role={session.role ?? null} defaultClassId={session.classId} />
+        <TeacherDashboard staffId={session.id} staffName={session.name} role={session.role ?? null} defaultClassId={session.classId} division={session.division} />
       </StaffProfileGate>
     </div>
   );

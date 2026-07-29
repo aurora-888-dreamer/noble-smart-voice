@@ -76,7 +76,29 @@ const EVENT_TYPES = [
   { v: "acara", label: "Acara", cls: "bg-blue-500/15 text-blue-600" },
 ];
 
-export function CalendarPanel({ access, classes, canEdit, compact }: { access: Access; classes: ClassOpt[]; canEdit: boolean; compact?: boolean }) {
+export type MonthCursor = { y: number; m: number };
+
+/** The three calendar models. Each one reads the same table but keeps only
+ *  the rows that concern that level:
+ *   - hos       : everything, school-wide.
+ *   - principal : its own unit — every class of the division (so all of its
+ *                 teachers' agendas) plus school-wide HoS entries.
+ *   - teacher   : only its own class(es) plus school-wide entries.
+ */
+export function scopeCalendarEvents(events: Row[], classIds: string[] | null, staffId?: string): Row[] {
+  if (!classIds) return events;
+  const set = new Set(classIds);
+  return events.filter((e) => !e.class_id || set.has(e.class_id) || (!!staffId && e.created_by === staffId));
+}
+
+export function CalendarPanel({
+  access, classes, canEdit, compact, scopeClassIds, cursor, onCursorChange, hideUpcoming, hideForm,
+}: {
+  access: Access; classes: ClassOpt[]; canEdit: boolean; compact?: boolean;
+  scopeClassIds?: string[] | null;
+  cursor?: MonthCursor; onCursorChange?: (c: MonthCursor) => void;
+  hideUpcoming?: boolean; hideForm?: boolean;
+}) {
   const [classId, setClassId] = useState("");
   const [reload, setReload] = useState(0);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -94,7 +116,9 @@ export function CalendarPanel({ access, classes, canEdit, compact }: { access: A
     () => listCalendarEvents({ data: access.code ? { code: access.code } : { password: access.pw, classId: classId || undefined } }),
     [access.pw, access.code, classId, reload],
   );
-  const events: Row[] = res.data && res.data.ok ? res.data.events : [];
+  const allEvents: Row[] = res.data && res.data.ok ? res.data.events : [];
+  const events = scopeCalendarEvents(allEvents, scopeClassIds ?? null, staffId);
+
 
   function startEdit(e: Row) {
     setEditingId(e.id);
@@ -189,10 +213,11 @@ export function CalendarPanel({ access, classes, canEdit, compact }: { access: A
       </div>
       {importMsg && <p className="text-xs mb-2">{importMsg}</p>}
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 items-start">
+      <div className={hideUpcoming ? "" : "grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 items-start"}>
         <div>
           <CalendarGrid
             events={events} canEdit={canEdit} staffId={staffId} onRemove={remove} onEditRow={startEdit} compact={compact}
+            cursor={cursor} onCursorChange={onCursorChange}
             onQuickAdd={async (evtDate, evtTitle, evtDesc, evtType) => {
               if (!access.pw) return { ok: false, error: "Tidak bisa menambah dari sini." };
               const r = await saveCalendarEvent({ data: { password: access.pw, classId: classId || undefined, title: evtTitle, description: evtDesc, eventDate: evtDate, eventType: evtType, staffId: staffId ?? "" } });
@@ -200,7 +225,7 @@ export function CalendarPanel({ access, classes, canEdit, compact }: { access: A
               return r.ok ? { ok: true } : { ok: false, error: r.error };
             }}
           />
-          {canEdit && (
+          {canEdit && !hideForm && (
             <div className={card + " mt-3 grid gap-2"}>
               {editingId && <p className="text-xs text-primary font-semibold">Mengedit event — Simpan untuk update, atau Batal.</p>}
               <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Judul event" className={field} />
@@ -219,8 +244,9 @@ export function CalendarPanel({ access, classes, canEdit, compact }: { access: A
           )}
         </div>
 
-        <UpcomingAgenda events={events} canEdit={canEdit} staffId={staffId} onEdit={startEdit} onRemove={remove} />
+        {!hideUpcoming && <UpcomingAgenda events={events} canEdit={canEdit} staffId={staffId} onEdit={startEdit} onRemove={remove} />}
       </div>
+
     </div>
   );
 }
@@ -282,12 +308,16 @@ const MONTHS = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", 
 const WEEKDAYS = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
 
 /** Visual month grid with the day cells highlighted when they carry events. */
-function CalendarGrid({ events, canEdit, staffId, onRemove, onEditRow, compact, onQuickAdd }: {
+function CalendarGrid({ events, canEdit, staffId, onRemove, onEditRow, compact, onQuickAdd, cursor: cursorProp, onCursorChange }: {
   events: Row[]; canEdit: boolean; staffId?: string; onRemove: (id: string) => void; onEditRow?: (e: Row) => void; compact?: boolean;
   onQuickAdd?: (eventDate: string, title: string, description: string, eventType: string) => Promise<{ ok: boolean; error?: string }>;
+  cursor?: MonthCursor; onCursorChange?: (c: MonthCursor) => void;
 }) {
   const now = new Date();
-  const [cursor, setCursor] = useState({ y: now.getFullYear(), m: now.getMonth() });
+  // Month navigation is controlled when a cursor is supplied (that's how the
+  // "Sync" button keeps the three calendars on the same month).
+  const [ownCursor, setOwnCursor] = useState<MonthCursor>({ y: now.getFullYear(), m: now.getMonth() });
+  const cursor = cursorProp ?? ownCursor;
   const [selected, setSelected] = useState<string | null>(null);
   const [quickTitle, setQuickTitle] = useState("");
   const [quickDesc, setQuickDesc] = useState("");
@@ -309,9 +339,11 @@ function CalendarGrid({ events, canEdit, staffId, onRemove, onEditRow, compact, 
   const key = (d: number) => `${cursor.y}-${String(cursor.m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
   const shift = (delta: number) => {
     const d = new Date(cursor.y, cursor.m + delta, 1);
-    setCursor({ y: d.getFullYear(), m: d.getMonth() });
+    const next = { y: d.getFullYear(), m: d.getMonth() };
+    if (onCursorChange) onCursorChange(next); else setOwnCursor(next);
     setSelected(null);
   };
+
   const todayKey = new Date().toISOString().slice(0, 10);
   const selectedEvents = selected ? (byDate.get(selected) ?? []) : [];
 
@@ -412,6 +444,101 @@ function CalendarGrid({ events, canEdit, staffId, onRemove, onEditRow, compact, 
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Calendar workspace: one calendar per level, or all three side by side ── */
+export type CalendarScope = "hos" | "principal" | "teacher";
+
+const SCOPE_LABEL: Record<CalendarScope, string> = {
+  hos: "Calendar HoS — seluruh sekolah",
+  principal: "Calendar Principal — unit / divisi",
+  teacher: "Calendar Teacher — kelas",
+};
+
+/**
+ * Renders the calendar model that belongs to the signed-in role, with a
+ * "Show All Calendar" switch that puts HoS / Principal / Teacher side by side
+ * and a "Sync" switch that locks all three onto the same month.
+ */
+export function CalendarWorkspace({
+  access, classes, canEdit, own, divisionClassIds, myClassIds,
+}: {
+  access: Access;
+  classes: ClassOpt[];
+  canEdit: boolean;
+  own: CalendarScope;
+  /** Classes of the Principal's unit — null means every class. */
+  divisionClassIds: string[] | null;
+  /** Classes the signed-in teacher handles — null means every class. */
+  myClassIds: string[] | null;
+}) {
+  const [showAll, setShowAll] = useState(false);
+  const now = new Date();
+  const [sync, setSync] = useState(true);
+  const [cursor, setCursor] = useState<MonthCursor>({ y: now.getFullYear(), m: now.getMonth() });
+
+  const scopeIds: Record<CalendarScope, string[] | null> = {
+    hos: null,
+    principal: divisionClassIds,
+    teacher: myClassIds,
+  };
+
+  const toolbar = (
+    <div className="flex flex-wrap items-center gap-2 mb-3">
+      <button
+        onClick={() => setShowAll((v) => !v)}
+        className={"rounded-full px-3 py-1.5 text-xs font-semibold border " + (showAll ? "bg-primary text-primary-foreground border-primary" : "border-border")}
+      >
+        {showAll ? "Tampilkan 1 Calendar" : "Show All Calendar"}
+      </button>
+      {showAll && (
+        <button
+          onClick={() => setSync((v) => !v)}
+          className={"rounded-full px-3 py-1.5 text-xs font-semibold border " + (sync ? "bg-primary/15 text-primary border-primary/40" : "border-border")}
+        >
+          Sync bulan: {sync ? "ON" : "OFF"}
+        </button>
+      )}
+      {showAll && sync && (
+        <span className="text-[11px] text-muted-foreground">{MONTHS[cursor.m]} {cursor.y}</span>
+      )}
+    </div>
+  );
+
+  if (!showAll) {
+    return (
+      <div>
+        {toolbar}
+        <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-2">{SCOPE_LABEL[own]}</p>
+        <CalendarPanel access={access} classes={classes} canEdit={canEdit} scopeClassIds={scopeIds[own]} />
+      </div>
+    );
+  }
+
+  const columns: CalendarScope[] = ["hos", "principal", "teacher"];
+  return (
+    <div>
+      {toolbar}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 items-start">
+        {columns.map((s) => (
+          <div key={s}>
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">{SCOPE_LABEL[s]}</p>
+            <CalendarPanel
+              access={access}
+              classes={classes}
+              canEdit={canEdit && s === own}
+              compact
+              hideUpcoming
+              hideForm
+              scopeClassIds={scopeIds[s]}
+              cursor={sync ? cursor : undefined}
+              onCursorChange={sync ? setCursor : undefined}
+            />
+          </div>
+        ))}
       </div>
     </div>
   );
