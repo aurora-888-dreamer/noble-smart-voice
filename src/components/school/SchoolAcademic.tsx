@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { Trash2, Save, Sparkles, Plus, Check, X, BarChart3, Pencil, Upload } from "lucide-react";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell } from "recharts";
 import {
-  listCalendarEvents, saveCalendarEvent, deleteCalendarEvent, bulkImportCalendarEvents,
+  listCalendarEvents, saveCalendarEvent, deleteCalendarEvent, bulkImportCalendarEvents, syncCalendarFromHos,
   listTimetable, saveTimetableSlot, deleteTimetableSlot, bulkImportTimetable,
   listLessonPlans, saveLessonPlan, deleteLessonPlan,
   listProjects, saveProject, reviewProject, listProjectReviews,
