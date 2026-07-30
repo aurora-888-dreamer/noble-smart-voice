@@ -285,7 +285,7 @@ export function CalendarPanel({ access, classes, canEdit, compact, roleScope, fi
         <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-500 shrink-0" /> IB</span>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4 items-start">
         <div>
           <CalendarGrid events={events} cursor={cursor} setCursor={setCursor} onDateClick={openAddForm} compact={compact} />
           {formMode && (
@@ -405,16 +405,16 @@ function CalendarGrid({ events, cursor, setCursor, onDateClick, compact }: {
   const todayKey = new Date().toISOString().slice(0, 10);
 
   return (
-    <div className={"rounded-2xl bg-card border border-border " + (compact ? "p-2 text-xs" : "p-3 sm:p-4")}>
-      <div className="flex items-center justify-between mb-2">
-        <button onClick={() => shift(-1)} className="rounded-lg border border-border px-2 py-1 text-xs">‹</button>
-        <p className={compact ? "text-xs font-semibold" : "text-sm sm:text-base font-semibold"}>{MONTHS[cursor.m]} {cursor.y}</p>
-        <button onClick={() => shift(1)} className="rounded-lg border border-border px-2 py-1 text-xs">›</button>
+    <div className="rounded-2xl bg-card border border-border p-2 text-xs max-w-[320px] mx-auto lg:mx-0">
+      <div className="flex items-center justify-between mb-1.5">
+        <button onClick={() => shift(-1)} className="rounded-lg border border-border px-1.5 py-0.5 text-xs">‹</button>
+        <p className="text-xs font-semibold">{MONTHS[cursor.m]} {cursor.y}</p>
+        <button onClick={() => shift(1)} className="rounded-lg border border-border px-1.5 py-0.5 text-xs">›</button>
       </div>
-      <div className="grid grid-cols-7 gap-0.5 sm:gap-1 text-center text-[9px] sm:text-[11px] uppercase text-muted-foreground mb-1">
+      <div className="grid grid-cols-7 gap-0.5 text-center text-[8px] uppercase text-muted-foreground mb-0.5">
         {WEEKDAYS.map((d, i) => <div key={d} className={i >= 5 ? "text-red-500 font-semibold" : ""}>{d[0]}</div>)}
       </div>
-      <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
+      <div className="grid grid-cols-7 gap-0.5">
         {cells.map((d, i) => {
           if (d === null) return <div key={i} />;
           const k = keyFor(d);
@@ -429,7 +429,7 @@ function CalendarGrid({ events, cursor, setCursor, onDateClick, compact }: {
               key={i}
               onClick={() => onDateClick(k)}
               className={
-                "aspect-square rounded-md sm:rounded-lg text-[9px] sm:text-xs flex flex-col items-center justify-center gap-0.5 border " +
+                "aspect-square rounded text-[9px] flex flex-col items-center justify-center gap-0.5 border " +
                 (isToday ? "border-primary " : "border-transparent ") +
                 ((isHoliday || isWeekend) ? "bg-red-500/15 text-red-600 font-semibold" : dayEvents.length ? "bg-secondary font-semibold" : "text-muted-foreground")
               }
@@ -437,7 +437,7 @@ function CalendarGrid({ events, cursor, setCursor, onDateClick, compact }: {
               {d}
               {dotColors.length > 0 && (
                 <span className="flex gap-0.5">
-                  {dotColors.map((c, idx) => <span key={idx} className={"w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full " + c} />)}
+                  {dotColors.map((c, idx) => <span key={idx} className={"w-1 h-1 rounded-full " + c} />)}
                 </span>
               )}
             </button>
