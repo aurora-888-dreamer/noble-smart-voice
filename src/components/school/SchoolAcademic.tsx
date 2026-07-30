@@ -285,7 +285,7 @@ export function CalendarPanel({ access, classes, canEdit, compact, roleScope, fi
         <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-500 shrink-0" /> IB</span>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4 items-start">
         <div>
           <CalendarGrid events={events} cursor={cursor} setCursor={setCursor} onDateClick={openAddForm} compact={compact} />
           {formMode && (
