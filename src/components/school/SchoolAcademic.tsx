@@ -77,9 +77,9 @@ function ClassPicker({ value, onChange, classes, allLabel = "semua kelas" }: { v
 
 /* ───────────── 1. Academic calendar ───────────── */
 const EVENT_TYPES = [
-  { v: "libur", label: "Libur", cls: "bg-emerald-500/15 text-emerald-600" },
-  { v: "ujian", label: "Ujian", cls: "bg-red-500/15 text-red-600" },
-  { v: "acara", label: "Acara", cls: "bg-blue-500/15 text-blue-600" },
+  { v: "libur", label: "Libur", cls: "bg-red-500/15 text-red-600" },
+  { v: "ujian", label: "Ujian", cls: "bg-slate-500/15 text-slate-600" },
+  { v: "acara", label: "Acara", cls: "bg-slate-500/15 text-slate-600" },
 ];
 
 const CALENDAR_DIVISIONS = [
@@ -88,6 +88,24 @@ const CALENDAR_DIVISIONS = [
   { id: "secondary", label: "Secondary" },
   { id: "ib", label: "IB" },
 ];
+
+// Color legend: Holiday always red (overrides division); School Wide = white/
+// neutral; each Unit gets its own color so a mixed HoS view can tell them
+// apart at a glance.
+const DIVISION_STYLE: Record<string, { bg: string; text: string; dot: string; label: string }> = {
+  kindergarten: { bg: "bg-yellow-100", text: "text-yellow-800", dot: "bg-yellow-400", label: "Preschool" },
+  primary: { bg: "bg-blue-100", text: "text-blue-800", dot: "bg-blue-500", label: "Primary" },
+  secondary: { bg: "bg-orange-100", text: "text-orange-800", dot: "bg-orange-500", label: "Secondary" },
+  ib: { bg: "bg-purple-100", text: "text-purple-800", dot: "bg-purple-500", label: "IB" },
+};
+const SCHOOL_WIDE_STYLE = { bg: "bg-white border border-border", text: "text-foreground", dot: "bg-foreground/50", label: "School Wide" };
+const HOLIDAY_STYLE = { bg: "bg-red-100", text: "text-red-700", dot: "bg-red-500", label: "Holiday" };
+
+function eventStyle(e: Row): { bg: string; text: string; dot: string; label: string } {
+  if (e.event_type === "libur") return HOLIDAY_STYLE;
+  if (!e.division) return SCHOOL_WIDE_STYLE;
+  return DIVISION_STYLE[e.division] ?? SCHOOL_WIDE_STYLE;
+}
 
 export function CalendarPanel({ access, classes, canEdit, compact, roleScope, fixedDivision }: {
   access: Access; classes: ClassOpt[]; canEdit: boolean; compact?: boolean;
@@ -108,7 +126,14 @@ export function CalendarPanel({ access, classes, canEdit, compact, roleScope, fi
   useEffect(() => {
     if (scopeMode === "class" && classesInScope.length === 1 && classId !== classesInScope[0].id) setClassId(classesInScope[0].id);
   }, [scopeMode, classesInScope, classId]);
+
+  const now = new Date();
+  const [cursor, setCursor] = useState({ y: now.getFullYear(), m: now.getMonth() });
+  // No form is shown at all until either a date (Add) or an existing event
+  // in the month list (Edit) is clicked.
+  const [formMode, setFormMode] = useState<"add" | "edit" | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingIsOwn, setEditingIsOwn] = useState(true);
   const [title, setTitle] = useState("");
   const [desc, setDesc] = useState("");
   const [date, setDate] = useState(today());
@@ -133,18 +158,21 @@ export function CalendarPanel({ access, classes, canEdit, compact, roleScope, fi
   );
   const events: Row[] = res.data && res.data.ok ? res.data.events : [];
 
-  function startEdit(e: Row) {
-    setEditingId(e.id);
-    setTitle(e.title);
-    setDesc(e.description ?? "");
-    setDate(String(e.event_date).slice(0, 10));
-    setType(e.event_type);
+  function openAddForm(dateStr: string) {
+    if (!canEdit) return;
+    setEditingId(null); setEditingIsOwn(true); setTitle(""); setDesc(""); setDate(dateStr); setType("acara"); setErr(null); setFormMode("add");
   }
-  function resetForm() {
-    setEditingId(null); setTitle(""); setDesc(""); setDate(today()); setType("acara");
+  function openEditForm(e: Row) {
+    const isOwn = !!staffId && e.created_by === staffId;
+    setEditingId(e.id); setEditingIsOwn(isOwn);
+    setTitle(e.title); setDesc(e.description ?? ""); setDate(String(e.event_date).slice(0, 10)); setType(e.event_type);
+    setErr(null); setFormMode("edit");
+  }
+  function closeForm() {
+    setFormMode(null); setEditingId(null); setTitle(""); setDesc("");
   }
 
-  async function add() {
+  async function submitForm() {
     if (!title.trim() || !access.pw) return;
     setBusy(true); setErr(null);
     const useClassId = scopeMode === "class" ? classId : undefined;
@@ -152,14 +180,13 @@ export function CalendarPanel({ access, classes, canEdit, compact, roleScope, fi
     const r = await saveCalendarEvent({ data: { password: access.pw, id: editingId || undefined, classId: useClassId, divisionScope: useDivisionScope, title, description: desc, eventDate: date, eventType: type, staffId: staffId ?? "" } });
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
-    resetForm(); setReload((x) => x + 1);
+    closeForm(); setReload((x) => x + 1);
   }
-  async function remove(id: string) {
-    if (!access.pw) return;
-    const r = await deleteCalendarEvent({ data: { password: access.pw, id, staffId: staffId ?? "" } });
+  async function removeEvent() {
+    if (!access.pw || !editingId) return;
+    const r = await deleteCalendarEvent({ data: { password: access.pw, id: editingId, staffId: staffId ?? "" } });
     if (!r.ok) { setErr(r.error); return; }
-    if (editingId === id) resetForm();
-    setReload((x) => x + 1);
+    closeForm(); setReload((x) => x + 1);
   }
 
   // Accepts CSV with either plain or quoted fields (handles commas inside
@@ -249,91 +276,100 @@ export function CalendarPanel({ access, classes, canEdit, compact, roleScope, fi
       </div>
       {importMsg && <p className="text-xs mb-2">{importMsg}</p>}
 
+      <div className="flex flex-wrap gap-2.5 mb-2 text-[10px] text-muted-foreground">
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500 shrink-0" /> Holiday</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-foreground/50 border border-border shrink-0" /> School Wide</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-400 shrink-0" /> Preschool</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" /> Primary</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-orange-500 shrink-0" /> Secondary</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-500 shrink-0" /> IB</span>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 items-start">
         <div>
-          <CalendarGrid
-            events={events} canEdit={canEdit} staffId={staffId} onRemove={remove} onEditRow={startEdit} compact={compact}
-            onQuickAdd={async (evtDate, evtTitle, evtDesc, evtType) => {
-              if (!access.pw) return { ok: false, error: "Tidak bisa menambah dari sini." };
-              const r = await saveCalendarEvent({ data: { password: access.pw, classId: classId || undefined, divisionScope: !classId ? effectiveDivision : undefined, title: evtTitle, description: evtDesc, eventDate: evtDate, eventType: evtType, staffId: staffId ?? "" } });
-              if (r.ok) setReload((x) => x + 1);
-              return r.ok ? { ok: true } : { ok: false, error: r.error };
-            }}
-          />
-          {canEdit && (
+          <CalendarGrid events={events} cursor={cursor} setCursor={setCursor} onDateClick={openAddForm} compact={compact} />
+          {formMode && (
             <div className={card + " mt-3 grid gap-2"}>
-              {editingId && <p className="text-xs text-primary font-semibold">Mengedit event — Simpan untuk update, atau Batal.</p>}
-              <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Judul event" className={field} />
-              <textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={2} placeholder="Deskripsi (opsional)" className={field} />
-              <div className="flex gap-2 flex-wrap">
-                <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm" />
-                <select value={type} onChange={(e) => setType(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm">
-                  {EVENT_TYPES.map((t) => <option key={t.v} value={t.v}>{t.label}</option>)}
-                </select>
-                <button onClick={add} disabled={busy} className={btn}><Plus size={13} /> {editingId ? "Simpan" : "Tambah Event"}</button>
-                {editingId && <button onClick={resetForm} className="rounded-lg border border-border px-3 py-1.5 text-sm">Batal</button>}
-              </div>
-              <p className="text-[11px] text-muted-foreground">Anda hanya bisa mengubah/menghapus agenda yang Anda buat sendiri.</p>
-              <Err msg={err} />
+              {formMode === "edit" && !editingIsOwn ? (
+                <>
+                  <p className="text-sm font-semibold">{title}</p>
+                  <p className="text-xs text-muted-foreground">{new Date(date).toLocaleDateString()}</p>
+                  {desc && <p className="text-sm whitespace-pre-wrap">{desc}</p>}
+                  <p className="text-[11px] text-muted-foreground">Ini agenda milik orang lain — hanya bisa dilihat.</p>
+                  <button onClick={closeForm} className="rounded-lg border border-border px-3 py-1.5 text-sm justify-self-start">Tutup</button>
+                </>
+              ) : (
+                <>
+                  <p className="text-xs text-primary font-semibold">
+                    {formMode === "edit" ? "Mengedit event" : `Tambah event — ${new Date(date).toLocaleDateString()}`}
+                  </p>
+                  <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Judul event" className={field} />
+                  <textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={2} placeholder="Deskripsi (opsional)" className={field} />
+                  <div className="flex gap-2 flex-wrap">
+                    <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm" />
+                    <select value={type} onChange={(e) => setType(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm">
+                      {EVENT_TYPES.map((t) => <option key={t.v} value={t.v}>{t.label}</option>)}
+                    </select>
+                    <button onClick={submitForm} disabled={busy} className={btn}><Plus size={13} /> {formMode === "edit" ? "Simpan" : "Tambah"}</button>
+                    {formMode === "edit" && <button onClick={removeEvent} className="rounded-lg bg-destructive text-destructive-foreground px-3 py-1.5 text-sm font-semibold">Hapus</button>}
+                    <button onClick={closeForm} className="rounded-lg border border-border px-3 py-1.5 text-sm">Batal</button>
+                  </div>
+                  <Err msg={err} />
+                </>
+              )}
             </div>
           )}
         </div>
 
-        <UpcomingAgenda events={events} canEdit={canEdit} staffId={staffId} onEdit={startEdit} onRemove={remove} />
+        <MonthEventList events={events} cursor={cursor} onEventClick={openEditForm} />
       </div>
     </div>
   );
 }
 
-/** Today / H+1 / H+2 / H+3 agenda list — click an item to edit, or delete directly. */
-function UpcomingAgenda({ events, canEdit, staffId, onEdit, onRemove }: {
-  events: Row[]; canEdit: boolean; staffId?: string; onEdit: (e: Row) => void; onRemove: (id: string) => void;
-}) {
-  const days = Array.from({ length: 4 }, (_, i) => {
-    const d = new Date(); d.setDate(d.getDate() + i);
-    return d;
-  });
-  const key = (d: Date) => d.toISOString().slice(0, 10);
-  const LABELS = ["Hari Ini", "H+1", "H+2", "H+3"];
+/** From today through the end of the displayed month (or the whole month,
+ * if browsing a different month) — skips days with no events. Click an
+ * entry to open it (Edit for your own, view-only for others'). */
+function MonthEventList({ events, cursor, onEventClick }: { events: Row[]; cursor: { y: number; m: number }; onEventClick: (e: Row) => void }) {
+  const now = new Date();
+  const isCurrentMonth = cursor.y === now.getFullYear() && cursor.m === now.getMonth();
+  const todayStr = now.toISOString().slice(0, 10);
+  const monthPrefix = `${cursor.y}-${String(cursor.m + 1).padStart(2, "0")}`;
+  const inMonth = events.filter((e) => String(e.event_date).slice(0, 7) === monthPrefix);
+  const filtered = isCurrentMonth ? inMonth.filter((e) => String(e.event_date).slice(0, 10) >= todayStr) : inMonth;
   const byDate = new Map<string, Row[]>();
-  for (const e of events) {
+  for (const e of filtered) {
     const k = String(e.event_date).slice(0, 10);
     byDate.set(k, [...(byDate.get(k) ?? []), e]);
   }
+  const sortedDates = [...byDate.keys()].sort();
+
   return (
-    <div className="rounded-2xl bg-card border border-border p-3 space-y-3">
-      {days.map((d, i) => {
-        const k = key(d);
-        const dayEvents = byDate.get(k) ?? [];
-        return (
-          <div key={k}>
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold mb-1">
-              {LABELS[i]} · {d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}
-            </p>
-            {dayEvents.length === 0 ? (
-              <p className="text-xs text-muted-foreground">-</p>
-            ) : (
-              <ul className="space-y-1">
-                {dayEvents.map((e) => {
-                  const t = EVENT_TYPES.find((x) => x.v === e.event_type) ?? EVENT_TYPES[2];
-                  const isOwn = !!staffId && e.created_by === staffId;
-                  return (
-                    <li key={e.id} className="rounded-lg bg-secondary/40 px-2 py-1.5 flex items-center justify-between gap-1.5">
-                      <button onClick={() => canEdit && isOwn && onEdit(e)} className={"text-left text-xs flex-1 min-w-0 " + (canEdit && isOwn ? "" : "cursor-default")}>
-                        <span className={"inline-block w-1.5 h-1.5 rounded-full mr-1.5 align-middle " + t.cls.split(" ")[0]} />
-                        <span className="truncate align-middle">{e.title}</span>
-                      </button>
-                      {canEdit && isOwn && (
-                        <button onClick={() => onRemove(e.id)} className="text-destructive shrink-0"><Trash2 size={12} /></button>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
-        );
-      })}
+    <div className="rounded-2xl bg-card border border-border p-3 space-y-3 max-h-[28rem] overflow-y-auto">
+      <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">
+        {isCurrentMonth ? `Hari Ini – Akhir ${MONTHS[cursor.m]}` : `${MONTHS[cursor.m]} ${cursor.y}`}
+      </p>
+      {sortedDates.length === 0 && <Hint>Tidak ada event.</Hint>}
+      {sortedDates.map((dateStr) => (
+        <div key={dateStr}>
+          <p className="text-[10px] text-muted-foreground font-semibold mb-1">
+            {new Date(dateStr).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}
+          </p>
+          <ul className="space-y-1">
+            {(byDate.get(dateStr) ?? []).map((e) => {
+              const st = eventStyle(e);
+              return (
+                <li key={e.id}>
+                  <button onClick={() => onEventClick(e)} className={"w-full text-left rounded-lg px-2 py-1.5 text-xs flex items-center gap-1.5 " + st.bg + " " + st.text}>
+                    <span className={"w-1.5 h-1.5 rounded-full shrink-0 " + st.dot} />
+                    <span className="truncate">{e.title}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
     </div>
   );
 }
@@ -341,24 +377,19 @@ function UpcomingAgenda({ events, canEdit, staffId, onEdit, onRemove }: {
 const MONTHS = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
 const WEEKDAYS = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
 
-/** Visual month grid with the day cells highlighted when they carry events. */
-function CalendarGrid({ events, canEdit, staffId, onRemove, onEditRow, compact, onQuickAdd }: {
-  events: Row[]; canEdit: boolean; staffId?: string; onRemove: (id: string) => void; onEditRow?: (e: Row) => void; compact?: boolean;
-  onQuickAdd?: (eventDate: string, title: string, description: string, eventType: string) => Promise<{ ok: boolean; error?: string }>;
+/** Visual month grid. Weekends and detected holidays get a red tint; each
+ * event shows a dot colored by its Unit (or red for holidays, neutral for
+ * School Wide). Clicking a date opens the Add-event form for that date —
+ * editing an existing event happens from MonthEventList instead, so an
+ * empty calendar never shows a stray form until something is clicked. */
+function CalendarGrid({ events, cursor, setCursor, onDateClick, compact }: {
+  events: Row[]; cursor: { y: number; m: number }; setCursor: (c: { y: number; m: number }) => void;
+  onDateClick: (dateStr: string) => void; compact?: boolean;
 }) {
-  const now = new Date();
-  const [cursor, setCursor] = useState({ y: now.getFullYear(), m: now.getMonth() });
-  const [selected, setSelected] = useState<string | null>(null);
-  const [quickTitle, setQuickTitle] = useState("");
-  const [quickDesc, setQuickDesc] = useState("");
-  const [quickType, setQuickType] = useState("acara");
-  const [quickErr, setQuickErr] = useState<string | null>(null);
-  const [quickBusy, setQuickBusy] = useState(false);
-
   const byDate = new Map<string, Row[]>();
   for (const e of events) {
-    const key = String(e.event_date).slice(0, 10);
-    byDate.set(key, [...(byDate.get(key) ?? []), e]);
+    const k = String(e.event_date).slice(0, 10);
+    byDate.set(k, [...(byDate.get(k) ?? []), e]);
   }
 
   const first = new Date(cursor.y, cursor.m, 1);
@@ -366,112 +397,52 @@ function CalendarGrid({ events, canEdit, staffId, onRemove, onEditRow, compact, 
   const lead = (first.getDay() + 6) % 7; // Monday-first
   const cells: (number | null)[] = [...Array(lead).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
   while (cells.length % 7 !== 0) cells.push(null);
-  const key = (d: number) => `${cursor.y}-${String(cursor.m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  const keyFor = (d: number) => `${cursor.y}-${String(cursor.m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
   const shift = (delta: number) => {
     const d = new Date(cursor.y, cursor.m + delta, 1);
     setCursor({ y: d.getFullYear(), m: d.getMonth() });
-    setSelected(null);
   };
   const todayKey = new Date().toISOString().slice(0, 10);
-  const selectedEvents = selected ? (byDate.get(selected) ?? []) : [];
-
-  async function quickAdd() {
-    if (!selected || !quickTitle.trim() || !onQuickAdd) return;
-    setQuickBusy(true); setQuickErr(null);
-    const r = await onQuickAdd(selected, quickTitle.trim(), quickDesc, quickType);
-    setQuickBusy(false);
-    if (!r.ok) { setQuickErr(r.error ?? "Gagal menyimpan."); return; }
-    setQuickTitle(""); setQuickDesc("");
-  }
 
   return (
     <div className={"rounded-2xl bg-card border border-border " + (compact ? "p-2 text-xs" : "p-3 sm:p-4")}>
-      <div className="grid grid-cols-2 gap-4 items-start">
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <button onClick={() => shift(-1)} className="rounded-lg border border-border px-2 py-1 text-xs">‹</button>
-            <p className={compact ? "text-xs font-semibold" : "text-sm sm:text-base font-semibold"}>{MONTHS[cursor.m]} {cursor.y}</p>
-            <button onClick={() => shift(1)} className="rounded-lg border border-border px-2 py-1 text-xs">›</button>
-          </div>
-          <div className="grid grid-cols-7 gap-0.5 sm:gap-1 text-center text-[9px] sm:text-[11px] uppercase text-muted-foreground mb-1">
-            {WEEKDAYS.map((d) => <div key={d}>{d[0]}</div>)}
-          </div>
-          <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
-            {cells.map((d, i) => {
-              if (d === null) return <div key={i} />;
-              const k = key(d);
-              const dayEvents = byDate.get(k) ?? [];
-              const isToday = k === todayKey;
-              return (
-                <button
-                  key={i}
-                  onClick={() => setSelected(k)}
-                  className={
-                    "aspect-square rounded-md sm:rounded-lg text-[9px] sm:text-xs " +
-                    "flex flex-col items-center justify-center gap-0.5 border " +
-                    (selected === k ? "border-primary bg-primary/15 " : isToday ? "border-primary/60 " : "border-transparent ") +
-                    (dayEvents.length ? "bg-secondary font-semibold" : "text-muted-foreground")
-                  }
-                >
-                  {d}
-                  {dayEvents.length > 0 && <span className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-primary" />}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="border-l border-border pl-3 sm:pl-4">
-          <p className="text-[10px] sm:text-xs uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">
-            {selected ? new Date(selected).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" }) : "Detail Event"}
-          </p>
-          {!selected && <Hint>{events.length === 0 ? "Belum ada event." : "Klik tanggal untuk lihat atau isi event."}</Hint>}
-          {selected && (
-            <div className="space-y-2">
-              {selectedEvents.length > 0 && (
-                <ul className="space-y-2 max-h-56 overflow-y-auto">
-                  {selectedEvents.map((e) => {
-                    const t = EVENT_TYPES.find((x) => x.v === e.event_type) ?? EVENT_TYPES[2];
-                    const isOwn = !!staffId && e.created_by === staffId;
-                    return (
-                      <li key={e.id} className="rounded-xl bg-background border border-border p-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-xs sm:text-sm font-semibold">{e.title}</p>
-                          <span className={"shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase " + t.cls}>{t.label}</span>
-                        </div>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">
-                          {e.school_staff?.full_name ? "oleh " + e.school_staff.full_name : ""}
-                        </p>
-                        {e.description && <p className="text-xs mt-1 whitespace-pre-wrap">{e.description}</p>}
-                        {canEdit && isOwn && (
-                          <div className="flex gap-2 mt-1.5">
-                            {onEditRow && <button onClick={() => onEditRow(e)} className="text-[10px] text-primary flex items-center gap-1"><Pencil size={11} /> Edit</button>}
-                            <button onClick={() => onRemove(e.id)} className="text-[10px] text-destructive flex items-center gap-1"><Trash2 size={11} /> Hapus</button>
-                          </div>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
+      <div className="flex items-center justify-between mb-2">
+        <button onClick={() => shift(-1)} className="rounded-lg border border-border px-2 py-1 text-xs">‹</button>
+        <p className={compact ? "text-xs font-semibold" : "text-sm sm:text-base font-semibold"}>{MONTHS[cursor.m]} {cursor.y}</p>
+        <button onClick={() => shift(1)} className="rounded-lg border border-border px-2 py-1 text-xs">›</button>
+      </div>
+      <div className="grid grid-cols-7 gap-0.5 sm:gap-1 text-center text-[9px] sm:text-[11px] uppercase text-muted-foreground mb-1">
+        {WEEKDAYS.map((d, i) => <div key={d} className={i >= 5 ? "text-red-500 font-semibold" : ""}>{d[0]}</div>)}
+      </div>
+      <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
+        {cells.map((d, i) => {
+          if (d === null) return <div key={i} />;
+          const k = keyFor(d);
+          const dayEvents = byDate.get(k) ?? [];
+          const dow = new Date(cursor.y, cursor.m, d).getDay();
+          const isWeekend = dow === 0 || dow === 6;
+          const isHoliday = dayEvents.some((e) => e.event_type === "libur");
+          const isToday = k === todayKey;
+          const dotColors = [...new Set(dayEvents.map((e) => eventStyle(e).dot))].slice(0, 4);
+          return (
+            <button
+              key={i}
+              onClick={() => onDateClick(k)}
+              className={
+                "aspect-square rounded-md sm:rounded-lg text-[9px] sm:text-xs flex flex-col items-center justify-center gap-0.5 border " +
+                (isToday ? "border-primary " : "border-transparent ") +
+                ((isHoliday || isWeekend) ? "bg-red-500/15 text-red-600 font-semibold" : dayEvents.length ? "bg-secondary font-semibold" : "text-muted-foreground")
+              }
+            >
+              {d}
+              {dotColors.length > 0 && (
+                <span className="flex gap-0.5">
+                  {dotColors.map((c, idx) => <span key={idx} className={"w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full " + c} />)}
+                </span>
               )}
-
-              {canEdit && onQuickAdd && (
-                <div className={"grid gap-1.5 " + (selectedEvents.length > 0 ? "pt-2 border-t border-border" : "")}>
-                  <p className="text-[10px] text-muted-foreground">Isi event baru untuk tanggal ini:</p>
-                  <input value={quickTitle} onChange={(e) => setQuickTitle(e.target.value)} placeholder="Judul event" className="rounded-lg bg-background border border-border px-2 py-1.5 text-xs" />
-                  <textarea value={quickDesc} onChange={(e) => setQuickDesc(e.target.value)} rows={2} placeholder="Deskripsi (opsional)" className="rounded-lg bg-background border border-border px-2 py-1.5 text-xs" />
-                  <div className="flex gap-1.5 flex-wrap items-center">
-                    <select value={quickType} onChange={(e) => setQuickType(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-1 text-xs">
-                      {EVENT_TYPES.map((t) => <option key={t.v} value={t.v}>{t.label}</option>)}
-                    </select>
-                    <button onClick={quickAdd} disabled={quickBusy || !quickTitle.trim()} className="rounded-lg bg-primary text-primary-foreground px-2.5 py-1 text-xs font-semibold disabled:opacity-50">Simpan</button>
-                  </div>
-                  {quickErr && <p className="text-[10px] text-destructive">{quickErr}</p>}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
