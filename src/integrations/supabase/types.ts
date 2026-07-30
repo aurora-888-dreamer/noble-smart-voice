@@ -529,12 +529,61 @@ export type Database = {
           },
         ]
       }
+      school_attendance_day_flags: {
+        Row: {
+          attendance_date: string
+          class_id: string
+          created_at: string
+          id: string
+          is_mandatory: boolean
+          note: string | null
+          set_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          attendance_date: string
+          class_id: string
+          created_at?: string
+          id?: string
+          is_mandatory?: boolean
+          note?: string | null
+          set_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          attendance_date?: string
+          class_id?: string
+          created_at?: string
+          id?: string
+          is_mandatory?: boolean
+          note?: string | null
+          set_by?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_attendance_day_flags_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "school_classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_attendance_day_flags_set_by_fkey"
+            columns: ["set_by"]
+            isOneToOne: false
+            referencedRelation: "school_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       school_calendar_events: {
         Row: {
           class_id: string | null
           created_at: string
           created_by: string | null
           description: string | null
+          division: string | null
           event_date: string
           event_type: string
           id: string
@@ -547,6 +596,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          division?: string | null
           event_date: string
           event_type?: string
           id?: string
@@ -559,6 +609,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          division?: string | null
           event_date?: string
           event_type?: string
           id?: string
@@ -886,6 +937,7 @@ export type Database = {
       }
       school_guardians: {
         Row: {
+          announcements_last_seen_at: string | null
           created_at: string
           email: string | null
           full_name: string
@@ -902,6 +954,7 @@ export type Database = {
           whatsapp: string | null
         }
         Insert: {
+          announcements_last_seen_at?: string | null
           created_at?: string
           email?: string | null
           full_name: string
@@ -918,6 +971,7 @@ export type Database = {
           whatsapp?: string | null
         }
         Update: {
+          announcements_last_seen_at?: string | null
           created_at?: string
           email?: string | null
           full_name?: string
@@ -1207,6 +1261,7 @@ export type Database = {
       }
       school_staff: {
         Row: {
+          admin_note: string | null
           allergies: string | null
           bio: string | null
           birth_date: string | null
@@ -1223,6 +1278,7 @@ export type Database = {
           id_card_address: string | null
           is_active: boolean
           is_profile_complete: boolean
+          last_seen_at: string | null
           nickname: string | null
           phone: string | null
           photo_url: string | null
@@ -1232,12 +1288,14 @@ export type Database = {
           religion: string | null
           role: string
           school_id: string
+          status: string
           subjects: string[]
           updated_at: string
           user_id: string | null
           whatsapp: string | null
         }
         Insert: {
+          admin_note?: string | null
           allergies?: string | null
           bio?: string | null
           birth_date?: string | null
@@ -1254,6 +1312,7 @@ export type Database = {
           id_card_address?: string | null
           is_active?: boolean
           is_profile_complete?: boolean
+          last_seen_at?: string | null
           nickname?: string | null
           phone?: string | null
           photo_url?: string | null
@@ -1263,12 +1322,14 @@ export type Database = {
           religion?: string | null
           role: string
           school_id: string
+          status?: string
           subjects?: string[]
           updated_at?: string
           user_id?: string | null
           whatsapp?: string | null
         }
         Update: {
+          admin_note?: string | null
           allergies?: string | null
           bio?: string | null
           birth_date?: string | null
@@ -1285,6 +1346,7 @@ export type Database = {
           id_card_address?: string | null
           is_active?: boolean
           is_profile_complete?: boolean
+          last_seen_at?: string | null
           nickname?: string | null
           phone?: string | null
           photo_url?: string | null
@@ -1294,6 +1356,7 @@ export type Database = {
           religion?: string | null
           role?: string
           school_id?: string
+          status?: string
           subjects?: string[]
           updated_at?: string
           user_id?: string | null
@@ -1314,6 +1377,7 @@ export type Database = {
           body: string
           created_at: string
           id: string
+          read_at: string | null
           recipient_id: string
           school_id: string
           sender_id: string
@@ -1322,6 +1386,7 @@ export type Database = {
           body: string
           created_at?: string
           id?: string
+          read_at?: string | null
           recipient_id: string
           school_id: string
           sender_id: string
@@ -1330,6 +1395,7 @@ export type Database = {
           body?: string
           created_at?: string
           id?: string
+          read_at?: string | null
           recipient_id?: string
           school_id?: string
           sender_id?: string
@@ -1389,6 +1455,7 @@ export type Database = {
       school_students: {
         Row: {
           address: string | null
+          admin_note: string | null
           allergies: string | null
           blood_type: string | null
           certificates: string[]
@@ -1418,6 +1485,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          admin_note?: string | null
           allergies?: string | null
           blood_type?: string | null
           certificates?: string[]
@@ -1447,6 +1515,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          admin_note?: string | null
           allergies?: string | null
           blood_type?: string | null
           certificates?: string[]
