@@ -429,7 +429,7 @@ function CalendarGrid({ events, cursor, setCursor, onDateClick, compact }: {
               key={i}
               onClick={() => onDateClick(k)}
               className={
-                "aspect-square rounded-md sm:rounded-lg text-[9px] sm:text-xs flex flex-col items-center justify-center gap-0.5 border " +
+                "aspect-square rounded text-[9px] flex flex-col items-center justify-center gap-0.5 border " +
                 (isToday ? "border-primary " : "border-transparent ") +
                 ((isHoliday || isWeekend) ? "bg-red-500/15 text-red-600 font-semibold" : dayEvents.length ? "bg-secondary font-semibold" : "text-muted-foreground")
               }
@@ -437,7 +437,7 @@ function CalendarGrid({ events, cursor, setCursor, onDateClick, compact }: {
               {d}
               {dotColors.length > 0 && (
                 <span className="flex gap-0.5">
-                  {dotColors.map((c, idx) => <span key={idx} className={"w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full " + c} />)}
+                  {dotColors.map((c, idx) => <span key={idx} className={"w-1 h-1 rounded-full " + c} />)}
                 </span>
               )}
             </button>
