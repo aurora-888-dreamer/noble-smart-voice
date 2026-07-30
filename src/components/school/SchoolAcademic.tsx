@@ -405,16 +405,16 @@ function CalendarGrid({ events, cursor, setCursor, onDateClick, compact }: {
   const todayKey = new Date().toISOString().slice(0, 10);
 
   return (
-    <div className={"rounded-2xl bg-card border border-border " + (compact ? "p-2 text-xs" : "p-3 sm:p-4")}>
-      <div className="flex items-center justify-between mb-2">
-        <button onClick={() => shift(-1)} className="rounded-lg border border-border px-2 py-1 text-xs">‹</button>
-        <p className={compact ? "text-xs font-semibold" : "text-sm sm:text-base font-semibold"}>{MONTHS[cursor.m]} {cursor.y}</p>
-        <button onClick={() => shift(1)} className="rounded-lg border border-border px-2 py-1 text-xs">›</button>
+    <div className="rounded-2xl bg-card border border-border p-2 text-xs max-w-[320px] mx-auto lg:mx-0">
+      <div className="flex items-center justify-between mb-1.5">
+        <button onClick={() => shift(-1)} className="rounded-lg border border-border px-1.5 py-0.5 text-xs">‹</button>
+        <p className="text-xs font-semibold">{MONTHS[cursor.m]} {cursor.y}</p>
+        <button onClick={() => shift(1)} className="rounded-lg border border-border px-1.5 py-0.5 text-xs">›</button>
       </div>
-      <div className="grid grid-cols-7 gap-0.5 sm:gap-1 text-center text-[9px] sm:text-[11px] uppercase text-muted-foreground mb-1">
+      <div className="grid grid-cols-7 gap-0.5 text-center text-[8px] uppercase text-muted-foreground mb-0.5">
         {WEEKDAYS.map((d, i) => <div key={d} className={i >= 5 ? "text-red-500 font-semibold" : ""}>{d[0]}</div>)}
       </div>
-      <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
+      <div className="grid grid-cols-7 gap-0.5">
         {cells.map((d, i) => {
           if (d === null) return <div key={i} />;
           const k = keyFor(d);
