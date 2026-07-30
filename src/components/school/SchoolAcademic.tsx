@@ -285,7 +285,7 @@ export function CalendarPanel({ access, classes, canEdit, compact, roleScope, fi
         <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-500 shrink-0" /> IB</span>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-4 items-start">
         <div>
           <CalendarGrid events={events} cursor={cursor} setCursor={setCursor} onDateClick={openAddForm} compact={compact} />
           {formMode && (
@@ -405,7 +405,7 @@ function CalendarGrid({ events, cursor, setCursor, onDateClick, compact }: {
   const todayKey = new Date().toISOString().slice(0, 10);
 
   return (
-    <div className="rounded-2xl bg-card border border-border p-2 text-xs max-w-[320px] mx-auto lg:mx-0">
+    <div className="rounded-2xl bg-card border border-border p-2 max-w-[300px] mx-auto lg:mx-0">
       <div className="flex items-center justify-between mb-1.5">
         <button onClick={() => shift(-1)} className="rounded-lg border border-border px-1.5 py-0.5 text-xs">‹</button>
         <p className="text-xs font-semibold">{MONTHS[cursor.m]} {cursor.y}</p>
@@ -1382,6 +1382,51 @@ export function AgendaPanel({ pw, role, staffId, staffName, division, classes }:
   async function remove(id: string) {
     await deleteAgenda({ data: { password: pw, id } });
     setReload((x) => x + 1);
+  }
+
+  const [hosView, setHosView] = useState<"approval" | "proposal" | "create">("approval");
+  const pendingForHos = agendas.filter((a) => a.approval_status === "submitted");
+  const proposalsFromPrincipal = agendas.filter((a) => a.creator_role === "principal");
+  const hosOwnAgendas = agendas.filter((a) => a.creator_role === "hos");
+
+  if (role === "hos") {
+    return (
+      <div>
+        <div className="flex gap-2 mb-3 flex-wrap">
+          <button onClick={() => setHosView("approval")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (hosView === "approval" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>
+            Approval List{pendingForHos.length > 0 ? ` (${pendingForHos.length})` : ""}
+          </button>
+          <button onClick={() => setHosView("proposal")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (hosView === "proposal" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Proposal List</button>
+          <button onClick={() => setHosView("create")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (hosView === "create" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Create HoS Agenda</button>
+        </div>
+
+        {hosView === "create" && (
+          <div className={card + " mb-3 grid gap-2"}>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">New School-Wide Agenda</p>
+            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" className={field} />
+            <input value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="Purpose" className={field} />
+            <input value={theme} onChange={(e) => setTheme(e.target.value)} placeholder="Theme" className={field} />
+            <div className="flex gap-2 flex-wrap items-center">
+              <label className="text-xs text-muted-foreground">Start</label>
+              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm" />
+              <label className="text-xs text-muted-foreground">End</label>
+              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm" />
+            </div>
+            <button onClick={create} disabled={busy} className={btn + " justify-self-start"}><Plus size={13} /> Create Agenda</button>
+            <Err msg={err} />
+          </div>
+        )}
+
+        <ul className="space-y-2">
+          {(hosView === "approval" ? pendingForHos : hosView === "proposal" ? proposalsFromPrincipal : hosOwnAgendas).map((a) => (
+            <AgendaRow key={a.id} agenda={a} pw={pw} role={role} staffName={staffName ?? ""} staffList={staffList} open={open === a.id} onToggle={() => setOpen(open === a.id ? null : a.id)} onRemove={() => remove(a.id)} onChanged={() => setReload((x) => x + 1)} />
+          ))}
+          {(hosView === "approval" ? pendingForHos : hosView === "proposal" ? proposalsFromPrincipal : hosOwnAgendas).length === 0 && (
+            <Hint>{hosView === "approval" ? "Tidak ada yang menunggu approval." : hosView === "proposal" ? "Belum ada proposal dari Principal." : "Belum ada agenda sekolah yang dibuat HoS."}</Hint>
+          )}
+        </ul>
+      </div>
+    );
   }
 
   return (
