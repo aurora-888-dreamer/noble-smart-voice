@@ -14,7 +14,7 @@ import {
   DIVISIONS, ROLE_LABEL, Hint, Section, StatCard, Tabs, ReadOnlyNote, useAsync, useClasses,
   getStoredPassword, getSchoolIdSync, StaffRoster, StudentRoster, GuardianEditor, CsvImportPanel,
   AllActivitiesView, AnnouncementPanel, TeacherMessageThread, ParentMessageThread,
-  ChangePinPanel, PersonnelManager,
+  ChangePinPanel, PersonnelManager, StaffProfilePreviewButton, StudentProfilePreviewButton,
 } from "./shared";
 import {
   listSchoolStaff, listSchoolStudents, postSchoolActivity, deleteSchoolActivity, listActivitiesForClass,
@@ -156,7 +156,7 @@ function StaffProfileForm({ pw, staffId, onSaved }: { pw: string; staffId: strin
   async function save() {
     if (!f.fullName?.trim()) { setErr("Nama lengkap wajib diisi."); return; }
     setBusy(true); setErr(null);
-    const r = await saveMyStaffProfile({ data: { password: pw, staffId, ...(f as Record<string, string>), fullName: String(f.fullName ?? "") } });
+    const r = await saveMyStaffProfile({ data: { password: pw, staffId, ...f } });
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     onSaved();
@@ -197,7 +197,7 @@ function StudentProfileForm({ code, onSaved }: { code: string; onSaved: () => vo
   async function save() {
     if (!f.fullName?.trim()) { setErr("Nama lengkap wajib diisi."); return; }
     setBusy(true); setErr(null);
-    const r = await saveMyStudentProfile({ data: { code, ...(f as Record<string, string>), fullName: String(f.fullName ?? "") } });
+    const r = await saveMyStudentProfile({ data: { code, ...f } });
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     onSaved();
@@ -262,12 +262,167 @@ function AcademicReadOnly({ tab, classes, reviewerRole, reviewerName, calendarSt
 }
 
 /* ───────────── HoS ───────────── */
+const SP_DIVISIONS = DIVISIONS.filter((d) => d.id !== "All Divisions");
+
+/** School Profile (SP) — replaces the old Overview + Staff & Role tabs.
+ * Browsing (Division/Class/Staff/Student) is read-only view+search; actual
+ * add/edit/delete only happens in the separate "Profile Update" section. */
+function SchoolProfilePanel({ pw, staffId, classes }: { pw: string; staffId: string; classes: { id: string; name: string; division: string }[] }) {
+  const [view, setView] = useState<"overview" | "division" | "class" | "staff" | "student" | "update">("overview");
+  const [divisionSel, setDivisionSel] = useState<string | null>(null);
+  const [classSel, setClassSel] = useState("");
+  const [updateTab, setUpdateTab] = useState<"staff" | "student">("staff");
+  const [search, setSearch] = useState("");
+
+  const staffRes = useAsync(() => listSchoolStaff({ data: { password: pw } }), [pw]);
+  const staffList = (staffRes.data && "staff" in staffRes.data ? (staffRes.data.staff ?? []) : []) as Row[];
+  const studentsRes = useAsync(() => listSchoolStudents({ data: { password: pw } }), [pw]);
+  const studentList = (studentsRes.data && "students" in studentsRes.data ? (studentsRes.data.students ?? []) : []) as Row[];
+  const classDivision = new Map(classes.map((c) => [c.id, c.division]));
+
+  function countsFor(divId: string) {
+    return {
+      classCount: classes.filter((c) => c.division === divId).length,
+      staffCount: staffList.filter((s) => s.division === divId).length,
+      studentCount: studentList.filter((s) => classDivision.get(s.class_id) === divId).length,
+    };
+  }
+
+  function back() { setView("overview"); setDivisionSel(null); setClassSel(""); setSearch(""); }
+
+  if (view !== "overview") {
+    return (
+      <div>
+        <button onClick={back} className="text-xs text-muted-foreground underline mb-4 flex items-center gap-1"><ArrowLeft size={12} /> Kembali ke School Profile</button>
+
+        {view === "division" && divisionSel && (
+          <div>
+            <h3 className="text-sm font-semibold mb-3">{SP_DIVISIONS.find((d) => d.id === divisionSel)?.label}</h3>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Principal & Vice Principal</p>
+            <ul className="space-y-1.5 mb-4">
+              {staffList.filter((s) => s.division === divisionSel && (s.role === "principal" || s.role === "vice_principal")).map((s) => (
+                <li key={s.id} className="flex items-center justify-between rounded-lg bg-card border border-border px-3 py-2 text-sm">
+                  {s.full_name} <StaffProfilePreviewButton staffId={s.id} fullName={s.full_name} />
+                </li>
+              ))}
+            </ul>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Kelas di Divisi Ini</p>
+            <ul className="space-y-1.5">
+              {classes.filter((c) => c.division === divisionSel).map((c) => (
+                <li key={c.id}>
+                  <button onClick={() => { setClassSel(c.id); setView("class"); }} className="w-full text-left rounded-lg bg-card border border-border px-3 py-2 text-sm">{c.name}</button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {view === "class" && (
+          <div>
+            <select value={classSel} onChange={(e) => setClassSel(e.target.value)} className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm mb-3">
+              <option value="">pilih kelas</option>
+              {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            {classSel && (
+              <>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Homeroom</p>
+                <p className="text-sm mb-4">{staffList.filter((s) => s.class_id === classSel && s.role === "teacher_homeroom").map((s) => s.full_name).join(", ") || "-"}</p>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Students ({studentList.filter((s) => s.class_id === classSel).length})</p>
+                <ul className="space-y-1.5">
+                  {studentList.filter((s) => s.class_id === classSel).map((s) => (
+                    <li key={s.id} className="flex items-center justify-between rounded-lg bg-card border border-border px-3 py-2 text-sm">
+                      <span className="flex items-center gap-2">
+                        {s.photo_url ? <img src={s.photo_url} alt={s.full_name} className="w-6 h-6 rounded-full object-cover" /> : <Baby size={14} className="text-muted-foreground" />}
+                        {s.full_name}
+                      </span>
+                      <StudentProfilePreviewButton studentId={s.id} fullName={s.full_name} />
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
+        )}
+
+        {view === "staff" && (
+          <div>
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari staff…" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm mb-3" />
+            <ul className="space-y-1.5">
+              {staffList.filter((s) => s.full_name.toLowerCase().includes(search.toLowerCase())).map((s) => (
+                <li key={s.id} className="flex items-center justify-between rounded-lg bg-card border border-border px-3 py-2 text-sm">
+                  <span>{s.full_name}<span className="text-[10px] text-muted-foreground ml-2">{ROLE_LABEL[s.role] ?? s.role}</span></span>
+                  <StaffProfilePreviewButton staffId={s.id} fullName={s.full_name} />
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {view === "student" && (
+          <div>
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari murid…" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm mb-3" />
+            <ul className="space-y-1.5">
+              {studentList.filter((s) => s.full_name.toLowerCase().includes(search.toLowerCase())).map((s) => (
+                <li key={s.id} className="flex items-center justify-between rounded-lg bg-card border border-border px-3 py-2 text-sm">
+                  {s.full_name}
+                  <StudentProfilePreviewButton studentId={s.id} fullName={s.full_name} />
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {view === "update" && (
+          <div>
+            <div className="flex gap-2 mb-3">
+              <button onClick={() => setUpdateTab("staff")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (updateTab === "staff" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Staff</button>
+              <button onClick={() => setUpdateTab("student")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (updateTab === "student" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Student</button>
+            </div>
+            {updateTab === "staff" ? (
+              <div>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Buat akun baru: Vice HoS, Admin HoS, Principal, Vice Principal, Admin Principal, Homeroom Teacher (bisa assign/lepas kelas)
+                  dan Subject Teacher (bisa assign/lepas mata pelajaran). UserID dibuat otomatis, PIN awal <code className="font-mono">123456</code> —
+                  wajib diganti saat login pertama.
+                </p>
+                <StaffRoster canEdit classes={classes} scopeDivision={null} />
+              </div>
+            ) : <StudentRoster canEdit classes={classes} />}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        {SP_DIVISIONS.map((d) => {
+          const c = countsFor(d.id);
+          return (
+            <button key={d.id} onClick={() => { setDivisionSel(d.id); setView("division"); }} className="rounded-2xl bg-card border border-border p-3 text-left hover:border-primary transition-colors">
+              <p className="text-sm font-semibold mb-2">{d.label}</p>
+              <p className="text-xs text-muted-foreground">Class: {c.classCount}</p>
+              <p className="text-xs text-muted-foreground">Staff: {c.staffCount}</p>
+              <p className="text-xs text-muted-foreground">Student: {c.studentCount}</p>
+            </button>
+          );
+        })}
+      </div>
+      <div className="flex gap-2 flex-wrap">
+        <button onClick={() => setView("staff")} className="rounded-full border border-border px-3 py-1.5 text-xs font-semibold">All Staff</button>
+        <button onClick={() => setView("student")} className="rounded-full border border-border px-3 py-1.5 text-xs font-semibold">All Student</button>
+        <button onClick={() => setView("update")} className="rounded-full border border-border px-3 py-1.5 text-xs font-semibold">Profile Update</button>
+      </div>
+      <p className="text-[11px] text-muted-foreground mt-4">EoY Backup dan BoY Import belum tersedia — fitur ini menyusul di giliran berikutnya.</p>
+    </div>
+  );
+}
+
 export function HosDashboard({ staffId }: { staffId: string }) {
-  const [tab, setTab] = useState("overview");
+  const [tab, setTab] = useState("sp");
   const pw = getStoredPassword();
   const classes = useClasses();
-  const staff = useAsync(() => listSchoolStaff({ data: { password: pw } }), [pw]);
-  const staffList = (staff.data && "staff" in staff.data ? (staff.data.staff ?? []) : []) as unknown[];
   const counts = useAsync(() => getPendingCounts({ data: { password: pw, role: "hos" } }), [pw]);
   const pending = counts.data && "ok" in counts.data && counts.data.ok ? counts.data : { officialLetters: 0, agendas: 0, reports: 0 };
   const unreadStaffRes = useAsync(() => listUnreadStaffSenderIds({ data: { password: pw, staffId } }), [pw, staffId]);
@@ -275,20 +430,14 @@ export function HosDashboard({ staffId }: { staffId: string }) {
   const withCount = (label: string, n: number) => (n > 0 ? `${label} (${n})` : label);
   const academicTabsWithCount = ACADEMIC_TABS.map((t) => t.id === "projects" ? { ...t, label: withCount(t.label, pending.officialLetters) } : t);
   const tabs = [
-    { id: "overview", label: "Overview" }, { id: "staff", label: "Staff & Role" }, { id: "agenda", label: withCount("Agenda", pending.agendas) },
+    { id: "sp", label: "School Profile" }, { id: "agenda", label: withCount("Agenda", pending.agendas) },
     { id: "message", label: unreadStaffCount > 0 ? `Message 🟠${unreadStaffCount}` : "Message" }, { id: "laporan", label: withCount("Report", pending.reports) },
     { id: "activity", label: "Teacher Activity" }, { id: "announce", label: "Announcements" }, ...academicTabsWithCount, PIN_TAB,
   ];
   return (
     <div>
       <Tabs tabs={tabs} tab={tab} onChange={setTab}>
-        {tab === "overview" && (
-          <div className="grid grid-cols-2 gap-3">
-            <StatCard label="Classes" value={classes.length} Icon={GraduationCap} />
-            <StatCard label="Staff" value={staffList.length} Icon={Users} />
-          </div>
-        )}
-        {tab === "staff" && <RoleManager classes={classes} />}
+        {tab === "sp" && <SchoolProfilePanel pw={pw} staffId={staffId} classes={classes} />}
         {tab === "agenda" && <AgendaPanel pw={pw} role="hos" staffId={staffId} staffName="Head of School" classes={classes} />}
         {tab === "message" && <StaffMessagePanel pw={pw} staffId={staffId} />}
         {tab === "laporan" && <CasePanel access={{ pw }} role="hos" staffId={staffId} staffName="Head of School" classes={classes} />}
@@ -376,7 +525,7 @@ export function PrincipalDashboard({ division, staffId, staffName }: { division:
 
 
 /* ───────────── Teacher ───────────── */
-export function TeacherDashboard({ staffId, staffName, role, defaultClassId, division }: { staffId: string; staffName: string; role: string | null; defaultClassId: string | null; division?: string | null }) {
+export function TeacherDashboard({ staffId, staffName, role, defaultClassId }: { staffId: string; staffName: string; role: string | null; defaultClassId: string | null }) {
   const pw = getStoredPassword();
   const [reload, setReload] = useState(0);
   const allClasses = useClasses();
@@ -559,7 +708,7 @@ export function ParentDashboard({ code }: { code: string }) {
   if (section) {
     const item = PARENT_MENU.find((m) => m.id === section);
     return (
-      <div>
+      <div className="max-w-lg mx-auto">
         <button onClick={() => setSection(null)} className="text-xs text-muted-foreground underline mb-4 flex items-center gap-1"><ArrowLeft size={12} /> Kembali ke Home</button>
         <h2 className="text-base font-semibold mb-3 flex items-center gap-2">{item?.Icon && <item.Icon size={16} className="text-primary" />} {item?.label}</h2>
 
@@ -596,7 +745,7 @@ export function ParentDashboard({ code }: { code: string }) {
   }
 
   return (
-    <div>
+    <div className="max-w-lg mx-auto">
       <div className="flex flex-col items-center gap-2 mb-6">
         {student.photo_url ? (
           <img src={student.photo_url} alt={student.full_name} className="w-24 h-24 rounded-full object-cover border-2 border-primary" />
@@ -607,7 +756,7 @@ export function ParentDashboard({ code }: { code: string }) {
         <button onClick={() => { schoolLogout(); navigate({ to: "/school" }); }} className="text-xs rounded-full border border-border px-3 py-1.5 flex items-center gap-1"><LogOut size={12} /> Keluar</button>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-3 max-w-sm mx-auto lg:max-w-md">
         {PARENT_MENU.map((m) => {
           const badge = badgeFor(m.id);
           return (
