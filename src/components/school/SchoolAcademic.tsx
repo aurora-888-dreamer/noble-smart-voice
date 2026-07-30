@@ -12,14 +12,14 @@ import {
   listProjects, saveProject, reviewProject, listProjectReviews,
   listAssessments, saveAssessment, deleteAssessment, draftAssessmentNote,
   listCompetencies, saveCompetency, deleteCompetency,
-  listAttendance, saveAttendance,
+  listAttendance, saveAttendance, getAttendanceDayInfo, setAttendanceDayMandatory, listAttendanceDayFlags,
 } from "@/lib/school-academic.functions";
 import {
   listAgendas, saveAgenda, deleteAgenda, addAgendaPic, removeAgendaPic,
   submitAgendaForApproval, reviewAgenda, startAgendaExecution, closeAgenda,
   listAgendaTimeline, addAgendaComment,
 } from "@/lib/school-agenda.functions";
-import { listMessagingContacts, listStaffConversation, sendStaffMessage } from "@/lib/school-staff-messages.functions";
+import { listMessagingContacts, listStaffConversation, sendStaffMessage, listUnreadStaffSenderIds } from "@/lib/school-staff-messages.functions";
 import {
   reportCaseAsTeacher, reportCaseAsParent, reportCaseAsPrincipal, listCases, listCasesForParent,
   listCaseTimeline, listCaseTimelineForParent, addCaseComment, addCaseCommentAsParent,
@@ -30,7 +30,7 @@ import { listSchoolStudents, listSchoolStaff } from "@/lib/school.functions";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = Record<string, any>;
-export type ClassOpt = { id: string; name: string };
+export type ClassOpt = { id: string; name: string; division?: string };
 
 /** Shared access shape: staff use a password, parents use an invite code. */
 export type Access = { pw: string; code?: undefined; staffId?: string } | { pw?: undefined; code: string; staffId?: undefined };
@@ -82,9 +82,32 @@ const EVENT_TYPES = [
   { v: "acara", label: "Acara", cls: "bg-blue-500/15 text-blue-600" },
 ];
 
-export function CalendarPanel({ access, classes, canEdit, compact, division }: { access: Access; classes: ClassOpt[]; canEdit: boolean; compact?: boolean; division?: string }) {
+const CALENDAR_DIVISIONS = [
+  { id: "kindergarten", label: "Preschool" },
+  { id: "primary", label: "Primary" },
+  { id: "secondary", label: "Secondary" },
+  { id: "ib", label: "IB" },
+];
+
+export function CalendarPanel({ access, classes, canEdit, compact, roleScope, fixedDivision }: {
+  access: Access; classes: ClassOpt[]; canEdit: boolean; compact?: boolean;
+  roleScope?: "hos" | "principal" | "teacher"; fixedDivision?: string;
+}) {
+  // Scope selector: School Wide -> Division ("Principal" level) -> Class.
+  // HoS picks the Division freely (any of the 4 units); Principal/Teacher
+  // have it fixed to their own division. Class list narrows to whichever
+  // division is in play once "Class" is chosen.
+  const [scopeMode, setScopeMode] = useState<"school" | "division" | "class">("school");
+  const [scopeDivision, setScopeDivision] = useState(fixedDivision ?? "");
   const [classId, setClassId] = useState("");
   const [reload, setReload] = useState(0);
+  const effectiveDivision = roleScope === "hos" ? scopeDivision : (fixedDivision ?? "");
+  const classesInScope = roleScope === "hos" && effectiveDivision ? classes.filter((c) => c.division === effectiveDivision) : classes;
+  const isStaffScoped = roleScope === "principal" || roleScope === "teacher";
+  const divisionLabel = CALENDAR_DIVISIONS.find((d) => d.id === effectiveDivision)?.label ?? effectiveDivision;
+  useEffect(() => {
+    if (scopeMode === "class" && classesInScope.length === 1 && classId !== classesInScope[0].id) setClassId(classesInScope[0].id);
+  }, [scopeMode, classesInScope, classId]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [desc, setDesc] = useState("");
@@ -100,9 +123,13 @@ export function CalendarPanel({ access, classes, canEdit, compact, division }: {
     () => listCalendarEvents({
       data: access.code
         ? { code: access.code }
-        : { password: access.pw, classId: classId || undefined, division: !classId ? division : undefined, scopeAll: !classId && !division },
+        : scopeMode === "school"
+          ? { password: access.pw, schoolWideOnly: true }
+          : scopeMode === "division"
+            ? { password: access.pw, division: effectiveDivision || undefined, scopeAll: !effectiveDivision }
+            : { password: access.pw, classId: classId || undefined, division: effectiveDivision || undefined, scopeAll: !classId && !effectiveDivision },
     }),
-    [access.pw, access.code, classId, reload],
+    [access.pw, access.code, scopeMode, effectiveDivision, classId, reload],
   );
   const events: Row[] = res.data && res.data.ok ? res.data.events : [];
 
@@ -120,7 +147,9 @@ export function CalendarPanel({ access, classes, canEdit, compact, division }: {
   async function add() {
     if (!title.trim() || !access.pw) return;
     setBusy(true); setErr(null);
-    const r = await saveCalendarEvent({ data: { password: access.pw, id: editingId || undefined, classId: classId || undefined, divisionScope: !classId ? division : undefined, title, description: desc, eventDate: date, eventType: type, staffId: staffId ?? "" } });
+    const useClassId = scopeMode === "class" ? classId : undefined;
+    const useDivisionScope = scopeMode === "division" ? effectiveDivision : undefined;
+    const r = await saveCalendarEvent({ data: { password: access.pw, id: editingId || undefined, classId: useClassId, divisionScope: useDivisionScope, title, description: desc, eventDate: date, eventType: type, staffId: staffId ?? "" } });
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     resetForm(); setReload((x) => x + 1);
@@ -187,8 +216,28 @@ export function CalendarPanel({ access, classes, canEdit, compact, division }: {
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-2 mb-2">
-        {!access.code ? <ClassPicker value={classId} onChange={setClassId} classes={classes} /> : <span />}
+      <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+        {!access.code ? (
+          <div className="flex flex-wrap gap-1.5 items-center">
+            <button onClick={() => setScopeMode("school")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (scopeMode === "school" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>School Wide</button>
+            <button onClick={() => setScopeMode("division")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (scopeMode === "division" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>
+              {isStaffScoped ? divisionLabel || "Principal" : "Unit"}
+            </button>
+            <button onClick={() => setScopeMode("class")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (scopeMode === "class" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Class</button>
+            {roleScope === "hos" && (scopeMode === "division" || scopeMode === "class") && (
+              <select value={scopeDivision} onChange={(e) => { setScopeDivision(e.target.value); setClassId(""); }} className="rounded-lg bg-background border border-border px-2 py-1 text-xs">
+                <option value="">pilih unit</option>
+                {CALENDAR_DIVISIONS.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
+              </select>
+            )}
+            {scopeMode === "class" && (roleScope !== "hos" || scopeDivision) && (
+              <select value={classId} onChange={(e) => setClassId(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-1 text-xs">
+                <option value="">{classesInScope.length === 1 ? classesInScope[0].name : "pilih kelas"}</option>
+                {classesInScope.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            )}
+          </div>
+        ) : <span />}
         {canEdit && (
           <>
             <button onClick={() => fileRef.current?.click()} title="Import Agenda Tahunan (CSV)" aria-label="Import Agenda Tahunan" className="shrink-0 rounded-lg border border-border p-2">
@@ -1108,7 +1157,18 @@ function AttendanceCharts({ access, classId, students }: { access: Access; class
     () => listAttendance({ data: access.code ? { code: access.code } : { password: access.pw, classId, from, to } }),
     [access.pw, access.code, classId, from, to],
   );
-  const records: Row[] = res.data && res.data.ok ? res.data.records : [];
+  const flagsRes = useAsync(
+    () => (access.pw ? listAttendanceDayFlags({ data: { password: access.pw, classId, from, to } }) : Promise.resolve(null)),
+    [access.pw, classId, from, to],
+  );
+  const nonMandatoryDates = new Set(
+    (flagsRes.data && "ok" in flagsRes.data && flagsRes.data.ok ? flagsRes.data.flags : [])
+      .filter((f: Row) => f.is_mandatory === false).map((f: Row) => String(f.attendance_date).slice(0, 10)),
+  );
+  const allRecords: Row[] = res.data && res.data.ok ? res.data.records : [];
+  // Days explicitly marked "tidak wajib" (holiday/optional activity) are
+  // excluded so monthly/semester/yearly stats aren't skewed by them.
+  const records = allRecords.filter((r) => !nonMandatoryDates.has(String(r.date).slice(0, 10)));
 
   const STATUS_COLORS: Record<string, string> = { hadir: "#10b981", izin: "#3b82f6", sakit: "#f97316", alpha: "#ef4444" };
   const classCounts = STATUSES.map((st) => ({ status: st.label, jumlah: records.filter((r) => r.status === st.v).length }));
@@ -1121,6 +1181,7 @@ function AttendanceCharts({ access, classId, students }: { access: Access; class
   return (
     <div className={card + " mb-3 grid gap-4"}>
       <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground font-semibold"><BarChart3 size={14} /> Ringkasan Attendance (30 hari terakhir)</div>
+      {nonMandatoryDates.size > 0 && <p className="text-[10px] text-muted-foreground">{nonMandatoryDates.size} hari libur/tidak wajib dikecualikan dari perhitungan ini.</p>}
       <div>
         <p className="text-xs text-muted-foreground mb-1">Per kelas</p>
         <ResponsiveContainer width="100%" height={140}>
@@ -1224,6 +1285,19 @@ export function AttendancePanel({ access, classes, canEdit, staffId }: { access:
     );
   }
 
+  const dayInfoRes = useAsync(
+    () => (access.pw && classId && date ? getAttendanceDayInfo({ data: { password: access.pw, classId, date } }) : Promise.resolve(null)),
+    [access.pw, classId, date, reload],
+  );
+  const dayInfo = dayInfoRes.data && "ok" in dayInfoRes.data && dayInfoRes.data.ok ? dayInfoRes.data : null;
+  const [dayNote, setDayNote] = useState("");
+
+  async function setMandatory(isMandatory: boolean) {
+    if (!access.pw || !classId) return;
+    await setAttendanceDayMandatory({ data: { password: access.pw, classId, date, isMandatory, note: dayNote, staffId: staffId ?? "" } });
+    setReload((x) => x + 1);
+  }
+
   return (
     <div>
       {classId && <AttendanceCharts access={access} classId={classId} students={students} />}
@@ -1234,6 +1308,23 @@ export function AttendancePanel({ access, classes, canEdit, staffId }: { access:
         </select>
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-2 text-sm" />
       </div>
+      {classId && dayInfo && (dayInfo.isHoliday || dayInfo.eventTitles.length > 0 || dayInfo.explicitMandatory !== null) && (
+        <div className="rounded-xl bg-secondary/40 p-3 mb-3 text-xs space-y-2">
+          <p>
+            {dayInfo.isHoliday ? "📅 Hari ini terdeteksi LIBUR di kalender." : dayInfo.eventTitles.length > 0 ? "📅 Ada activity di kalender hari ini." : "Status hari sudah diset manual."}
+            {dayInfo.eventTitles.length > 0 && <span className="block text-muted-foreground mt-0.5">{dayInfo.eventTitles.join(", ")}</span>}
+          </p>
+          <p className="font-semibold">
+            Status saat ini: {dayInfo.explicitMandatory === null ? (dayInfo.isHoliday ? "Belum diset (default: tidak wajib karena libur)" : "Wajib (default)") : dayInfo.explicitMandatory ? "Wajib dihitung" : "Tidak wajib dihitung"}
+          </p>
+          <div className="flex gap-2 flex-wrap items-center">
+            <button onClick={() => setMandatory(true)} className="rounded-full border border-border px-3 py-1 font-semibold">Tandai Wajib</button>
+            <button onClick={() => setMandatory(false)} className="rounded-full border border-border px-3 py-1 font-semibold">Tandai Tidak Wajib</button>
+            <input value={dayNote} onChange={(e) => setDayNote(e.target.value)} placeholder="Catatan (opsional)" className="rounded-lg bg-background border border-border px-2 py-1 flex-1 min-w-32" />
+          </div>
+          <p className="text-[10px] text-muted-foreground">Hari yang "Tidak wajib" tidak ikut dihitung di laporan bulanan/semester/tahunan.</p>
+        </div>
+      )}
       {!classId ? (
         <Hint>Pilih kelas dulu.</Hint>
       ) : (
@@ -1624,6 +1715,8 @@ export function StaffMessagePanel({ pw, staffId }: { pw: string; staffId: string
     [pw, staffId, otherId, reload],
   );
   const messages: Row[] = convoRes.data && convoRes.data.ok ? convoRes.data.messages : [];
+  const unreadRes = useAsync(() => listUnreadStaffSenderIds({ data: { password: pw, staffId } }), [pw, staffId, otherId, reload]);
+  const unreadSenderIds = new Set(unreadRes.data && "ok" in unreadRes.data && unreadRes.data.ok ? unreadRes.data.senderIds : []);
 
   async function send() {
     if (!body.trim() || !otherId) return;
@@ -1645,7 +1738,10 @@ export function StaffMessagePanel({ pw, staffId }: { pw: string; staffId: string
                 onClick={() => setOtherId(c.id)}
                 className={"w-full text-left rounded-lg px-3 py-2 text-sm border " + (otherId === c.id ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}
               >
-                {c.full_name}
+                <span className="flex items-center gap-1.5">
+                  {unreadSenderIds.has(c.id) && <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0" title="Pesan baru" />}
+                  {c.full_name}
+                </span>
                 <span className="block text-[10px] opacity-70">{roleLabelForMessaging(c.role)}</span>
               </button>
             </li>

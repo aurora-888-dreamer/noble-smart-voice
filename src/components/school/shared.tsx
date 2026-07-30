@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { getStoredSchoolPassword, changeSchoolPin, useSchoolSession } from "@/lib/school-store";
 import { usePreview } from "@/lib/preview-context";
-import { getStaffProfileForViewer, getStudentProfileForViewer } from "@/lib/school-profile.functions";
+import { getStaffProfileForViewer, getStudentProfileForViewer, saveStaffStatus, saveStudentStatus } from "@/lib/school-profile.functions";
 import { CREATABLE_ROLES, ROLE_LABELS, roleLabel, type SchoolRole } from "@/lib/school-roles";
 import {
   listSchoolClasses, createSchoolClass, listSchoolStaff, deleteSchoolStaff,
@@ -305,10 +305,46 @@ function StaffProfilePreviewButton({ staffId, fullName }: { staffId: string; ful
   );
 }
 
+const STATUS_SUGGESTIONS = ["Active", "Inactive", "Leave"];
+
+function StatusNoteEditor({ status, note, canEdit, onSave }: { status: string; note?: string; canEdit: boolean; onSave: (status: string, note: string) => Promise<void> }) {
+  const [s, setS] = useState(status || "Active");
+  const [n, setN] = useState(note || "");
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+  if (!canEdit) {
+    return (
+      <div className="rounded-lg bg-secondary/40 px-3 py-2">
+        <p className="text-xs"><span className="text-muted-foreground">Status: </span>{status || "Active"}</p>
+        {note && <p className="text-xs mt-1"><span className="text-muted-foreground">Note: </span>{note}</p>}
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-lg bg-secondary/40 px-3 py-2 grid gap-2">
+      <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">Status & Note</p>
+      <input list="status-suggestions" value={s} onChange={(e) => setS(e.target.value)} placeholder="Status (pilih atau ketik kategori baru)" className="rounded-lg bg-background border border-border px-2 py-1.5 text-xs" />
+      <datalist id="status-suggestions">
+        {STATUS_SUGGESTIONS.map((o) => <option key={o} value={o} />)}
+      </datalist>
+      <textarea value={n} onChange={(e) => setN(e.target.value)} rows={2} placeholder="Catatan (opsional)" className="rounded-lg bg-background border border-border px-2 py-1.5 text-xs" />
+      <button
+        onClick={async () => { setBusy(true); await onSave(s, n); setBusy(false); setSaved(true); setTimeout(() => setSaved(false), 1500); }}
+        disabled={busy} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold justify-self-start"
+      >
+        {saved ? "Tersimpan" : "Simpan"}
+      </button>
+    </div>
+  );
+}
+
 function StaffProfilePreviewBody({ pw, viewerId, targetStaffId }: { pw: string; viewerId: string; targetStaffId: string }) {
-  const res = useAsync(() => getStaffProfileForViewer({ data: { password: pw, viewerId, targetStaffId } }), [pw, viewerId, targetStaffId]);
+  const [reload, setReload] = useState(0);
+  const { session } = useSchoolSession();
+  const res = useAsync(() => getStaffProfileForViewer({ data: { password: pw, viewerId, targetStaffId } }), [pw, viewerId, targetStaffId, reload]);
   const p = res.data && "ok" in res.data && res.data.ok ? res.data.profile : null;
   if (!p) return <Hint>Memuat profile…</Hint>;
+  const canEditStatus = !!session && (session.role === "hos" || (session.role === "principal" && session.division === p.division));
   const rows: [string, unknown][] = [
     ["Nama", p.full_name], ["Panggilan", p.nickname], ["Jenis kelamin", p.gender],
     ["Tempat, tanggal lahir", [p.birthplace, p.birth_date].filter(Boolean).join(", ")],
@@ -324,6 +360,10 @@ function StaffProfilePreviewBody({ pw, viewerId, targetStaffId }: { pw: string; 
           <li key={label}><span className="text-muted-foreground text-xs">{label}: </span>{String(v)}</li>
         ))}
       </ul>
+      <StatusNoteEditor
+        status={p.status} note={p.admin_note} canEdit={canEditStatus}
+        onSave={async (status, note) => { await saveStaffStatus({ data: { password: pw, viewerId, targetStaffId, status, note } }); setReload((x) => x + 1); }}
+      />
     </div>
   );
 }
@@ -344,9 +384,13 @@ function StudentProfilePreviewButton({ studentId, fullName }: { studentId: strin
 }
 
 function StudentProfilePreviewBody({ pw, viewerId, targetStudentId }: { pw: string; viewerId: string; targetStudentId: string }) {
-  const res = useAsync(() => getStudentProfileForViewer({ data: { password: pw, viewerId, targetStudentId } }), [pw, viewerId, targetStudentId]);
+  const [reload, setReload] = useState(0);
+  const { session } = useSchoolSession();
+  const res = useAsync(() => getStudentProfileForViewer({ data: { password: pw, viewerId, targetStudentId } }), [pw, viewerId, targetStudentId, reload]);
   const p = res.data && "ok" in res.data && res.data.ok ? res.data.profile : null;
   if (!p) return <Hint>Memuat profile…</Hint>;
+  const studentDivision = p.school_classes?.division;
+  const canEditStatus = !!session && (session.role === "hos" || (session.role === "principal" && session.division === studentDivision));
   const rows: [string, unknown][] = [
     ["Nama", p.full_name], ["Panggilan", p.nickname], ["Jenis kelamin", p.gender],
     ["Tempat, tanggal lahir", [p.pob, p.dob].filter(Boolean).join(", ")],
@@ -362,6 +406,10 @@ function StudentProfilePreviewBody({ pw, viewerId, targetStudentId }: { pw: stri
           <li key={label}><span className="text-muted-foreground text-xs">{label}: </span>{String(v)}</li>
         ))}
       </ul>
+      <StatusNoteEditor
+        status={p.status} note={p.admin_note} canEdit={canEditStatus}
+        onSave={async (status, note) => { await saveStudentStatus({ data: { password: pw, viewerId, targetStudentId, status, note } }); setReload((x) => x + 1); }}
+      />
     </div>
   );
 }

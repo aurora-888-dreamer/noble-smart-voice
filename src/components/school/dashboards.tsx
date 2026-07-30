@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = Record<string, any>;
 import {
-  GraduationCap, Users, Baby, BookOpen, MessageSquare, Megaphone, Bell, Save, Trash2, LogOut, Shield,
+  GraduationCap, Users, Baby, BookOpen, MessageSquare, Megaphone, Bell, Save, Trash2, LogOut, Shield, ArrowLeft,
 } from "lucide-react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
@@ -18,9 +18,11 @@ import {
 } from "./shared";
 import {
   listSchoolStaff, listSchoolStudents, postSchoolActivity, deleteSchoolActivity, listActivitiesForClass,
-  getStudentForCode, listActivitiesForCode, listAnnouncementsForCode, type SchoolRole,
+  getStudentForCode, listActivitiesForCode, listAnnouncementsForCode, listUnreadParentStudentIds,
+  getParentNotifications, markAnnouncementsSeenForParent, type SchoolRole,
 } from "@/lib/school.functions";
 import { getPendingCounts } from "@/lib/school-pending-counts.functions";
+import { listUnreadStaffSenderIds } from "@/lib/school-staff-messages.functions";
 import { sendHeartbeat } from "@/lib/school-presence.functions";
 import { schoolLogout, type SchoolSession } from "@/lib/school-store";
 import {
@@ -229,7 +231,7 @@ function AcademicReadOnly({ tab, classes, reviewerRole, reviewerName, calendarSt
   const pw = getStoredPassword();
   if (!ACADEMIC_TABS.some((t) => t.id === tab)) return null;
   if (tab === "calendar" && calendarStaffId) {
-    return <CalendarPanel access={{ pw, staffId: calendarStaffId }} classes={classes} canEdit compact division={reviewerRole === "principal" ? (division ?? undefined) : undefined} />;
+    return <CalendarPanel access={{ pw, staffId: calendarStaffId }} classes={classes} canEdit compact roleScope={reviewerRole ?? undefined} fixedDivision={reviewerRole === "principal" ? (division ?? undefined) : undefined} />;
   }
   if (tab === "timetable" && reviewerRole === "principal" && timetableStaffId) {
     return <TimetablePanel access={{ pw }} classes={classes} canEdit staffId={timetableStaffId} />;
@@ -268,11 +270,13 @@ export function HosDashboard({ staffId }: { staffId: string }) {
   const staffList = (staff.data && "staff" in staff.data ? (staff.data.staff ?? []) : []) as unknown[];
   const counts = useAsync(() => getPendingCounts({ data: { password: pw, role: "hos" } }), [pw]);
   const pending = counts.data && "ok" in counts.data && counts.data.ok ? counts.data : { officialLetters: 0, agendas: 0, reports: 0 };
+  const unreadStaffRes = useAsync(() => listUnreadStaffSenderIds({ data: { password: pw, staffId } }), [pw, staffId]);
+  const unreadStaffCount = unreadStaffRes.data && "ok" in unreadStaffRes.data && unreadStaffRes.data.ok ? unreadStaffRes.data.senderIds.length : 0;
   const withCount = (label: string, n: number) => (n > 0 ? `${label} (${n})` : label);
   const academicTabsWithCount = ACADEMIC_TABS.map((t) => t.id === "projects" ? { ...t, label: withCount(t.label, pending.officialLetters) } : t);
   const tabs = [
     { id: "overview", label: "Overview" }, { id: "staff", label: "Staff & Role" }, { id: "agenda", label: withCount("Agenda", pending.agendas) },
-    { id: "message", label: "Message" }, { id: "laporan", label: withCount("Report", pending.reports) },
+    { id: "message", label: unreadStaffCount > 0 ? `Message 🟠${unreadStaffCount}` : "Message" }, { id: "laporan", label: withCount("Report", pending.reports) },
     { id: "activity", label: "Teacher Activity" }, { id: "announce", label: "Announcements" }, ...academicTabsWithCount, PIN_TAB,
   ];
   return (
@@ -342,11 +346,13 @@ export function PrincipalDashboard({ division, staffId, staffName }: { division:
   const classes = useClasses(division);
   const counts = useAsync(() => getPendingCounts({ data: { password: pw, role: "principal", division } }), [pw, division]);
   const pending = counts.data && "ok" in counts.data && counts.data.ok ? counts.data : { officialLetters: 0, agendas: 0, reports: 0 };
+  const unreadStaffRes = useAsync(() => listUnreadStaffSenderIds({ data: { password: pw, staffId } }), [pw, staffId]);
+  const unreadStaffCount = unreadStaffRes.data && "ok" in unreadStaffRes.data && unreadStaffRes.data.ok ? unreadStaffRes.data.senderIds.length : 0;
   const withCount = (label: string, n: number) => (n > 0 ? `${label} (${n})` : label);
   const academicTabsWithCount = ACADEMIC_TABS.map((t) => t.id === "projects" ? { ...t, label: withCount(t.label, pending.officialLetters) } : t);
   const tabs = [
     { id: "overview", label: "Overview" }, { id: "students", label: "Student" },
-    { id: "staff", label: "Staff" }, { id: "message", label: "Message" }, { id: "agenda", label: "Agenda" }, { id: "laporan", label: withCount("Report", pending.reports) }, { id: "activity", label: "Teacher Activity" },
+    { id: "staff", label: "Staff" }, { id: "message", label: unreadStaffCount > 0 ? `Message 🟠${unreadStaffCount}` : "Message" }, { id: "agenda", label: "Agenda" }, { id: "laporan", label: withCount("Report", pending.reports) }, { id: "activity", label: "Teacher Activity" },
     { id: "announce", label: "Announcements" }, ...academicTabsWithCount, PIN_TAB,
   ];
   return (
@@ -389,6 +395,10 @@ export function TeacherDashboard({ staffId, staffName, role, defaultClassId }: {
 
   const studentList = (students.data && "students" in students.data ? (students.data.students ?? []) : []) as { id: string; full_name: string }[];
   const activityList = (activities.data && "activities" in activities.data ? (activities.data.activities ?? []) : []) as { id: string; title: string; body?: string; activity_date: string; author_name?: string }[];
+  const unreadRes = useAsync(() => (classId ? listUnreadParentStudentIds({ data: { password: pw, classId } }) : Promise.resolve(null)), [pw, classId, selectedStudent]);
+  const unreadStudentIds = new Set(unreadRes.data && "ok" in unreadRes.data && unreadRes.data.ok ? unreadRes.data.studentIds : []);
+  const unreadStaffRes = useAsync(() => listUnreadStaffSenderIds({ data: { password: pw, staffId } }), [pw, staffId, reload]);
+  const unreadStaffCount = unreadStaffRes.data && "ok" in unreadStaffRes.data && unreadStaffRes.data.ok ? unreadStaffRes.data.senderIds.length : 0;
 
   async function post() {
     if (!title.trim() || !classId) return;
@@ -412,11 +422,11 @@ export function TeacherDashboard({ staffId, staffName, role, defaultClassId }: {
   }
 
   const tabs = [
-    { id: "kelas", label: "Class" }, { id: "calendar", label: "Calendar" }, { id: "timetable", label: "Timetable" },
+    { id: "kelas", label: unreadStudentIds.size > 0 ? `Class 🔴${unreadStudentIds.size}` : "Class" }, { id: "calendar", label: "Calendar" }, { id: "timetable", label: "Timetable" },
     { id: "lesson", label: "Lesson Plan" }, { id: "projects", label: "Official Letter" },
     { id: "assessment", label: "Assessment" },
     ...(isHomeroom ? [{ id: "attendance", label: "Attendance" }] : []),
-    { id: "message", label: "Message" },
+    { id: "message", label: unreadStaffCount > 0 ? `Message 🟠${unreadStaffCount}` : "Message" },
     { id: "agenda", label: "Agenda" },
     { id: "laporan", label: "Report" },
     PIN_TAB,
@@ -425,7 +435,7 @@ export function TeacherDashboard({ staffId, staffName, role, defaultClassId }: {
   return (
     <div>
       <Tabs tabs={tabs} tab={tab} onChange={setTab}>
-        {tab === "calendar" && <CalendarPanel access={{ pw, staffId }} classes={classList} canEdit division={classList[0]?.division} />}
+        {tab === "calendar" && <CalendarPanel access={{ pw, staffId }} classes={classList} canEdit roleScope="teacher" fixedDivision={classList[0]?.division} />}
         {tab === "timetable" && <TimetablePanel access={{ pw }} classes={classList} canEdit={false} />}
         {tab === "lesson" && <LessonPlanPanel pw={pw} classes={classList} canEdit />}
         {tab === "projects" && <ProjectPanel pw={pw} classes={classList} canSubmit reviewerRole={null} reviewerName={staffName} staffId={staffId} />}
@@ -454,7 +464,11 @@ export function TeacherDashboard({ staffId, staffName, role, defaultClassId }: {
                     {studentList.map((s) => (
                       <li key={s.id}>
                         <button onClick={() => setSelectedStudent(s)} className="w-full rounded-xl bg-card border border-border p-3 text-left text-sm flex items-center justify-between">
-                          {s.full_name} <span className="text-xs text-muted-foreground">Pesan / Wali</span>
+                          <span className="flex items-center gap-1.5">
+                            {unreadStudentIds.has(s.id) && <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" title="Pesan baru dari orangtua" />}
+                            {s.full_name}
+                          </span>
+                          <span className="text-xs text-muted-foreground">Pesan / Wali</span>
                         </button>
                       </li>
                     ))}
@@ -486,53 +500,135 @@ export function TeacherDashboard({ staffId, staffName, role, defaultClassId }: {
   );
 }
 
+function ParentSettingsPanel({ code }: { code: string }) {
+  const [editing, setEditing] = useState(false);
+  const [savedMsg, setSavedMsg] = useState(false);
+  return (
+    <div className="space-y-6">
+      <div>
+        <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold mb-2">Change PIN</p>
+        <ChangePinPanel />
+      </div>
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Edit Profile</p>
+          {!editing && <button onClick={() => setEditing(true)} className="text-xs text-primary underline">Edit</button>}
+        </div>
+        {savedMsg && <p className="text-xs text-emerald-600 mb-2">Profile tersimpan.</p>}
+        {editing ? (
+          <StudentProfileForm code={code} onSaved={() => { setEditing(false); setSavedMsg(true); setTimeout(() => setSavedMsg(false), 2000); }} />
+        ) : (
+          <p className="text-xs text-muted-foreground">Klik "Edit" untuk mengubah data profile anak Anda.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ───────────── Parent ───────────── */
+const PARENT_MENU = [
+  { id: "settings", label: "Settings", Icon: Shield, color: "bg-slate-500/15 text-slate-600" },
+  { id: "announce", label: "Announcements", Icon: Megaphone, color: "bg-blue-500/15 text-blue-600" },
+  { id: "activities", label: "Daily Activities", Icon: BookOpen, color: "bg-emerald-500/15 text-emerald-600" },
+  { id: "calendar", label: "Calendar", Icon: Bell, color: "bg-purple-500/15 text-purple-600" },
+  { id: "timetable", label: "Timetable", Icon: BookOpen, color: "bg-amber-500/15 text-amber-600" },
+  { id: "assessment", label: "Assessment", Icon: GraduationCap, color: "bg-pink-500/15 text-pink-600" },
+  { id: "attendance", label: "Attendance", Icon: Baby, color: "bg-teal-500/15 text-teal-600" },
+  { id: "message", label: "Messages with Teacher", Icon: MessageSquare, color: "bg-red-500/15 text-red-600" },
+  { id: "report", label: "Report", Icon: Shield, color: "bg-orange-500/15 text-orange-600" },
+];
+
 export function ParentDashboard({ code }: { code: string }) {
   const navigate = useNavigate();
+  const [section, setSection] = useState<string | null>(null);
   const info = useAsync(() => getStudentForCode({ data: { code } }), [code]);
   const activities = useAsync(() => listActivitiesForCode({ data: { code } }), [code]);
   const announcements = useAsync(() => listAnnouncementsForCode({ data: { code } }), [code]);
-  const student = (info.data && "student" in info.data ? info.data.student : null) as { nickname?: string | null; full_name: string; id: string } | null;
+  const notif = useAsync(() => getParentNotifications({ data: { code } }), [code]);
+  const unreadMessages = notif.data && "ok" in notif.data && notif.data.ok ? notif.data.unreadMessages : 0;
+  const newAnnouncements = notif.data && "ok" in notif.data && notif.data.ok ? notif.data.newAnnouncements : 0;
+  const student = (info.data && "student" in info.data ? info.data.student : null) as { nickname?: string | null; full_name: string; id: string; photo_url?: string } | null;
   const activityList = (activities.data && "activities" in activities.data ? (activities.data.activities ?? []) : []) as { id: string; title: string; body?: string; activity_date: string }[];
   const announcementList = (announcements.data && "announcements" in announcements.data ? (announcements.data.announcements ?? []) : []) as { id: string; title: string; body?: string; created_at: string }[];
 
   if (info.loading) return <p className="text-sm text-muted-foreground text-center py-8">Memuat</p>;
   if (!student) return <p className="text-sm text-destructive text-center py-8">{(info.data && "error" in info.data && info.data.error) || "Data tidak ditemukan."}</p>;
 
+  const badgeFor = (id: string): number => (id === "announce" ? newAnnouncements : id === "message" ? unreadMessages : 0);
+
+  if (section) {
+    const item = PARENT_MENU.find((m) => m.id === section);
+    return (
+      <div>
+        <button onClick={() => setSection(null)} className="text-xs text-muted-foreground underline mb-4 flex items-center gap-1"><ArrowLeft size={12} /> Kembali ke Home</button>
+        <h2 className="text-base font-semibold mb-3 flex items-center gap-2">{item?.Icon && <item.Icon size={16} className="text-primary" />} {item?.label}</h2>
+
+        {section === "settings" && <ParentSettingsPanel code={code} />}
+        {section === "announce" && (
+          <>
+            <ul className="space-y-2">
+              {announcementList.map((a) => (
+                <li key={a.id} className="rounded-xl bg-card border border-border p-3 text-sm"><p className="font-semibold">{a.title}</p><p className="text-xs text-muted-foreground">{new Date(a.created_at).toLocaleString()}</p>{a.body && <p className="mt-1">{a.body}</p>}</li>
+              ))}
+              {announcementList.length === 0 && <Hint>Belum ada pengumuman.</Hint>}
+            </ul>
+            {newAnnouncements > 0 && (
+              <button onClick={() => markAnnouncementsSeenForParent({ data: { code } })} className="mt-2 text-xs text-primary underline">Tandai sudah dibaca</button>
+            )}
+          </>
+        )}
+        {section === "activities" && (
+          <ul className="space-y-2">
+            {activityList.map((a) => (
+              <li key={a.id} className="rounded-xl bg-card border border-border p-3 text-sm"><p className="font-semibold">{a.title}</p><p className="text-xs text-muted-foreground">{new Date(a.activity_date).toLocaleDateString()}</p>{a.body && <p className="mt-1">{a.body}</p>}</li>
+            ))}
+            {activityList.length === 0 && <Hint>Belum ada laporan aktivitas.</Hint>}
+          </ul>
+        )}
+        {section === "calendar" && <CalendarPanel access={{ code }} classes={[]} canEdit={false} />}
+        {section === "timetable" && <TimetablePanel access={{ code }} classes={[]} canEdit={false} />}
+        {section === "assessment" && <AssessmentPanel access={{ code }} classes={[]} canEdit={false} />}
+        {section === "attendance" && <AttendancePanel access={{ code }} classes={[]} canEdit={false} />}
+        {section === "message" && <ParentMessageThread code={code} />}
+        {section === "report" && <CasePanel access={{ code }} role="parent" classes={[]} />}
+      </div>
+    );
+  }
+
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <div className="rounded-full bg-primary/15 text-primary px-3 py-1.5 text-sm font-semibold flex items-center gap-1.5"><Baby size={14} /> {student.nickname || student.full_name}</div>
+      <div className="flex flex-col items-center gap-2 mb-6">
+        {student.photo_url ? (
+          <img src={student.photo_url} alt={student.full_name} className="w-24 h-24 rounded-full object-cover border-2 border-primary" />
+        ) : (
+          <div className="w-24 h-24 rounded-full bg-primary/15 text-primary flex items-center justify-center"><Baby size={36} /></div>
+        )}
+        <p className="text-base font-semibold">{student.nickname || student.full_name}</p>
         <button onClick={() => { schoolLogout(); navigate({ to: "/school" }); }} className="text-xs rounded-full border border-border px-3 py-1.5 flex items-center gap-1"><LogOut size={12} /> Keluar</button>
       </div>
 
-      <Section title="Change PIN" Icon={Shield}><ChangePinPanel /></Section>
-
-
-      <Section title="Announcements" Icon={Megaphone}>
-        <ul className="space-y-2">
-          {announcementList.slice(0, 5).map((a) => (
-            <li key={a.id} className="rounded-xl bg-card border border-border p-3 text-sm"><p className="font-semibold">{a.title}</p><p className="text-xs text-muted-foreground">{new Date(a.created_at).toLocaleString()}</p>{a.body && <p className="mt-1">{a.body}</p>}</li>
-          ))}
-          {announcementList.length === 0 && <Hint>Belum ada pengumuman.</Hint>}
-        </ul>
-      </Section>
-
-      <Section title="Daily Activities" Icon={BookOpen}>
-        <ul className="space-y-2">
-          {activityList.map((a) => (
-            <li key={a.id} className="rounded-xl bg-card border border-border p-3 text-sm"><p className="font-semibold">{a.title}</p><p className="text-xs text-muted-foreground">{new Date(a.activity_date).toLocaleDateString()}</p>{a.body && <p className="mt-1">{a.body}</p>}</li>
-          ))}
-          {activityList.length === 0 && <Hint>Belum ada laporan aktivitas.</Hint>}
-        </ul>
-      </Section>
-
-      <Section title="Calendar" Icon={Bell}><CalendarPanel access={{ code }} classes={[]} canEdit={false} /></Section>
-      <Section title="Timetable" Icon={BookOpen}><TimetablePanel access={{ code }} classes={[]} canEdit={false} /></Section>
-      <Section title="Assessment" Icon={GraduationCap}><AssessmentPanel access={{ code }} classes={[]} canEdit={false} /></Section>
-      <Section title="Attendance" Icon={Baby}><AttendancePanel access={{ code }} classes={[]} canEdit={false} /></Section>
-      <Section title="Messages with Teacher" Icon={MessageSquare}><ParentMessageThread code={code} /></Section>
-      <Section title="Report" Icon={Shield}><CasePanel access={{ code }} role="parent" classes={[]} /></Section>
+      <div className="grid grid-cols-3 gap-3">
+        {PARENT_MENU.map((m) => {
+          const badge = badgeFor(m.id);
+          return (
+            <button
+              key={m.id}
+              onClick={() => setSection(m.id)}
+              className="relative aspect-square rounded-2xl bg-card border border-border flex flex-col items-center justify-center gap-2 p-2 text-center hover:border-primary transition-colors"
+            >
+              {badge > 0 && (
+                <span className={"absolute top-1.5 right-1.5 rounded-full text-[9px] font-bold text-white w-4 h-4 flex items-center justify-center " + (m.id === "message" ? "bg-red-500" : "bg-blue-500")}>
+                  {badge}
+                </span>
+              )}
+              <div className={"w-10 h-10 rounded-xl flex items-center justify-center " + m.color}>
+                <m.Icon size={18} />
+              </div>
+              <span className="text-[11px] font-semibold leading-tight">{m.label}</span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
