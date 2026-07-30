@@ -166,3 +166,50 @@ export const getStudentProfileForViewer = createServerFn({ method: "POST" })
     if (!allowed) { profile.allergies = undefined; profile.notes = undefined; }
     return { ok: true, profile };
   });
+
+export const saveStaffStatus = createServerFn({ method: "POST" })
+  .inputValidator((input: { password: string; viewerId: string; targetStaffId: string; status: string; note?: string }) => input)
+  .handler(async ({ data }): Promise<{ ok: true } | Fail> => {
+    const gate = staffClient(data.password);
+    if (!gate.ok) return gate;
+    const { data: viewer, error: vErr } = await gate.supabase.from("school_staff").select("role, division").eq("id", data.viewerId).maybeSingle();
+    if (vErr) return { ok: false, error: vErr.message };
+    if (!viewer) return { ok: false, error: "Staff tidak ditemukan." };
+    if (viewer.role === "hos") {
+      // school-wide, no further check
+    } else if (viewer.role === "principal") {
+      const { data: target, error: tErr } = await gate.supabase.from("school_staff").select("division").eq("id", data.targetStaffId).maybeSingle();
+      if (tErr) return { ok: false, error: tErr.message };
+      if (!target || target.division !== viewer.division) return { ok: false, error: "Hanya bisa mengubah status staff di unit Anda sendiri." };
+    } else {
+      return { ok: false, error: "Hanya HoS (seluruh sekolah) atau Principal (unitnya sendiri) yang bisa mengubah status." };
+    }
+    const { error } = await gate.supabase.from("school_staff").update({ status: data.status, admin_note: data.note || null }).eq("id", data.targetStaffId);
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  });
+
+export const saveStudentStatus = createServerFn({ method: "POST" })
+  .inputValidator((input: { password: string; viewerId: string; targetStudentId: string; status: string; note?: string }) => input)
+  .handler(async ({ data }): Promise<{ ok: true } | Fail> => {
+    const gate = staffClient(data.password);
+    if (!gate.ok) return gate;
+    const { data: viewer, error: vErr } = await gate.supabase.from("school_staff").select("role, division").eq("id", data.viewerId).maybeSingle();
+    if (vErr) return { ok: false, error: vErr.message };
+    if (!viewer) return { ok: false, error: "Staff tidak ditemukan." };
+    if (viewer.role === "hos") {
+      // school-wide, no further check
+    } else if (viewer.role === "principal") {
+      const { data: target, error: tErr } = await gate.supabase
+        .from("school_students").select("class_id, school_classes(division)").eq("id", data.targetStudentId).maybeSingle();
+      if (tErr) return { ok: false, error: tErr.message };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const targetDivision = (target as any)?.school_classes?.division;
+      if (!target || targetDivision !== viewer.division) return { ok: false, error: "Hanya bisa mengubah status murid di unit Anda sendiri." };
+    } else {
+      return { ok: false, error: "Hanya HoS (seluruh sekolah) atau Principal (unitnya sendiri) yang bisa mengubah status." };
+    }
+    const { error } = await gate.supabase.from("school_students").update({ status: data.status, admin_note: data.note || null }).eq("id", data.targetStudentId);
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  });

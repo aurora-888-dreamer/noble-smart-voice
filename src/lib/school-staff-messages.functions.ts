@@ -30,7 +30,7 @@ function pairAllowed(
   const b = tierOf(roleB);
   if (!a || !b) return false;
   if (a === "teacher" && b === "teacher") return !!divisionA && divisionA === divisionB;
-  if (a === "principal" && b === "principal") return false;
+  if (a === "principal" && b === "principal") return true; // peer Principals/Vice Principals, any division
   if (a === "hos" && b === "hos") return false;
   if (a === "principal" && b === "teacher") return !!divisionA && divisionA === divisionB;
   if (a === "teacher" && b === "principal") return !!divisionB && divisionA === divisionB;
@@ -69,7 +69,10 @@ export const listMessagingContacts = createServerFn({ method: "POST" })
       const { data: teacherRows, error: e2 } = await gate.supabase
         .from("school_staff").select("id, full_name, role, division").in("role", TEACHER_TIER).eq("division", myDivision).eq("is_active", true);
       if (e2) return { ok: false, error: e2.message };
-      contacts = [...(hosRows ?? []), ...(teacherRows ?? [])];
+      const { data: peerPrincipals, error: e3 } = await gate.supabase
+        .from("school_staff").select("id, full_name, role, division").in("role", PRINCIPAL_TIER).eq("is_active", true).neq("id", data.staffId);
+      if (e3) return { ok: false, error: e3.message };
+      contacts = [...(hosRows ?? []), ...(peerPrincipals ?? []), ...(teacherRows ?? [])];
     } else {
       const { data: principalRows, error: e1 } = await gate.supabase
         .from("school_staff").select("id, full_name, role, division").in("role", PRINCIPAL_TIER).eq("division", myDivision).eq("is_active", true);
@@ -97,7 +100,22 @@ export const listStaffConversation = createServerFn({ method: "POST" })
       )
       .order("created_at", { ascending: true });
     if (error) return { ok: false, error: error.message };
+    // Opening this conversation marks anything the other person sent us as read.
+    await gate.supabase
+      .from("school_staff_messages").update({ read_at: new Date().toISOString() })
+      .eq("sender_id", data.otherId).eq("recipient_id", data.staffId).is("read_at", null);
     return { ok: true, messages: rows ?? [] };
+  });
+
+export const listUnreadStaffSenderIds = createServerFn({ method: "POST" })
+  .inputValidator((input: { password: string; staffId: string }) => input)
+  .handler(async ({ data }): Promise<{ ok: true; senderIds: string[] } | Fail> => {
+    const gate = staffClient(data.password);
+    if (!gate.ok) return gate;
+    const { data: rows, error } = await gate.supabase
+      .from("school_staff_messages").select("sender_id").eq("recipient_id", data.staffId).is("read_at", null);
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, senderIds: [...new Set((rows ?? []).map((r: Row) => r.sender_id))] };
   });
 
 export const sendStaffMessage = createServerFn({ method: "POST" })

@@ -13,7 +13,7 @@ type Fail = { ok: false; error: string };
 
 // ————— 1. Academic calendar —————
 export const listCalendarEvents = createServerFn({ method: "POST" })
-  .inputValidator((input: { password?: string; code?: string; classId?: string; division?: string; from?: string; to?: string; scopeAll?: boolean }) => input)
+  .inputValidator((input: { password?: string; code?: string; classId?: string; division?: string; from?: string; to?: string; scopeAll?: boolean; schoolWideOnly?: boolean }) => input)
   .handler(async ({ data }): Promise<{ ok: true; events: Row[] } | Fail> => {
     let supabase;
     let classFilter = data.classId ?? null;
@@ -31,8 +31,9 @@ export const listCalendarEvents = createServerFn({ method: "POST" })
       supabase = gate.supabase;
     }
     let q = supabase.from("school_calendar_events").select("*, school_staff(full_name)").order("event_date", { ascending: true });
-    // scopeAll (HoS with no class/division picked) sees every event, no filter.
-    if (!data.scopeAll) {
+    if (data.schoolWideOnly) {
+      q = q.is("division", null).is("class_id", null); // explicitly chosen "School Wide" scope
+    } else if (!data.scopeAll) {
       if (classFilter && divisionFilter) {
         // Parent or Teacher pinned to one class: whole-school + whole-division
         // (division-wide, not tied to a class) + their own class specifically.
@@ -50,7 +51,42 @@ export const listCalendarEvents = createServerFn({ method: "POST" })
     if (data.to) q = q.lte("event_date", data.to);
     const { data: rows, error } = await q;
     if (error) return { ok: false, error: error.message };
-    return { ok: true, events: rows ?? [] };
+
+    // Auto-generate each student's birthday as a calendar entry for their
+    // own class — computed live from dob, never stored as a real row, so it
+    // always tracks the roster/dob without needing yearly re-entry. Shown
+    // for the current year and next (covers Dec->Jan browsing) unless a
+    // from/to range was given, in which case only years touching that range.
+    let birthdayEvents: Row[] = [];
+    if (classFilter) {
+      const { data: students } = await supabase
+        .from("school_students").select("id, full_name, nickname, dob").eq("class_id", classFilter);
+      const years = new Set<number>();
+      const nowYear = new Date().getFullYear();
+      if (data.from) years.add(new Date(data.from).getFullYear());
+      if (data.to) years.add(new Date(data.to).getFullYear());
+      if (years.size === 0) { years.add(nowYear); years.add(nowYear + 1); }
+      for (const s of students ?? []) {
+        if (!s.dob) continue;
+        const dob = new Date(s.dob);
+        const mm = String(dob.getMonth() + 1).padStart(2, "0");
+        const dd = String(dob.getDate()).padStart(2, "0");
+        for (const y of years) {
+          birthdayEvents.push({
+            id: `birthday-${s.id}-${y}`,
+            title: `🎂 Ulang Tahun ${s.nickname || s.full_name}`,
+            description: null,
+            event_date: `${y}-${mm}-${dd}`,
+            event_type: "acara",
+            class_id: classFilter,
+            division: divisionFilter,
+            created_by: null,
+            school_staff: null,
+          });
+        }
+      }
+    }
+    return { ok: true, events: [...(rows ?? []), ...birthdayEvents] };
   });
 
 export const saveCalendarEvent = createServerFn({ method: "POST" })
@@ -605,4 +641,53 @@ export const saveAttendance = createServerFn({ method: "POST" })
     );
     if (error) return { ok: false, error: error.message };
     return { ok: true, saved: data.entries.length };
+  });
+
+/** Checks whether a given class/date looks like a school holiday or has a
+ * class activity on the calendar (weekday or not), and whether Teacher has
+ * already set an explicit mandatory/not-mandatory override for that day. */
+export const getAttendanceDayInfo = createServerFn({ method: "POST" })
+  .inputValidator((input: { password: string; classId: string; date: string }) => input)
+  .handler(async ({ data }): Promise<{ ok: true; isHoliday: boolean; eventTitles: string[]; explicitMandatory: boolean | null } | Fail> => {
+    const gate = staffClient(data.password);
+    if (!gate.ok) return gate;
+    const { data: cls } = await gate.supabase.from("school_classes").select("division").eq("id", data.classId).maybeSingle();
+    const division = cls?.division ?? null;
+    let evQ = gate.supabase.from("school_calendar_events").select("title, event_type").eq("event_date", data.date);
+    evQ = division
+      ? evQ.or(`division.is.null,and(division.eq.${division},class_id.is.null),class_id.eq.${data.classId}`)
+      : evQ.or(`division.is.null,class_id.eq.${data.classId}`);
+    const { data: events, error: evErr } = await evQ;
+    if (evErr) return { ok: false, error: evErr.message };
+    const isHoliday = (events ?? []).some((e: Row) => e.event_type === "libur");
+    const eventTitles = (events ?? []).map((e: Row) => e.title);
+    const { data: flag, error: flagErr } = await gate.supabase
+      .from("school_attendance_day_flags").select("is_mandatory").eq("class_id", data.classId).eq("attendance_date", data.date).maybeSingle();
+    if (flagErr) return { ok: false, error: flagErr.message };
+    return { ok: true, isHoliday, eventTitles, explicitMandatory: flag ? flag.is_mandatory : null };
+  });
+
+export const setAttendanceDayMandatory = createServerFn({ method: "POST" })
+  .inputValidator((input: { password: string; classId: string; date: string; isMandatory: boolean; note?: string; staffId: string }) => input)
+  .handler(async ({ data }): Promise<{ ok: true } | Fail> => {
+    const gate = staffClient(data.password);
+    if (!gate.ok) return gate;
+    const { error } = await gate.supabase.from("school_attendance_day_flags").upsert(
+      { class_id: data.classId, attendance_date: data.date, is_mandatory: data.isMandatory, note: data.note || null, set_by: data.staffId || null },
+      { onConflict: "class_id,attendance_date" },
+    );
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  });
+
+export const listAttendanceDayFlags = createServerFn({ method: "POST" })
+  .inputValidator((input: { password: string; classId: string; from: string; to: string }) => input)
+  .handler(async ({ data }): Promise<{ ok: true; flags: Row[] } | Fail> => {
+    const gate = staffClient(data.password);
+    if (!gate.ok) return gate;
+    const { data: rows, error } = await gate.supabase
+      .from("school_attendance_day_flags").select("attendance_date, is_mandatory")
+      .eq("class_id", data.classId).gte("attendance_date", data.from).lte("attendance_date", data.to);
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, flags: rows ?? [] };
   });

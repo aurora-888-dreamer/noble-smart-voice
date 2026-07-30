@@ -771,6 +771,22 @@ export const postMessageAsParent = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
+export const listUnreadParentStudentIds = createServerFn({ method: "POST" })
+  .inputValidator((input: { password: string; classId: string }) => input)
+  .handler(async ({ data }) => {
+    if (!checkSchoolPassword(data.password)) return { ok: false as const, error: "Wrong password." };
+    const supabase = createLovableSchoolSupabase();
+    if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
+    const { data: students, error: sErr } = await supabase.from("school_students").select("id").eq("class_id", data.classId);
+    if (sErr) return { ok: false as const, error: sErr.message };
+    const ids = (students ?? []).map((s) => s.id);
+    if (ids.length === 0) return { ok: true as const, studentIds: [] };
+    const { data: rows, error } = await supabase
+      .from("school_messages").select("student_id").eq("from_side", "parent").eq("closed_by_teacher", false).in("student_id", ids);
+    if (error) return { ok: false as const, error: error.message };
+    return { ok: true as const, studentIds: [...new Set((rows ?? []).map((r) => r.student_id))] };
+  });
+
 export const listMessagesForStudent = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string; studentId: string }) => input)
   .handler(async ({ data }) => {
@@ -797,29 +813,6 @@ export const listMessagesForCode = createServerFn({ method: "POST" })
     const { data: rows, error } = await supabase.from("school_messages").select("*").eq("student_id", guardian.student_id).order("created_at");
     if (error) return { ok: false as const, error: error.message };
     return { ok: true as const, messages: rows ?? [] };
-  });
-
-// Broadcast one Daily Activity message to EVERY parent of a class — one
-// thread row per student so each family keeps its own private conversation.
-export const broadcastMessageToClassParents = createServerFn({ method: "POST" })
-  .inputValidator((input: { password: string; schoolId: string; classId: string; body: string; authorName?: string }) => input)
-  .handler(async ({ data }) => {
-    if (!checkSchoolPassword(data.password)) return { ok: false as const, error: "Wrong password." };
-    const supabase = createLovableSchoolSupabase();
-    if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
-    const body = data.body.trim();
-    if (!body) return { ok: false as const, error: "Pesan tidak boleh kosong." };
-    const { data: students, error: sErr } = await supabase
-      .from("school_students").select("id").eq("class_id", data.classId);
-    if (sErr) return { ok: false as const, error: sErr.message };
-    const rows = (students ?? []).map((s: { id: string }) => ({
-      school_id: data.schoolId, student_id: s.id, from_side: "teacher",
-      author_name: data.authorName || null, body,
-    }));
-    if (rows.length === 0) return { ok: false as const, error: "Kelas ini belum punya murid." };
-    const { error } = await supabase.from("school_messages").insert(rows);
-    if (error) return { ok: false as const, error: error.message };
-    return { ok: true as const, sent: rows.length };
   });
 
 // "Close" = mark every message FROM THE OTHER SIDE as read/dismissed on
@@ -910,6 +903,50 @@ export const listAnnouncements = createServerFn({ method: "POST" })
     const { data: rows, error } = await supabase.from("school_announcements").select("*").order("created_at", { ascending: false }).limit(30);
     if (error) return { ok: false as const, error: error.message };
     return { ok: true as const, announcements: rows ?? [] };
+  });
+
+export const getParentNotifications = createServerFn({ method: "POST" })
+  .inputValidator((input: { code: string }) => input)
+  .handler(async ({ data }) => {
+    const supabase = createLovableSchoolSupabase();
+    if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
+    const { data: guardian, error: gErr } = await supabase
+      .from("school_guardians")
+      .select("student_id, announcements_last_seen_at, school_students(class_id, school_classes(division))")
+      .eq("invite_code", data.code.trim().toUpperCase())
+      .maybeSingle();
+    if (gErr) return { ok: false as const, error: gErr.message };
+    if (!guardian) return { ok: false as const, error: "Kode tidak valid." };
+    const { count: unreadCount, error: mErr } = await supabase
+      .from("school_messages").select("id", { count: "exact", head: true })
+      .eq("student_id", guardian.student_id).eq("from_side", "teacher").eq("closed_by_parent", false);
+    if (mErr) return { ok: false as const, error: mErr.message };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const student = guardian.school_students as any;
+    const classId = student?.class_id;
+    const division = student?.school_classes?.division;
+    let announceQuery = supabase.from("school_announcements").select("id", { count: "exact", head: true }).eq("audience", "external");
+    if (classId && division) {
+      announceQuery = announceQuery.or(`scope.eq.school,and(scope.eq.division,division.eq.${division}),and(scope.eq.class,class_id.eq.${classId})`);
+    } else {
+      announceQuery = announceQuery.eq("scope", "school");
+    }
+    if (guardian.announcements_last_seen_at) announceQuery = announceQuery.gt("created_at", guardian.announcements_last_seen_at);
+    const { count: newAnnouncements, error: aErr } = await announceQuery;
+    if (aErr) return { ok: false as const, error: aErr.message };
+    return { ok: true as const, unreadMessages: unreadCount ?? 0, newAnnouncements: newAnnouncements ?? 0 };
+  });
+
+export const markAnnouncementsSeenForParent = createServerFn({ method: "POST" })
+  .inputValidator((input: { code: string }) => input)
+  .handler(async ({ data }) => {
+    const supabase = createLovableSchoolSupabase();
+    if (!supabase) return { ok: false as const, error: "Backend School belum dikonfigurasi." };
+    const { error } = await supabase
+      .from("school_guardians").update({ announcements_last_seen_at: new Date().toISOString() })
+      .eq("invite_code", data.code.trim().toUpperCase());
+    if (error) return { ok: false as const, error: error.message };
+    return { ok: true as const };
   });
 
 export const listAnnouncementsForCode = createServerFn({ method: "POST" })
