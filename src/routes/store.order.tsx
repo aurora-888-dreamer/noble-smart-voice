@@ -18,7 +18,7 @@ export const Route = createFileRoute("/store/order")({
 
 function OrderPage() {
   const { plan: initial, discount: discountId, group: groupId } = Route.useSearch();
-  const [planId, setPlanId] = useState<PlanId>(initial);
+  const [planId, setPlanId] = useState<PlanId>(initial ?? "quarterly");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [whatsapp, setWhatsapp] = useState("");

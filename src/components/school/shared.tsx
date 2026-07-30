@@ -174,7 +174,7 @@ export function ClassManagerPrincipal({ division, classes }: { division: string;
 /* ───────────── staff ───────────── */
 type StaffRow = {
   id: string; full_name: string; role: SchoolRole; division?: string; class_id?: string | null;
-  user_id?: string | null; pin_is_default?: boolean; is_active?: boolean; subjects?: string[] | null; email?: string | null;
+  user_id?: string | null; pin_is_default?: boolean; last_seen_at?: string | null; is_active?: boolean; subjects?: string[] | null; email?: string | null;
 };
 
 export function CredentialCard({ userId, pin, onDismiss }: { userId: string; pin: string; onDismiss?: () => void }) {
@@ -645,7 +645,7 @@ export function GuardianEditor({ studentId, canEdit }: { studentId: string; canE
   }
   const list = (guardians.data && "guardians" in guardians.data ? (guardians.data.guardians ?? []) : []) as {
     id: string; full_name: string; relation: string; whatsapp?: string; email?: string | null;
-    invite_code: string; invite_used_at?: string; user_id?: string | null; pin_is_default?: boolean;
+    invite_code: string; invite_used_at?: string; user_id?: string | null; pin_is_default?: boolean; last_seen_at?: string | null;
   }[];
 
   return (
@@ -1016,12 +1016,12 @@ export function ChangePinPanel() {
 /* ───────────── Kelola Personil (Admin HoS) ───────────── */
 type PersonnelStaff = {
   id: string; full_name: string; role: SchoolRole; division?: string | null; class_id?: string | null;
-  email?: string | null; user_id?: string | null; pin_is_default?: boolean; is_active?: boolean; subjects?: string[] | null;
+  email?: string | null; user_id?: string | null; pin_is_default?: boolean; last_seen_at?: string | null; is_active?: boolean; subjects?: string[] | null;
 };
 type PersonnelStudent = { id: string; full_name: string; student_number?: string | null; class_id?: string | null; status?: string | null };
 type PersonnelGuardian = {
   id: string; full_name: string; relation: string; email?: string | null; whatsapp?: string | null;
-  user_id?: string | null; pin_is_default?: boolean; is_active?: boolean; student_id: string;
+  user_id?: string | null; pin_is_default?: boolean; last_seen_at?: string | null; is_active?: boolean; student_id: string;
 };
 
 export function PersonnelManager({ classes }: { classes: { id: string; name: string }[] }) {

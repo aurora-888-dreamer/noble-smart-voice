@@ -1,0 +1,145 @@
+{
+  "version": 1,
+  "sdk_version": "0.25.0",
+  "path": "/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://irauhzdfvkwkfklkkwpd.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "noble-smart-voice",
+      "version": "0.1.0",
+      "title": "Noble Smart Voice"
+    },
+    "tools": [
+      {
+        "name": "list_classes",
+        "title": "List school classes",
+        "description": "List the classes (grades/sections) configured in the School Dashboard.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "search": {
+              "description": "Optional case-insensitive filter on the class name.",
+              "type": "string"
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_calendar_events",
+        "title": "List academic calendar events",
+        "description": "List academic calendar events from the School Dashboard, optionally filtered by an inclusive date range (YYYY-MM-DD) and owner scope.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "from": {
+              "description": "Start date, YYYY-MM-DD.",
+              "type": "string"
+            },
+            "to": {
+              "description": "End date, YYYY-MM-DD.",
+              "type": "string"
+            },
+            "scope": {
+              "description": "Owner scope, e.g. hos, principal, teacher.",
+              "type": "string"
+            },
+            "limit": {
+              "description": "Max rows to return (default 50).",
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_timetable",
+        "title": "List timetable slots",
+        "description": "List timetable slots from the School Dashboard, optionally filtered by class id or weekday.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "classId": {
+              "description": "Class UUID to filter by.",
+              "type": "string"
+            },
+            "day": {
+              "description": "Weekday to filter by, as stored (e.g. Monday / Senin).",
+              "type": "string"
+            },
+            "limit": {
+              "description": "Max rows to return (default 100).",
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "create_calendar_event",
+        "title": "Create an academic calendar event",
+        "description": "Add a new event to the School Dashboard academic calendar.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Event title."
+            },
+            "date": {
+              "type": "string",
+              "description": "Event date, YYYY-MM-DD."
+            },
+            "scope": {
+              "description": "Owner scope, e.g. hos, principal, teacher. Defaults to hos.",
+              "type": "string"
+            },
+            "notes": {
+              "description": "Optional description.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "title",
+            "date"
+          ]
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}

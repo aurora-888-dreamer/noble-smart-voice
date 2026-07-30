@@ -255,7 +255,7 @@ export function CalendarPanel({ access, classes, canEdit, compact, roleScope, fi
             events={events} canEdit={canEdit} staffId={staffId} onRemove={remove} onEditRow={startEdit} compact={compact}
             onQuickAdd={async (evtDate, evtTitle, evtDesc, evtType) => {
               if (!access.pw) return { ok: false, error: "Tidak bisa menambah dari sini." };
-              const r = await saveCalendarEvent({ data: { password: access.pw, classId: classId || undefined, divisionScope: !classId ? division : undefined, title: evtTitle, description: evtDesc, eventDate: evtDate, eventType: evtType, staffId: staffId ?? "" } });
+              const r = await saveCalendarEvent({ data: { password: access.pw, classId: classId || undefined, divisionScope: !classId ? effectiveDivision : undefined, title: evtTitle, description: evtDesc, eventDate: evtDate, eventType: evtType, staffId: staffId ?? "" } });
               if (r.ok) setReload((x) => x + 1);
               return r.ok ? { ok: true } : { ok: false, error: r.error };
             }}
