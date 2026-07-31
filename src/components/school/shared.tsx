@@ -214,6 +214,8 @@ export function ClassManagerPrincipal({ division, classes }: { division: string;
 type StaffRow = {
   id: string; full_name: string; role: SchoolRole; division?: string; class_id?: string | null;
   user_id?: string | null; pin_is_default?: boolean; is_active?: boolean; subjects?: string[] | null; email?: string | null;
+  last_seen_at?: string | null;
+
 };
 
 export function CredentialCard({ userId, pin, onDismiss }: { userId: string; pin: string; onDismiss?: () => void }) {
