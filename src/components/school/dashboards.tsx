@@ -698,7 +698,7 @@ export function PrincipalDashboard({ division, staffId, staffName }: { division:
 
 
 /* ───────────── Teacher ───────────── */
-export function TeacherDashboard({ staffId, staffName, role, defaultClassId }: { staffId: string; staffName: string; role: string | null; defaultClassId: string | null }) {
+export function TeacherDashboard({ staffId, staffName, role, defaultClassId, division = null }: { staffId: string; staffName: string; role: string | null; defaultClassId: string | null; division?: string | null }) {
   const pw = getStoredPassword();
   const [reload, setReload] = useState(0);
   const allClasses = useClasses();
