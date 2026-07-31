@@ -243,8 +243,8 @@ export type Database = {
           author_role: string | null
           body: string | null
           created_at: string
+          entry_type: string
           id: string
-          kind: string
         }
         Insert: {
           agenda_id: string
@@ -252,8 +252,8 @@ export type Database = {
           author_role?: string | null
           body?: string | null
           created_at?: string
+          entry_type?: string
           id?: string
-          kind?: string
         }
         Update: {
           agenda_id?: string
@@ -261,8 +261,8 @@ export type Database = {
           author_role?: string | null
           body?: string | null
           created_at?: string
+          entry_type?: string
           id?: string
-          kind?: string
         }
         Relationships: [
           {
@@ -277,8 +277,10 @@ export type Database = {
       school_agendas: {
         Row: {
           approval_status: string
+          closed_at: string | null
           created_at: string
           created_by: string | null
+          creator_role: string | null
           division: string | null
           end_date: string | null
           execution_status: string
@@ -296,8 +298,10 @@ export type Database = {
         }
         Insert: {
           approval_status?: string
+          closed_at?: string | null
           created_at?: string
           created_by?: string | null
+          creator_role?: string | null
           division?: string | null
           end_date?: string | null
           execution_status?: string
@@ -315,8 +319,10 @@ export type Database = {
         }
         Update: {
           approval_status?: string
+          closed_at?: string | null
           created_at?: string
           created_by?: string | null
+          creator_role?: string | null
           division?: string | null
           end_date?: string | null
           execution_status?: string
