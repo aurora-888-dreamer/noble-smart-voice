@@ -552,7 +552,7 @@ function SettingsPanel({ pw, staffId, scopeDivision = null, roleLabel = "HoS" }:
 
       {sub === "profile" && !editingProfile && (
         <div>
-          <p className="text-xs text-muted-foreground mb-2">Edit profile Anda sendiri (HoS).</p>
+          <p className="text-xs text-muted-foreground mb-2">Edit profile Anda sendiri ({roleLabel}).</p>
           <button onClick={() => setEditingProfile(true)} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold">Edit Profile</button>
         </div>
       )}
