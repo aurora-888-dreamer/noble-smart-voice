@@ -268,34 +268,51 @@ const SP_DIVISIONS = DIVISIONS.filter((d) => d.id !== "All Divisions");
 /** School Profile (SP) — replaces the old Overview + Staff & Role tabs.
  * Browsing (Division/Class/Staff/Student) is read-only view+search; actual
  * add/edit/delete only happens in the separate "Profile Update" section. */
-function SchoolProfilePanel({ pw, staffId, classes }: { pw: string; staffId: string; classes: { id: string; name: string; division: string }[] }) {
-  const [view, setView] = useState<"overview" | "division" | "class" | "staff" | "student" | "update">("overview");
-  const [divisionSel, setDivisionSel] = useState<string | null>(null);
+function SchoolProfilePanel({ pw, staffId, classes, scopeDivision = null }: { pw: string; staffId: string; classes: { id: string; name: string; division: string }[]; scopeDivision?: string | null }) {
+  const scoped = !!scopeDivision;
+  const [view, setView] = useState<"overview" | "division" | "class" | "staff" | "student" | "update">(scoped ? "division" : "overview");
+  const [divisionSel, setDivisionSel] = useState<string | null>(scopeDivision);
   const [classSel, setClassSel] = useState("");
   const [updateTab, setUpdateTab] = useState<"staff" | "student">("staff");
   const [search, setSearch] = useState("");
   const [academicSub, setAcademicSub] = useState("profile");
 
   const staffRes = useAsync(() => listSchoolStaff({ data: { password: pw } }), [pw]);
-  const staffList = (staffRes.data && "staff" in staffRes.data ? (staffRes.data.staff ?? []) : []) as Row[];
+  const allStaff = (staffRes.data && "staff" in staffRes.data ? (staffRes.data.staff ?? []) : []) as Row[];
   const studentsRes = useAsync(() => listSchoolStudents({ data: { password: pw } }), [pw]);
-  const studentList = (studentsRes.data && "students" in studentsRes.data ? (studentsRes.data.students ?? []) : []) as Row[];
+  const allStudents = (studentsRes.data && "students" in studentsRes.data ? (studentsRes.data.students ?? []) : []) as Row[];
   const classDivision = new Map(classes.map((c) => [c.id, c.division]));
+  const classIds = new Set(classes.map((c) => c.id));
+  // Principal view: everything is clamped to their own division.
+  const staffList = scoped ? allStaff.filter((s) => s.division === scopeDivision) : allStaff;
+  const studentList = scoped ? allStudents.filter((s) => classIds.has(s.class_id)) : allStudents;
 
   function countsFor(divId: string) {
     return {
       classCount: classes.filter((c) => c.division === divId).length,
-      staffCount: staffList.filter((s) => s.division === divId).length,
-      studentCount: studentList.filter((s) => classDivision.get(s.class_id) === divId).length,
+      staffCount: allStaff.filter((s) => s.division === divId).length,
+      studentCount: allStudents.filter((s) => classDivision.get(s.class_id) === divId).length,
     };
   }
 
-  function back() { setView("overview"); setDivisionSel(null); setClassSel(""); setSearch(""); setAcademicSub("profile"); }
+  function back() { setView(scoped ? "division" : "overview"); setDivisionSel(scopeDivision); setClassSel(""); setSearch(""); setAcademicSub("profile"); }
+
+  const scopedNav = scoped ? (
+    <div className="flex gap-2 flex-wrap mb-4">
+      {([["division", "Division"], ["staff", "All Staff"], ["student", "All Student"], ["update", "Profile Update"]] as const).map(([id, label]) => (
+        <button key={id} onClick={() => { setView(id); setSearch(""); setAcademicSub("profile"); }}
+          className={"rounded-full px-3 py-1.5 text-xs font-semibold border " + (view === id ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>{label}</button>
+      ))}
+    </div>
+  ) : null;
 
   if (view !== "overview") {
     return (
       <div>
-        <button onClick={back} className="text-xs text-muted-foreground underline mb-4 flex items-center gap-1"><ArrowLeft size={12} /> Kembali ke School Profile</button>
+        {scoped ? scopedNav : (
+          <button onClick={back} className="text-xs text-muted-foreground underline mb-4 flex items-center gap-1"><ArrowLeft size={12} /> Kembali ke School Profile</button>
+        )}
+
 
         {view === "division" && divisionSel && (
           <div>
