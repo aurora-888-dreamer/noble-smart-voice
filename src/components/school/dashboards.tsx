@@ -519,13 +519,15 @@ function ReportHubPanel({ pw, staffId, classes, role = "hos", division = null, s
 }
 
 
-function SettingsPanel({ pw, staffId }: { pw: string; staffId: string }) {
+function SettingsPanel({ pw, staffId, scopeDivision = null, roleLabel = "HoS" }: { pw: string; staffId: string; scopeDivision?: string | null; roleLabel?: string }) {
   const [sub, setSub] = useState<"profile" | "pin" | "userid">("profile");
   const [editingProfile, setEditingProfile] = useState(false);
   const [reload, setReload] = useState(0);
   const [search, setSearch] = useState("");
   const staffRes = useAsync(() => listSchoolStaff({ data: { password: pw } }), [pw, reload]);
-  const staffList = (staffRes.data && "staff" in staffRes.data ? (staffRes.data.staff ?? []) : []) as Row[];
+  const allStaff = (staffRes.data && "staff" in staffRes.data ? (staffRes.data.staff ?? []) : []) as Row[];
+  const staffList = scopeDivision ? allStaff.filter((s) => s.division === scopeDivision) : allStaff;
+
 
   async function toggleActive(id: string, isActive: boolean) {
     await updateStaffAccount({ data: { password: pw, id, isActive } });
