@@ -659,9 +659,12 @@ export function AdminHosDashboard() {
   );
 }
 
-/* ───────────── Principal ───────────── */
+/* ───────────── Principal ─────────────
+ * Same IU structure as HoS (Division Profile / Agenda / Messages / Report /
+ * Calendar / Settings), but every panel is clamped to the Principal's own
+ * division. */
 export function PrincipalDashboard({ division, staffId, staffName }: { division: string; staffId: string; staffName: string }) {
-  const [tab, setTab] = useState("overview");
+  const [tab, setTab] = useState("sp");
   const pw = getStoredPassword();
   const classes = useClasses(division);
   const counts = useAsync(() => getPendingCounts({ data: { password: pw, role: "principal", division } }), [pw, division]);
@@ -669,30 +672,29 @@ export function PrincipalDashboard({ division, staffId, staffName }: { division:
   const unreadStaffRes = useAsync(() => listUnreadStaffSenderIds({ data: { password: pw, staffId } }), [pw, staffId]);
   const unreadStaffCount = unreadStaffRes.data && "ok" in unreadStaffRes.data && unreadStaffRes.data.ok ? unreadStaffRes.data.senderIds.length : 0;
   const withCount = (label: string, n: number) => (n > 0 ? `${label} (${n})` : label);
-  const academicTabsWithCount = ACADEMIC_TABS.map((t) => t.id === "projects" ? { ...t, label: withCount(t.label, pending.officialLetters) } : t);
+  const calendarOnlyTab = ACADEMIC_TABS.filter((t) => t.id === "calendar");
+  const divisionLabel = DIVISIONS.find((d) => d.id === division)?.label ?? division;
   const tabs = [
-    { id: "overview", label: "Overview" }, { id: "students", label: "Student" },
-    { id: "staff", label: "Staff" }, { id: "message", label: unreadStaffCount > 0 ? `Message 🟠${unreadStaffCount}` : "Message" }, { id: "agenda", label: "Agenda" }, { id: "laporan", label: withCount("Report", pending.reports) }, { id: "activity", label: "Teacher Activity" },
-    { id: "announce", label: "Announcements" }, ...academicTabsWithCount, PIN_TAB,
+    { id: "sp", label: "Division Profile" }, { id: "agenda", label: withCount("Agenda", pending.agendas) },
+    { id: "message", label: unreadStaffCount > 0 ? `Messages 🟠${unreadStaffCount}` : "Messages" }, { id: "laporan", label: withCount("Report", pending.reports) },
+    ...calendarOnlyTab, { id: "activity", label: "Teacher Activity" }, { id: "settings", label: "Settings" },
   ];
   return (
     <div>
-      <p className="text-xs text-muted-foreground mb-3">Divisi: {DIVISIONS.find((d) => d.id === division)?.label ?? division}</p>
-      <Tabs tabs={tabs} tab={tab} onChange={setTab}>
-        {tab === "overview" && <div className="grid grid-cols-2 gap-3"><StatCard label="Classes" value={classes.length} Icon={GraduationCap} /></div>}
-        {tab === "students" && <StudentRoster canEdit classes={classes} />}
-        {tab === "staff" && <StaffRoster canEdit classes={classes} scopeDivision={division} />}
-        {tab === "message" && <StaffMessagePanel pw={pw} staffId={staffId} />}
+      <p className="text-xs text-muted-foreground mb-3">Divisi: {divisionLabel}</p>
+      <Tabs tabs={tabs} tab={tab} onChange={setTab} mobileGrid>
+        {tab === "sp" && <SchoolProfilePanel pw={pw} staffId={staffId} classes={classes} scopeDivision={division} />}
         {tab === "agenda" && <AgendaPanel pw={pw} role="principal" staffId={staffId} staffName={staffName} division={division} classes={classes} />}
-        {tab === "laporan" && <CasePanel access={{ pw }} role="principal" staffId={staffId} staffName={staffName} division={division} classes={classes} />}
+        {tab === "message" && <MessagesHubPanel pw={pw} staffId={staffId} classes={classes} role="principal" division={division} staffName={staffName} />}
+        {tab === "laporan" && <ReportHubPanel pw={pw} staffId={staffId} classes={classes} role="principal" division={division} staffName={staffName} />}
         {tab === "activity" && <AllActivitiesView division={division} />}
-        {tab === "announce" && <AnnouncementPanel subrole="principal" division={division} classes={classes} />}
-        {tab === "pin" && <ChangePinPanel />}
-        <AcademicReadOnly tab={tab} classes={classes} reviewerRole="principal" reviewerName="Principal" calendarStaffId={staffId} timetableStaffId={staffId} staffId={staffId} division={division} />
+        {tab === "settings" && <SettingsPanel pw={pw} staffId={staffId} scopeDivision={division} roleLabel="Principal" />}
+        <AcademicReadOnly tab={tab} classes={classes} reviewerRole="principal" reviewerName={staffName} calendarStaffId={staffId} timetableStaffId={staffId} staffId={staffId} division={division} />
       </Tabs>
     </div>
   );
 }
+
 
 
 /* ───────────── Teacher ───────────── */
