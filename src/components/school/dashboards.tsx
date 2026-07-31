@@ -477,9 +477,13 @@ function SchoolProfilePanel({ pw, staffId, classes, scopeDivision = null }: { pw
   );
 }
 
-/** Messages hub for HoS — merges Direct Message, Announcements, Official
- * Letter, and Incidental Contacts into one tab with sub-navigation. */
-function MessagesHubPanel({ pw, staffId, classes }: { pw: string; staffId: string; classes: { id: string; name: string }[] }) {
+/** Messages hub (HoS & Principal) — merges Direct Message, Announcements,
+ * Official Letter, and Incidental Contacts into one tab with sub-navigation.
+ * For a Principal everything is scoped to their own division. */
+function MessagesHubPanel({ pw, staffId, classes, role = "hos", division = null, staffName = "Head of School" }: {
+  pw: string; staffId: string; classes: { id: string; name: string }[];
+  role?: "hos" | "principal"; division?: string | null; staffName?: string;
+}) {
   const [sub, setSub] = useState<"direct" | "announce" | "letter" | "incidental">("direct");
   return (
     <div>
@@ -490,14 +494,17 @@ function MessagesHubPanel({ pw, staffId, classes }: { pw: string; staffId: strin
         <button onClick={() => setSub("incidental")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "incidental" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Incidental Link</button>
       </div>
       {sub === "direct" && <StaffMessagePanel pw={pw} staffId={staffId} />}
-      {sub === "announce" && <AnnouncementPanel subrole="hos" division={null} classes={classes} />}
-      {sub === "letter" && <ProjectPanel pw={pw} classes={classes} canSubmit={false} staffId={staffId} reviewerRole="hos" reviewerName="Head of School" />}
+      {sub === "announce" && <AnnouncementPanel subrole={role} division={division} classes={classes} />}
+      {sub === "letter" && <ProjectPanel pw={pw} classes={classes} canSubmit={role === "principal"} staffId={staffId} reviewerRole={role} reviewerName={staffName} />}
       {sub === "incidental" && <IncidentalContactPanel pw={pw} staffId={staffId} context="message" />}
     </div>
   );
 }
 
-function ReportHubPanel({ pw, staffId, classes }: { pw: string; staffId: string; classes: { id: string; name: string }[] }) {
+function ReportHubPanel({ pw, staffId, classes, role = "hos", division = null, staffName = "Head of School" }: {
+  pw: string; staffId: string; classes: { id: string; name: string }[];
+  role?: "hos" | "principal"; division?: string | null; staffName?: string;
+}) {
   const [sub, setSub] = useState<"report" | "incidental">("report");
   return (
     <div>
@@ -505,11 +512,12 @@ function ReportHubPanel({ pw, staffId, classes }: { pw: string; staffId: string;
         <button onClick={() => setSub("report")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "report" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Report</button>
         <button onClick={() => setSub("incidental")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "incidental" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Incidental Link</button>
       </div>
-      {sub === "report" && <CasePanel access={{ pw }} role="hos" staffId={staffId} staffName="Head of School" classes={classes} />}
+      {sub === "report" && <CasePanel access={{ pw }} role={role} staffId={staffId} staffName={staffName} division={division ?? undefined} classes={classes} />}
       {sub === "incidental" && <IncidentalContactPanel pw={pw} staffId={staffId} context="report" />}
     </div>
   );
 }
+
 
 function SettingsPanel({ pw, staffId }: { pw: string; staffId: string }) {
   const [sub, setSub] = useState<"profile" | "pin" | "userid">("profile");
