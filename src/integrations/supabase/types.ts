@@ -243,8 +243,8 @@ export type Database = {
           author_role: string | null
           body: string | null
           created_at: string
+          entry_type: string
           id: string
-          kind: string
         }
         Insert: {
           agenda_id: string
@@ -252,8 +252,8 @@ export type Database = {
           author_role?: string | null
           body?: string | null
           created_at?: string
+          entry_type?: string
           id?: string
-          kind?: string
         }
         Update: {
           agenda_id?: string
@@ -261,8 +261,8 @@ export type Database = {
           author_role?: string | null
           body?: string | null
           created_at?: string
+          entry_type?: string
           id?: string
-          kind?: string
         }
         Relationships: [
           {
@@ -277,8 +277,10 @@ export type Database = {
       school_agendas: {
         Row: {
           approval_status: string
+          closed_at: string | null
           created_at: string
           created_by: string | null
+          creator_role: string | null
           division: string | null
           end_date: string | null
           execution_status: string
@@ -296,8 +298,10 @@ export type Database = {
         }
         Insert: {
           approval_status?: string
+          closed_at?: string | null
           created_at?: string
           created_by?: string | null
+          creator_role?: string | null
           division?: string | null
           end_date?: string | null
           execution_status?: string
@@ -315,8 +319,10 @@ export type Database = {
         }
         Update: {
           approval_status?: string
+          closed_at?: string | null
           created_at?: string
           created_by?: string | null
+          creator_role?: string | null
           division?: string | null
           end_date?: string | null
           execution_status?: string
@@ -993,6 +999,47 @@ export type Database = {
             columns: ["student_id"]
             isOneToOne: false
             referencedRelation: "school_students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      school_incidental_contacts: {
+        Row: {
+          contact_info: string | null
+          context: string
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          note: string | null
+          school_id: string
+        }
+        Insert: {
+          contact_info?: string | null
+          context: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          note?: string | null
+          school_id: string
+        }
+        Update: {
+          contact_info?: string | null
+          context?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          note?: string | null
+          school_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_incidental_contacts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "school_staff"
             referencedColumns: ["id"]
           },
         ]

@@ -4,12 +4,14 @@ import { useState, useEffect } from "react";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = Record<string, any>;
 import {
-  GraduationCap, Users, Baby, BookOpen, MessageSquare, Megaphone, Bell, Save, Trash2, LogOut, Shield, ArrowLeft,
+  GraduationCap, Users, Baby, BookOpen, MessageSquare, Megaphone, Bell, Save, Trash2, LogOut, Shield, ArrowLeft, KeyRound,
 } from "lucide-react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   CalendarPanel, TimetablePanel, LessonPlanPanel, ProjectPanel, AssessmentPanel, AttendancePanel, AgendaPanel, StaffMessagePanel, CasePanel, CompetencyManager,
+  IncidentalContactPanel,
 } from "./SchoolAcademic";
+
 import {
   DIVISIONS, ROLE_LABEL, Hint, Section, StatCard, Tabs, ReadOnlyNote, useAsync, useClasses,
   getStoredPassword, getSchoolIdSync, StaffRoster, StudentRoster, GuardianEditor, CsvImportPanel,
@@ -157,7 +159,7 @@ function StaffProfileForm({ pw, staffId, onSaved }: { pw: string; staffId: strin
   async function save() {
     if (!f.fullName?.trim()) { setErr("Nama lengkap wajib diisi."); return; }
     setBusy(true); setErr(null);
-    const r = await saveMyStaffProfile({ data: { password: pw, staffId, ...f } });
+    const r = await saveMyStaffProfile({ data: { password: pw, staffId, ...(f as Row), fullName: String(f.fullName) } });
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     onSaved();
@@ -198,7 +200,7 @@ function StudentProfileForm({ code, onSaved }: { code: string; onSaved: () => vo
   async function save() {
     if (!f.fullName?.trim()) { setErr("Nama lengkap wajib diisi."); return; }
     setBusy(true); setErr(null);
-    const r = await saveMyStudentProfile({ data: { code, ...f } });
+    const r = await saveMyStudentProfile({ data: { code, ...(f as Row), fullName: String(f.fullName) } });
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     onSaved();
@@ -268,34 +270,51 @@ const SP_DIVISIONS = DIVISIONS.filter((d) => d.id !== "All Divisions");
 /** School Profile (SP) — replaces the old Overview + Staff & Role tabs.
  * Browsing (Division/Class/Staff/Student) is read-only view+search; actual
  * add/edit/delete only happens in the separate "Profile Update" section. */
-function SchoolProfilePanel({ pw, staffId, classes }: { pw: string; staffId: string; classes: { id: string; name: string; division: string }[] }) {
-  const [view, setView] = useState<"overview" | "division" | "class" | "staff" | "student" | "update">("overview");
-  const [divisionSel, setDivisionSel] = useState<string | null>(null);
+function SchoolProfilePanel({ pw, staffId, classes, scopeDivision = null }: { pw: string; staffId: string; classes: { id: string; name: string; division: string }[]; scopeDivision?: string | null }) {
+  const scoped = !!scopeDivision;
+  const [view, setView] = useState<"overview" | "division" | "class" | "staff" | "student" | "update">(scoped ? "division" : "overview");
+  const [divisionSel, setDivisionSel] = useState<string | null>(scopeDivision);
   const [classSel, setClassSel] = useState("");
   const [updateTab, setUpdateTab] = useState<"staff" | "student">("staff");
   const [search, setSearch] = useState("");
   const [academicSub, setAcademicSub] = useState("profile");
 
   const staffRes = useAsync(() => listSchoolStaff({ data: { password: pw } }), [pw]);
-  const staffList = (staffRes.data && "staff" in staffRes.data ? (staffRes.data.staff ?? []) : []) as Row[];
+  const allStaff = (staffRes.data && "staff" in staffRes.data ? (staffRes.data.staff ?? []) : []) as Row[];
   const studentsRes = useAsync(() => listSchoolStudents({ data: { password: pw } }), [pw]);
-  const studentList = (studentsRes.data && "students" in studentsRes.data ? (studentsRes.data.students ?? []) : []) as Row[];
+  const allStudents = (studentsRes.data && "students" in studentsRes.data ? (studentsRes.data.students ?? []) : []) as Row[];
   const classDivision = new Map(classes.map((c) => [c.id, c.division]));
+  const classIds = new Set(classes.map((c) => c.id));
+  // Principal view: everything is clamped to their own division.
+  const staffList = scoped ? allStaff.filter((s) => s.division === scopeDivision) : allStaff;
+  const studentList = scoped ? allStudents.filter((s) => classIds.has(s.class_id)) : allStudents;
 
   function countsFor(divId: string) {
     return {
       classCount: classes.filter((c) => c.division === divId).length,
-      staffCount: staffList.filter((s) => s.division === divId).length,
-      studentCount: studentList.filter((s) => classDivision.get(s.class_id) === divId).length,
+      staffCount: allStaff.filter((s) => s.division === divId).length,
+      studentCount: allStudents.filter((s) => classDivision.get(s.class_id) === divId).length,
     };
   }
 
-  function back() { setView("overview"); setDivisionSel(null); setClassSel(""); setSearch(""); setAcademicSub("profile"); }
+  function back() { setView(scoped ? "division" : "overview"); setDivisionSel(scopeDivision); setClassSel(""); setSearch(""); setAcademicSub("profile"); }
+
+  const scopedNav = scoped ? (
+    <div className="flex gap-2 flex-wrap mb-4">
+      {([["division", "Division"], ["staff", "All Staff"], ["student", "All Student"], ["update", "Profile Update"]] as const).map(([id, label]) => (
+        <button key={id} onClick={() => { setView(id); setSearch(""); setAcademicSub("profile"); }}
+          className={"rounded-full px-3 py-1.5 text-xs font-semibold border " + (view === id ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>{label}</button>
+      ))}
+    </div>
+  ) : null;
 
   if (view !== "overview") {
     return (
       <div>
-        <button onClick={back} className="text-xs text-muted-foreground underline mb-4 flex items-center gap-1"><ArrowLeft size={12} /> Kembali ke School Profile</button>
+        {scoped ? scopedNav : (
+          <button onClick={back} className="text-xs text-muted-foreground underline mb-4 flex items-center gap-1"><ArrowLeft size={12} /> Kembali ke School Profile</button>
+        )}
+
 
         {view === "division" && divisionSel && (
           <div>
@@ -458,9 +477,13 @@ function SchoolProfilePanel({ pw, staffId, classes }: { pw: string; staffId: str
   );
 }
 
-/** Messages hub for HoS — merges Direct Message, Announcements, Official
- * Letter, and Incidental Contacts into one tab with sub-navigation. */
-function MessagesHubPanel({ pw, staffId, classes }: { pw: string; staffId: string; classes: { id: string; name: string }[] }) {
+/** Messages hub (HoS & Principal) — merges Direct Message, Announcements,
+ * Official Letter, and Incidental Contacts into one tab with sub-navigation.
+ * For a Principal everything is scoped to their own division. */
+function MessagesHubPanel({ pw, staffId, classes, role = "hos", division = null, staffName = "Head of School" }: {
+  pw: string; staffId: string; classes: { id: string; name: string }[];
+  role?: "hos" | "principal"; division?: string | null; staffName?: string;
+}) {
   const [sub, setSub] = useState<"direct" | "announce" | "letter" | "incidental">("direct");
   return (
     <div>
@@ -471,14 +494,17 @@ function MessagesHubPanel({ pw, staffId, classes }: { pw: string; staffId: strin
         <button onClick={() => setSub("incidental")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "incidental" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Incidental Link</button>
       </div>
       {sub === "direct" && <StaffMessagePanel pw={pw} staffId={staffId} />}
-      {sub === "announce" && <AnnouncementPanel subrole="hos" division={null} classes={classes} />}
-      {sub === "letter" && <ProjectPanel pw={pw} classes={classes} canSubmit={false} staffId={staffId} reviewerRole="hos" reviewerName="Head of School" />}
+      {sub === "announce" && <AnnouncementPanel subrole={role} division={division} classes={classes} />}
+      {sub === "letter" && <ProjectPanel pw={pw} classes={classes} canSubmit={role === "principal"} staffId={staffId} reviewerRole={role} reviewerName={staffName} />}
       {sub === "incidental" && <IncidentalContactPanel pw={pw} staffId={staffId} context="message" />}
     </div>
   );
 }
 
-function ReportHubPanel({ pw, staffId, classes }: { pw: string; staffId: string; classes: { id: string; name: string }[] }) {
+function ReportHubPanel({ pw, staffId, classes, role = "hos", division = null, staffName = "Head of School" }: {
+  pw: string; staffId: string; classes: { id: string; name: string }[];
+  role?: "hos" | "principal"; division?: string | null; staffName?: string;
+}) {
   const [sub, setSub] = useState<"report" | "incidental">("report");
   return (
     <div>
@@ -486,19 +512,22 @@ function ReportHubPanel({ pw, staffId, classes }: { pw: string; staffId: string;
         <button onClick={() => setSub("report")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "report" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Report</button>
         <button onClick={() => setSub("incidental")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "incidental" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Incidental Link</button>
       </div>
-      {sub === "report" && <CasePanel access={{ pw }} role="hos" staffId={staffId} staffName="Head of School" classes={classes} />}
+      {sub === "report" && <CasePanel access={{ pw }} role={role} staffId={staffId} staffName={staffName} division={division ?? undefined} classes={classes} />}
       {sub === "incidental" && <IncidentalContactPanel pw={pw} staffId={staffId} context="report" />}
     </div>
   );
 }
 
-function SettingsPanel({ pw, staffId }: { pw: string; staffId: string }) {
+
+function SettingsPanel({ pw, staffId, scopeDivision = null, roleLabel = "HoS" }: { pw: string; staffId: string; scopeDivision?: string | null; roleLabel?: string }) {
   const [sub, setSub] = useState<"profile" | "pin" | "userid">("profile");
   const [editingProfile, setEditingProfile] = useState(false);
   const [reload, setReload] = useState(0);
   const [search, setSearch] = useState("");
   const staffRes = useAsync(() => listSchoolStaff({ data: { password: pw } }), [pw, reload]);
-  const staffList = (staffRes.data && "staff" in staffRes.data ? (staffRes.data.staff ?? []) : []) as Row[];
+  const allStaff = (staffRes.data && "staff" in staffRes.data ? (staffRes.data.staff ?? []) : []) as Row[];
+  const staffList = scopeDivision ? allStaff.filter((s) => s.division === scopeDivision) : allStaff;
+
 
   async function toggleActive(id: string, isActive: boolean) {
     await updateStaffAccount({ data: { password: pw, id, isActive } });
@@ -523,7 +552,7 @@ function SettingsPanel({ pw, staffId }: { pw: string; staffId: string }) {
 
       {sub === "profile" && !editingProfile && (
         <div>
-          <p className="text-xs text-muted-foreground mb-2">Edit profile Anda sendiri (HoS).</p>
+          <p className="text-xs text-muted-foreground mb-2">Edit profile Anda sendiri ({roleLabel}).</p>
           <button onClick={() => setEditingProfile(true)} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold">Edit Profile</button>
         </div>
       )}
@@ -630,9 +659,12 @@ export function AdminHosDashboard() {
   );
 }
 
-/* ───────────── Principal ───────────── */
+/* ───────────── Principal ─────────────
+ * Same IU structure as HoS (Division Profile / Agenda / Messages / Report /
+ * Calendar / Settings), but every panel is clamped to the Principal's own
+ * division. */
 export function PrincipalDashboard({ division, staffId, staffName }: { division: string; staffId: string; staffName: string }) {
-  const [tab, setTab] = useState("overview");
+  const [tab, setTab] = useState("sp");
   const pw = getStoredPassword();
   const classes = useClasses(division);
   const counts = useAsync(() => getPendingCounts({ data: { password: pw, role: "principal", division } }), [pw, division]);
@@ -640,34 +672,33 @@ export function PrincipalDashboard({ division, staffId, staffName }: { division:
   const unreadStaffRes = useAsync(() => listUnreadStaffSenderIds({ data: { password: pw, staffId } }), [pw, staffId]);
   const unreadStaffCount = unreadStaffRes.data && "ok" in unreadStaffRes.data && unreadStaffRes.data.ok ? unreadStaffRes.data.senderIds.length : 0;
   const withCount = (label: string, n: number) => (n > 0 ? `${label} (${n})` : label);
-  const academicTabsWithCount = ACADEMIC_TABS.map((t) => t.id === "projects" ? { ...t, label: withCount(t.label, pending.officialLetters) } : t);
+  const calendarOnlyTab = ACADEMIC_TABS.filter((t) => t.id === "calendar");
+  const divisionLabel = DIVISIONS.find((d) => d.id === division)?.label ?? division;
   const tabs = [
-    { id: "overview", label: "Overview" }, { id: "students", label: "Student" },
-    { id: "staff", label: "Staff" }, { id: "message", label: unreadStaffCount > 0 ? `Message 🟠${unreadStaffCount}` : "Message" }, { id: "agenda", label: "Agenda" }, { id: "laporan", label: withCount("Report", pending.reports) }, { id: "activity", label: "Teacher Activity" },
-    { id: "announce", label: "Announcements" }, ...academicTabsWithCount, PIN_TAB,
+    { id: "sp", label: "Division Profile" }, { id: "agenda", label: withCount("Agenda", pending.agendas) },
+    { id: "message", label: unreadStaffCount > 0 ? `Messages 🟠${unreadStaffCount}` : "Messages" }, { id: "laporan", label: withCount("Report", pending.reports) },
+    ...calendarOnlyTab, { id: "activity", label: "Teacher Activity" }, { id: "settings", label: "Settings" },
   ];
   return (
     <div>
-      <p className="text-xs text-muted-foreground mb-3">Divisi: {DIVISIONS.find((d) => d.id === division)?.label ?? division}</p>
-      <Tabs tabs={tabs} tab={tab} onChange={setTab}>
-        {tab === "overview" && <div className="grid grid-cols-2 gap-3"><StatCard label="Classes" value={classes.length} Icon={GraduationCap} /></div>}
-        {tab === "students" && <StudentRoster canEdit classes={classes} />}
-        {tab === "staff" && <StaffRoster canEdit classes={classes} scopeDivision={division} />}
-        {tab === "message" && <StaffMessagePanel pw={pw} staffId={staffId} />}
+      <p className="text-xs text-muted-foreground mb-3">Divisi: {divisionLabel}</p>
+      <Tabs tabs={tabs} tab={tab} onChange={setTab} mobileGrid>
+        {tab === "sp" && <SchoolProfilePanel pw={pw} staffId={staffId} classes={classes} scopeDivision={division} />}
         {tab === "agenda" && <AgendaPanel pw={pw} role="principal" staffId={staffId} staffName={staffName} division={division} classes={classes} />}
-        {tab === "laporan" && <CasePanel access={{ pw }} role="principal" staffId={staffId} staffName={staffName} division={division} classes={classes} />}
+        {tab === "message" && <MessagesHubPanel pw={pw} staffId={staffId} classes={classes} role="principal" division={division} staffName={staffName} />}
+        {tab === "laporan" && <ReportHubPanel pw={pw} staffId={staffId} classes={classes} role="principal" division={division} staffName={staffName} />}
         {tab === "activity" && <AllActivitiesView division={division} />}
-        {tab === "announce" && <AnnouncementPanel subrole="principal" division={division} classes={classes} />}
-        {tab === "pin" && <ChangePinPanel />}
-        <AcademicReadOnly tab={tab} classes={classes} reviewerRole="principal" reviewerName="Principal" calendarStaffId={staffId} timetableStaffId={staffId} staffId={staffId} division={division} />
+        {tab === "settings" && <SettingsPanel pw={pw} staffId={staffId} scopeDivision={division} roleLabel="Principal" />}
+        <AcademicReadOnly tab={tab} classes={classes} reviewerRole="principal" reviewerName={staffName} calendarStaffId={staffId} timetableStaffId={staffId} staffId={staffId} division={division} />
       </Tabs>
     </div>
   );
 }
 
 
+
 /* ───────────── Teacher ───────────── */
-export function TeacherDashboard({ staffId, staffName, role, defaultClassId }: { staffId: string; staffName: string; role: string | null; defaultClassId: string | null }) {
+export function TeacherDashboard({ staffId, staffName, role, defaultClassId, division = null }: { staffId: string; staffName: string; role: string | null; defaultClassId: string | null; division?: string | null }) {
   const pw = getStoredPassword();
   const [reload, setReload] = useState(0);
   const allClasses = useClasses();
