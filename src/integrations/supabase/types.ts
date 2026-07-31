@@ -997,6 +997,47 @@ export type Database = {
           },
         ]
       }
+      school_incidental_contacts: {
+        Row: {
+          contact_info: string | null
+          context: string
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          note: string | null
+          school_id: string
+        }
+        Insert: {
+          contact_info?: string | null
+          context: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          note?: string | null
+          school_id: string
+        }
+        Update: {
+          contact_info?: string | null
+          context?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          note?: string | null
+          school_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_incidental_contacts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "school_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       school_lesson_plans: {
         Row: {
           class_id: string
