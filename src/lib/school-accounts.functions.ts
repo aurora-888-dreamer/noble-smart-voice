@@ -231,6 +231,7 @@ export const updateStaffAccount = createServerFn({ method: "POST" })
       subjects?: string[];
       isActive?: boolean;
       resetPin?: boolean;
+      userId?: string;
     }) => input,
   )
   .handler(async ({ data }) => {
@@ -246,6 +247,7 @@ export const updateStaffAccount = createServerFn({ method: "POST" })
     if (data.classId !== undefined) patch.class_id = data.classId || null;
     if (data.subjects !== undefined) patch.subjects = data.subjects;
     if (data.isActive !== undefined) patch.is_active = data.isActive;
+    if (data.userId !== undefined) patch.user_id = data.userId.trim();
     if (data.resetPin) { patch.pin = DEFAULT_PIN; patch.pin_is_default = true; }
     if (Object.keys(patch).length === 0) return { ok: true as const };
     const { error } = await supabase.from("school_staff").update(patch).eq("id", data.id);

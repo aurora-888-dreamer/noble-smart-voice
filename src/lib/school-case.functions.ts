@@ -234,7 +234,12 @@ export const closeCase = createServerFn({ method: "POST" })
     if (readErr) return { ok: false, error: readErr.message };
     if (!kase) return { ok: false, error: "Kasus tidak ditemukan." };
     const owner = kase.status === "hos" ? "hos" : "principal";
-    if (owner !== data.actorRole) return { ok: false, error: `Kasus ini saat ini di tangan ${owner === "hos" ? "Head of School" : "Principal"} — hanya dia yang bisa menutup.` };
+    // HoS has ultimate authority — can force-close a case even if it's
+    // still with Principal ("Authorized Final Close"). Principal can only
+    // close what's currently theirs.
+    if (data.actorRole === "principal" && owner !== "principal") {
+      return { ok: false, error: "Kasus ini saat ini di tangan Head of School — hanya dia yang bisa menutup." };
+    }
     const { error } = await gate.supabase.from("school_cases").update({ status: "selesai", closed_at: new Date().toISOString() }).eq("id", data.caseId);
     if (error) return { ok: false, error: error.message };
     await addTimelineEntry(gate.supabase, data.caseId, data.actorName, data.actorRole, "Menutup kasus ini — status: Selesai. Masuk arsip.", "system");
