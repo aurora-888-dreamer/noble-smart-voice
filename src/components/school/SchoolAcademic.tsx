@@ -26,6 +26,7 @@ import {
   listCaseParticipants, addCaseParticipant, escalateCaseToHos, closeCase, reopenCase,
 } from "@/lib/school-case.functions";
 import { listEvaluations, saveEvaluation, deleteEvaluation } from "@/lib/school-evaluation.functions";
+import { listIncidentalContacts, addIncidentalContact, removeIncidentalContact } from "@/lib/school-incidental.functions";
 import { listSchoolStudents, listSchoolStaff } from "@/lib/school.functions";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1990,6 +1991,9 @@ function CaseRow({ kase, access, role, staffId, staffName, open, onToggle, onCha
                   {isOwner && (
                     <button onClick={close} className="rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-xs font-semibold">Tandai Selesai</button>
                   )}
+                  {role === "hos" && kase.status !== "selesai" && kase.status !== "hos" && (
+                    <button onClick={close} className="rounded-lg bg-emerald-700 text-white px-3 py-1.5 text-xs font-semibold">Authorized Final Close</button>
+                  )}
                   {kase.status === "selesai" && (role === "principal" || role === "hos") && (
                     <button onClick={reopen} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold">Buka Kembali</button>
                   )}
@@ -2191,6 +2195,47 @@ export function CompetencyManager({ pw, staffId }: { pw: string; staffId: string
           {bySubject.size === 0 && <Hint>None yet.</Hint>}
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ───────────── Incidental Contacts (shared by Messages & Report) ───────────── */
+export function IncidentalContactPanel({ pw, staffId, context }: { pw: string; staffId: string; context: "message" | "report" }) {
+  const [reload, setReload] = useState(0);
+  const [name, setName] = useState("");
+  const [contactInfo, setContactInfo] = useState("");
+  const [note, setNote] = useState("");
+  const res = useAsync(() => listIncidentalContacts({ data: { password: pw, context } }), [pw, context, reload]);
+  const contacts: Row[] = res.data && res.data.ok ? res.data.contacts : [];
+
+  async function add() {
+    if (!name.trim()) return;
+    await addIncidentalContact({ data: { password: pw, staffId, context, name, contactInfo, note } });
+    setName(""); setContactInfo(""); setNote(""); setReload((x) => x + 1);
+  }
+  async function remove(id: string) {
+    await removeIncidentalContact({ data: { password: pw, id } });
+    setReload((x) => x + 1);
+  }
+
+  return (
+    <div>
+      <div className={card + " mb-3 grid gap-2"}>
+        <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Tambah Incidental Contact</p>
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nama" className={field} />
+        <input value={contactInfo} onChange={(e) => setContactInfo(e.target.value)} placeholder="Kontak (WA/email/telp)" className={field} />
+        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Catatan (opsional, misal: keperluan apa)" className={field} />
+        <button onClick={add} className={btn + " justify-self-start"}><Plus size={13} /> Tambah</button>
+      </div>
+      <ul className="space-y-1.5">
+        {contacts.map((c) => (
+          <li key={c.id} className="rounded-lg bg-card border border-border px-3 py-2 text-sm flex items-center justify-between">
+            <span>{c.name}{c.contact_info ? " — " + c.contact_info : ""}{c.note ? <span className="block text-xs text-muted-foreground">{c.note}</span> : null}</span>
+            <button onClick={() => remove(c.id)} className="text-destructive shrink-0"><Trash2 size={13} /></button>
+          </li>
+        ))}
+        {contacts.length === 0 && <Hint>Belum ada incidental contact.</Hint>}
+      </ul>
     </div>
   );
 }

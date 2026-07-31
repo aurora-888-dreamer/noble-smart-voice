@@ -110,7 +110,46 @@ export function StatCard({ label, value, Icon }: { label: string; value: number;
   );
 }
 
-export function Tabs({ tabs, tab, onChange, children }: { tabs: { id: string; label: string }[]; tab: string; onChange: (id: string) => void; children?: ReactNode }) {
+export function Tabs({ tabs, tab, onChange, children, mobileGrid }: { tabs: { id: string; label: string }[]; tab: string; onChange: (id: string) => void; children?: ReactNode; mobileGrid?: boolean }) {
+  const [mobileScreen, setMobileScreen] = useState<"grid" | "content">("grid");
+
+  if (mobileGrid) {
+    return (
+      <div>
+        <div className="hidden sm:flex sm:flex-row gap-4">
+          <div className="flex flex-col gap-1 sm:w-40 shrink-0 border-r border-border pr-3">
+            {tabs.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => onChange(t.id)}
+                className={"w-full text-left rounded-lg px-3 py-1.5 text-xs font-semibold border " + (tab === t.id ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}
+              >{t.label}</button>
+            ))}
+          </div>
+          <div className="flex-1 min-w-0">{children}</div>
+        </div>
+        <div className="sm:hidden">
+          {mobileScreen === "grid" ? (
+            <div className="grid grid-cols-3 gap-2.5 max-w-sm mx-auto">
+              {tabs.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => { onChange(t.id); setMobileScreen("content"); }}
+                  className="aspect-square rounded-2xl bg-card border border-border flex items-center justify-center p-2 text-center text-[11px] font-semibold leading-tight"
+                >{t.label}</button>
+              ))}
+            </div>
+          ) : (
+            <div>
+              <button onClick={() => setMobileScreen("grid")} className="text-xs text-muted-foreground underline mb-3 flex items-center gap-1">‹ Kembali ke Menu</button>
+              {children}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col sm:flex-row gap-4">
       <div className="flex flex-wrap sm:flex-col gap-1.5 sm:gap-1 sm:w-40 shrink-0 sm:border-r sm:border-border sm:pr-3">
@@ -515,7 +554,6 @@ function StaffRow({ staff, classes, canEdit, onChanged, onRemove }: {
           <div className="flex gap-2 flex-wrap">
             <button onClick={save} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold">Simpan</button>
             <button onClick={toggleActive} className="rounded-lg border border-border px-3 py-1.5 text-xs flex items-center gap-1"><Power size={12} /> {staff.is_active === false ? "Aktifkan" : "Nonaktifkan"}</button>
-            <button onClick={resetPin} className="rounded-lg border border-border px-3 py-1.5 text-xs flex items-center gap-1"><KeyRound size={12} /> Reset PIN</button>
             {!staff.user_id && <button onClick={makeUserId} className="rounded-lg border border-border px-3 py-1.5 text-xs">Buatkan UserID</button>}
           </div>
           {msg && <p className="text-xs text-primary">{msg}</p>}

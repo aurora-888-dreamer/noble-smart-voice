@@ -21,6 +21,7 @@ import {
   getStudentForCode, listActivitiesForCode, listAnnouncementsForCode, listUnreadParentStudentIds,
   getParentNotifications, markAnnouncementsSeenForParent, type SchoolRole,
 } from "@/lib/school.functions";
+import { updateStaffAccount } from "@/lib/school-accounts.functions";
 import { getPendingCounts } from "@/lib/school-pending-counts.functions";
 import { listUnreadStaffSenderIds } from "@/lib/school-staff-messages.functions";
 import { sendHeartbeat } from "@/lib/school-presence.functions";
@@ -273,6 +274,7 @@ function SchoolProfilePanel({ pw, staffId, classes }: { pw: string; staffId: str
   const [classSel, setClassSel] = useState("");
   const [updateTab, setUpdateTab] = useState<"staff" | "student">("staff");
   const [search, setSearch] = useState("");
+  const [academicSub, setAcademicSub] = useState("profile");
 
   const staffRes = useAsync(() => listSchoolStaff({ data: { password: pw } }), [pw]);
   const staffList = (staffRes.data && "staff" in staffRes.data ? (staffRes.data.staff ?? []) : []) as Row[];
@@ -288,7 +290,7 @@ function SchoolProfilePanel({ pw, staffId, classes }: { pw: string; staffId: str
     };
   }
 
-  function back() { setView("overview"); setDivisionSel(null); setClassSel(""); setSearch(""); }
+  function back() { setView("overview"); setDivisionSel(null); setClassSel(""); setSearch(""); setAcademicSub("profile"); }
 
   if (view !== "overview") {
     return (
@@ -298,22 +300,35 @@ function SchoolProfilePanel({ pw, staffId, classes }: { pw: string; staffId: str
         {view === "division" && divisionSel && (
           <div>
             <h3 className="text-sm font-semibold mb-3">{SP_DIVISIONS.find((d) => d.id === divisionSel)?.label}</h3>
-            <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Principal & Vice Principal</p>
-            <ul className="space-y-1.5 mb-4">
-              {staffList.filter((s) => s.division === divisionSel && (s.role === "principal" || s.role === "vice_principal")).map((s) => (
-                <li key={s.id} className="flex items-center justify-between rounded-lg bg-card border border-border px-3 py-2 text-sm">
-                  {s.full_name} <StaffProfilePreviewButton staffId={s.id} fullName={s.full_name} />
-                </li>
-              ))}
-            </ul>
-            <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Kelas di Divisi Ini</p>
-            <ul className="space-y-1.5">
-              {classes.filter((c) => c.division === divisionSel).map((c) => (
-                <li key={c.id}>
-                  <button onClick={() => { setClassSel(c.id); setView("class"); }} className="w-full text-left rounded-lg bg-card border border-border px-3 py-2 text-sm">{c.name}</button>
-                </li>
-              ))}
-            </ul>
+            <div className="flex gap-2 mb-3 flex-wrap">
+              <button onClick={() => setAcademicSub("profile")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (academicSub === "profile" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Profile</button>
+              <button onClick={() => setAcademicSub("activity")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (academicSub === "activity" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Activity</button>
+              <button onClick={() => setAcademicSub("timetable")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (academicSub === "timetable" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Time Table</button>
+              <button onClick={() => setAcademicSub("attendance")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (academicSub === "attendance" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Attendance</button>
+            </div>
+            {academicSub === "profile" && (
+              <>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Principal & Vice Principal</p>
+                <ul className="space-y-1.5 mb-4">
+                  {staffList.filter((s) => s.division === divisionSel && (s.role === "principal" || s.role === "vice_principal")).map((s) => (
+                    <li key={s.id} className="flex items-center justify-between rounded-lg bg-card border border-border px-3 py-2 text-sm">
+                      {s.full_name} <StaffProfilePreviewButton staffId={s.id} fullName={s.full_name} />
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Kelas di Divisi Ini</p>
+                <ul className="space-y-1.5">
+                  {classes.filter((c) => c.division === divisionSel).map((c) => (
+                    <li key={c.id}>
+                      <button onClick={() => { setClassSel(c.id); setView("class"); }} className="w-full text-left rounded-lg bg-card border border-border px-3 py-2 text-sm">{c.name}</button>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {academicSub === "activity" && <AllActivitiesView division={divisionSel} />}
+            {academicSub === "timetable" && <TimetablePanel access={{ pw }} classes={classes.filter((c) => c.division === divisionSel)} canEdit={false} />}
+            {academicSub === "attendance" && <AttendancePanel access={{ pw }} classes={classes.filter((c) => c.division === divisionSel)} canEdit={false} />}
           </div>
         )}
 
@@ -346,29 +361,53 @@ function SchoolProfilePanel({ pw, staffId, classes }: { pw: string; staffId: str
 
         {view === "staff" && (
           <div>
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari staff…" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm mb-3" />
-            <ul className="space-y-1.5">
-              {staffList.filter((s) => s.full_name.toLowerCase().includes(search.toLowerCase())).map((s) => (
-                <li key={s.id} className="flex items-center justify-between rounded-lg bg-card border border-border px-3 py-2 text-sm">
-                  <span>{s.full_name}<span className="text-[10px] text-muted-foreground ml-2">{ROLE_LABEL[s.role] ?? s.role}</span></span>
-                  <StaffProfilePreviewButton staffId={s.id} fullName={s.full_name} />
-                </li>
-              ))}
-            </ul>
+            <div className="flex gap-2 mb-3 flex-wrap">
+              <button onClick={() => setAcademicSub("profile")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (academicSub === "profile" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Profile</button>
+              <button onClick={() => setAcademicSub("activity")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (academicSub === "activity" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Activity</button>
+              <button onClick={() => setAcademicSub("lesson")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (academicSub === "lesson" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Lesson Plan</button>
+            </div>
+            {academicSub === "profile" && (
+              <>
+                <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari staff…" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm mb-3" />
+                <ul className="space-y-1.5">
+                  {staffList.filter((s) => s.full_name.toLowerCase().includes(search.toLowerCase())).map((s) => (
+                    <li key={s.id} className="flex items-center justify-between rounded-lg bg-card border border-border px-3 py-2 text-sm">
+                      <span>{s.full_name}<span className="text-[10px] text-muted-foreground ml-2">{ROLE_LABEL[s.role] ?? s.role}</span></span>
+                      <StaffProfilePreviewButton staffId={s.id} fullName={s.full_name} />
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {academicSub === "activity" && <AllActivitiesView division={null} />}
+            {academicSub === "lesson" && <LessonPlanPanel pw={pw} classes={classes} canEdit={false} />}
           </div>
         )}
 
         {view === "student" && (
           <div>
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari murid…" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm mb-3" />
-            <ul className="space-y-1.5">
-              {studentList.filter((s) => s.full_name.toLowerCase().includes(search.toLowerCase())).map((s) => (
-                <li key={s.id} className="flex items-center justify-between rounded-lg bg-card border border-border px-3 py-2 text-sm">
-                  {s.full_name}
-                  <StudentProfilePreviewButton studentId={s.id} fullName={s.full_name} />
-                </li>
-              ))}
-            </ul>
+            <div className="flex gap-2 mb-3 flex-wrap">
+              <button onClick={() => setAcademicSub("profile")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (academicSub === "profile" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Profile</button>
+              <button onClick={() => setAcademicSub("activity")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (academicSub === "activity" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Activity</button>
+              <button onClick={() => setAcademicSub("assessment")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (academicSub === "assessment" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Assessment</button>
+              <button onClick={() => setAcademicSub("attendance")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (academicSub === "attendance" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Attendance</button>
+            </div>
+            {academicSub === "profile" && (
+              <>
+                <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari murid…" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm mb-3" />
+                <ul className="space-y-1.5">
+                  {studentList.filter((s) => s.full_name.toLowerCase().includes(search.toLowerCase())).map((s) => (
+                    <li key={s.id} className="flex items-center justify-between rounded-lg bg-card border border-border px-3 py-2 text-sm">
+                      {s.full_name}
+                      <StudentProfilePreviewButton studentId={s.id} fullName={s.full_name} />
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {academicSub === "activity" && <AllActivitiesView division={null} />}
+            {academicSub === "assessment" && <AssessmentPanel access={{ pw }} classes={classes} canEdit={false} />}
+            {academicSub === "attendance" && <AttendancePanel access={{ pw }} classes={classes} canEdit={false} />}
           </div>
         )}
 
@@ -419,6 +458,111 @@ function SchoolProfilePanel({ pw, staffId, classes }: { pw: string; staffId: str
   );
 }
 
+/** Messages hub for HoS — merges Direct Message, Announcements, Official
+ * Letter, and Incidental Contacts into one tab with sub-navigation. */
+function MessagesHubPanel({ pw, staffId, classes }: { pw: string; staffId: string; classes: { id: string; name: string }[] }) {
+  const [sub, setSub] = useState<"direct" | "announce" | "letter" | "incidental">("direct");
+  return (
+    <div>
+      <div className="flex gap-2 mb-3 flex-wrap">
+        <button onClick={() => setSub("direct")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "direct" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Direct Message</button>
+        <button onClick={() => setSub("announce")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "announce" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Announcements</button>
+        <button onClick={() => setSub("letter")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "letter" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Official Letter</button>
+        <button onClick={() => setSub("incidental")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "incidental" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Incidental Link</button>
+      </div>
+      {sub === "direct" && <StaffMessagePanel pw={pw} staffId={staffId} />}
+      {sub === "announce" && <AnnouncementPanel subrole="hos" division={null} classes={classes} />}
+      {sub === "letter" && <ProjectPanel pw={pw} classes={classes} canSubmit={false} staffId={staffId} reviewerRole="hos" reviewerName="Head of School" />}
+      {sub === "incidental" && <IncidentalContactPanel pw={pw} staffId={staffId} context="message" />}
+    </div>
+  );
+}
+
+function ReportHubPanel({ pw, staffId, classes }: { pw: string; staffId: string; classes: { id: string; name: string }[] }) {
+  const [sub, setSub] = useState<"report" | "incidental">("report");
+  return (
+    <div>
+      <div className="flex gap-2 mb-3 flex-wrap">
+        <button onClick={() => setSub("report")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "report" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Report</button>
+        <button onClick={() => setSub("incidental")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "incidental" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Incidental Link</button>
+      </div>
+      {sub === "report" && <CasePanel access={{ pw }} role="hos" staffId={staffId} staffName="Head of School" classes={classes} />}
+      {sub === "incidental" && <IncidentalContactPanel pw={pw} staffId={staffId} context="report" />}
+    </div>
+  );
+}
+
+function SettingsPanel({ pw, staffId }: { pw: string; staffId: string }) {
+  const [sub, setSub] = useState<"profile" | "pin" | "userid">("profile");
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [reload, setReload] = useState(0);
+  const [search, setSearch] = useState("");
+  const staffRes = useAsync(() => listSchoolStaff({ data: { password: pw } }), [pw, reload]);
+  const staffList = (staffRes.data && "staff" in staffRes.data ? (staffRes.data.staff ?? []) : []) as Row[];
+
+  async function toggleActive(id: string, isActive: boolean) {
+    await updateStaffAccount({ data: { password: pw, id, isActive } });
+    setReload((x) => x + 1);
+  }
+  async function requestReset(id: string) {
+    await updateStaffAccount({ data: { password: pw, id, resetPin: true } });
+    setReload((x) => x + 1);
+  }
+  async function saveUserId(id: string, userId: string) {
+    await updateStaffAccount({ data: { password: pw, id, userId } });
+    setReload((x) => x + 1);
+  }
+
+  return (
+    <div>
+      <div className="flex gap-2 mb-3 flex-wrap">
+        <button onClick={() => setSub("profile")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "profile" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>My Profile</button>
+        <button onClick={() => setSub("pin")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "pin" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Change PIN</button>
+        <button onClick={() => setSub("userid")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "userid" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>UserID & Reset PIN Request</button>
+      </div>
+
+      {sub === "profile" && !editingProfile && (
+        <div>
+          <p className="text-xs text-muted-foreground mb-2">Edit profile Anda sendiri (HoS).</p>
+          <button onClick={() => setEditingProfile(true)} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold">Edit Profile</button>
+        </div>
+      )}
+      {sub === "profile" && editingProfile && (
+        <StaffProfileForm pw={pw} staffId={staffId} onSaved={() => setEditingProfile(false)} />
+      )}
+
+      {sub === "pin" && <ChangePinPanel />}
+
+      {sub === "userid" && (
+        <div>
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari staff…" className="w-full rounded-lg bg-background border border-border px-3 py-2 text-sm mb-3" />
+          <ul className="space-y-2">
+            {staffList.filter((s) => s.full_name.toLowerCase().includes(search.toLowerCase())).map((s) => (
+              <li key={s.id} className="rounded-lg bg-card border border-border p-3">
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <span className="text-sm font-semibold">{s.full_name}</span>
+                  {s.is_active === false && <span className="text-[10px] text-destructive">Nonaktif</span>}
+                </div>
+                <div className="flex gap-2 flex-wrap items-center">
+                  <input
+                    defaultValue={s.user_id ?? ""}
+                    onBlur={(e) => { if (e.target.value.trim() && e.target.value.trim() !== s.user_id) saveUserId(s.id, e.target.value.trim()); }}
+                    className="rounded-lg bg-background border border-border px-2 py-1 text-xs w-28"
+                  />
+                  <button onClick={() => requestReset(s.id)} className="rounded-lg border border-border px-2 py-1 text-xs font-semibold flex items-center gap-1"><KeyRound size={11} /> Reset PIN</button>
+                  <button onClick={() => toggleActive(s.id, s.is_active === false)} className="rounded-lg border border-border px-2 py-1 text-xs font-semibold">
+                    {s.is_active === false ? "Aktifkan" : "Nonaktifkan"}
+                  </button>
+                </div>
+              </li>
+            ))}
+            {staffList.length === 0 && <Hint>Belum ada staff.</Hint>}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
 export function HosDashboard({ staffId }: { staffId: string }) {
   const [tab, setTab] = useState("sp");
   const pw = getStoredPassword();
@@ -428,22 +572,20 @@ export function HosDashboard({ staffId }: { staffId: string }) {
   const unreadStaffRes = useAsync(() => listUnreadStaffSenderIds({ data: { password: pw, staffId } }), [pw, staffId]);
   const unreadStaffCount = unreadStaffRes.data && "ok" in unreadStaffRes.data && unreadStaffRes.data.ok ? unreadStaffRes.data.senderIds.length : 0;
   const withCount = (label: string, n: number) => (n > 0 ? `${label} (${n})` : label);
-  const academicTabsWithCount = ACADEMIC_TABS.map((t) => t.id === "projects" ? { ...t, label: withCount(t.label, pending.officialLetters) } : t);
+  const calendarOnlyTab = ACADEMIC_TABS.filter((t) => t.id === "calendar");
   const tabs = [
     { id: "sp", label: "School Profile" }, { id: "agenda", label: withCount("Agenda", pending.agendas) },
-    { id: "message", label: unreadStaffCount > 0 ? `Message 🟠${unreadStaffCount}` : "Message" }, { id: "laporan", label: withCount("Report", pending.reports) },
-    { id: "activity", label: "Teacher Activity" }, { id: "announce", label: "Announcements" }, ...academicTabsWithCount, PIN_TAB,
+    { id: "message", label: unreadStaffCount > 0 ? `Messages 🟠${unreadStaffCount}` : "Messages" }, { id: "laporan", label: withCount("Report", pending.reports) },
+    ...calendarOnlyTab, { id: "settings", label: "Settings" },
   ];
   return (
     <div>
-      <Tabs tabs={tabs} tab={tab} onChange={setTab}>
+      <Tabs tabs={tabs} tab={tab} onChange={setTab} mobileGrid>
         {tab === "sp" && <SchoolProfilePanel pw={pw} staffId={staffId} classes={classes} />}
         {tab === "agenda" && <AgendaPanel pw={pw} role="hos" staffId={staffId} staffName="Head of School" classes={classes} />}
-        {tab === "message" && <StaffMessagePanel pw={pw} staffId={staffId} />}
-        {tab === "laporan" && <CasePanel access={{ pw }} role="hos" staffId={staffId} staffName="Head of School" classes={classes} />}
-        {tab === "activity" && <AllActivitiesView division={null} />}
-        {tab === "announce" && <AnnouncementPanel subrole="hos" division={null} classes={classes} />}
-        {tab === "pin" && <ChangePinPanel />}
+        {tab === "message" && <MessagesHubPanel pw={pw} staffId={staffId} classes={classes} />}
+        {tab === "laporan" && <ReportHubPanel pw={pw} staffId={staffId} classes={classes} />}
+        {tab === "settings" && <SettingsPanel pw={pw} staffId={staffId} />}
         <AcademicReadOnly tab={tab} classes={classes} reviewerRole="hos" reviewerName="Head of School" calendarStaffId={staffId} />
       </Tabs>
     </div>
