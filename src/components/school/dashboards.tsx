@@ -198,7 +198,7 @@ function StudentProfileForm({ code, onSaved }: { code: string; onSaved: () => vo
   async function save() {
     if (!f.fullName?.trim()) { setErr("Nama lengkap wajib diisi."); return; }
     setBusy(true); setErr(null);
-    const r = await saveMyStudentProfile({ data: { code, ...f } });
+    const r = await saveMyStudentProfile({ data: { code, ...(f as Row), fullName: String(f.fullName) } });
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     onSaved();
