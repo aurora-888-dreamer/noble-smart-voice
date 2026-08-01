@@ -2255,7 +2255,7 @@ const RUBRIC_OPTIONS = [
 ];
 
 export function AssessmentSetupPanel({ pw, staffId, division }: { pw: string; staffId: string; division: string }) {
-  const [sub, setSub] = useState<"domains" | "indicators" | "character" | "approve">("domains");
+  const [sub, setSub] = useState<"domains" | "indicators" | "character">("domains");
   const [reload, setReload] = useState(0);
   const [domainCode, setDomainCode] = useState("");
   const [domainName, setDomainName] = useState("");
@@ -2268,14 +2268,11 @@ export function AssessmentSetupPanel({ pw, staffId, division }: { pw: string; st
   const [indSubject, setIndSubject] = useState("");
   const [charName, setCharName] = useState("");
   const [charDesc, setCharDesc] = useState("");
-  const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
 
   const domainsRes = useAsync(() => listAssessmentDomains({ data: { password: pw, division } }), [pw, division, reload]);
   const domains: Row[] = domainsRes.data && domainsRes.data.ok ? domainsRes.data.domains : [];
   const indicatorsRes = useAsync(() => listAssessmentIndicators({ data: { password: pw, division, level: level || undefined } }), [pw, division, level, reload]);
   const indicators: Row[] = indicatorsRes.data && indicatorsRes.data.ok ? indicatorsRes.data.indicators : [];
-  const reportsRes = useAsync(() => listAssessmentReports({ data: { password: pw, division, status: "pending_approval" } }), [pw, division, reload]);
-  const pendingReports: Row[] = reportsRes.data && reportsRes.data.ok ? reportsRes.data.reports : [];
   const charactersRes = useAsync(() => listCharacters({ data: { password: pw } }), [pw, reload]);
   const characters: Row[] = charactersRes.data && charactersRes.data.ok ? charactersRes.data.characters : [];
 
@@ -2308,20 +2305,16 @@ export function AssessmentSetupPanel({ pw, staffId, division }: { pw: string; st
     await deleteCharacter({ data: { password: pw, id } });
     setReload((x) => x + 1);
   }
-  async function review(reportId: string, decision: "approve" | "revise") {
-    await reviewAssessmentReport({ data: { password: pw, staffId, reportId, decision, notes: reviewNotes[reportId] } });
-    setReload((x) => x + 1);
-  }
 
   return (
     <div>
-      <div className="flex gap-2 mb-3 flex-wrap">
-        <button onClick={() => setSub("domains")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "domains" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Domains</button>
-        <button onClick={() => setSub("indicators")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "indicators" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Indicator Bank</button>
-        <button onClick={() => setSub("character")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "character" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>14 Character</button>
-        <button onClick={() => setSub("approve")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "approve" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>
-          Report Approval{pendingReports.length > 0 ? ` (${pendingReports.length})` : ""}
-        </button>
+      <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+        <div className="flex gap-2 flex-wrap">
+          <button onClick={() => setSub("domains")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "domains" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Domains</button>
+          <button onClick={() => setSub("indicators")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "indicators" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Indicator Bank</button>
+          <button onClick={() => setSub("character")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "character" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>14 Character</button>
+        </div>
+        <AssessmentGuideButton />
       </div>
 
       {sub === "domains" && (
@@ -2395,25 +2388,40 @@ export function AssessmentSetupPanel({ pw, staffId, division }: { pw: string; st
         </div>
       )}
 
-      {sub === "approve" && (
-        <ul className="space-y-2">
-          {pendingReports.map((r) => (
-            <li key={r.id} className="rounded-lg bg-card border border-border p-3 text-sm">
-              <p className="font-semibold">{r.school_students?.full_name} — {r.period_type} {r.period_label}</p>
-              {r.summary && <p className="text-xs mt-1">{r.summary}</p>}
-              {r.recommendations && <p className="text-xs mt-1"><span className="text-muted-foreground">Rekomendasi: </span>{r.recommendations}</p>}
-              {r.next_target && <p className="text-xs mt-1"><span className="text-muted-foreground">Target berikutnya: </span>{r.next_target}</p>}
-              <textarea value={reviewNotes[r.id] ?? ""} onChange={(e) => setReviewNotes((x) => ({ ...x, [r.id]: e.target.value }))} rows={2} placeholder="Catatan Principal (opsional)" className={field + " mt-2"} />
-              <div className="flex gap-2 mt-2">
-                <button onClick={() => review(r.id, "approve")} className="rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-xs font-semibold">Approve & Publish ke Parent</button>
-                <button onClick={() => review(r.id, "revise")} className="rounded-lg bg-blue-600 text-white px-3 py-1.5 text-xs font-semibold">Minta Revisi</button>
-              </div>
-            </li>
-          ))}
-          {pendingReports.length === 0 && <Hint>Tidak ada laporan menunggu approval.</Hint>}
-        </ul>
-      )}
     </div>
+  );
+}
+
+/** Report Approval — split out of Assessment Setup (it's an operational
+ * workflow, not configuration) and lives as its own tab in Class Setup. */
+export function AssessmentReportApprovalPanel({ pw, staffId, division }: { pw: string; staffId: string; division: string }) {
+  const [reload, setReload] = useState(0);
+  const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
+  const reportsRes = useAsync(() => listAssessmentReports({ data: { password: pw, division, status: "pending_approval" } }), [pw, division, reload]);
+  const pendingReports: Row[] = reportsRes.data && reportsRes.data.ok ? reportsRes.data.reports : [];
+
+  async function review(reportId: string, decision: "approve" | "revise") {
+    await reviewAssessmentReport({ data: { password: pw, staffId, reportId, decision, notes: reviewNotes[reportId] } });
+    setReload((x) => x + 1);
+  }
+
+  return (
+    <ul className="space-y-2">
+      {pendingReports.map((r) => (
+        <li key={r.id} className="rounded-lg bg-card border border-border p-3 text-sm">
+          <p className="font-semibold">{r.school_students?.full_name} — {r.period_type} {r.period_label}</p>
+          {r.summary && <p className="text-xs mt-1">{r.summary}</p>}
+          {r.recommendations && <p className="text-xs mt-1"><span className="text-muted-foreground">Rekomendasi: </span>{r.recommendations}</p>}
+          {r.next_target && <p className="text-xs mt-1"><span className="text-muted-foreground">Target berikutnya: </span>{r.next_target}</p>}
+          <textarea value={reviewNotes[r.id] ?? ""} onChange={(e) => setReviewNotes((x) => ({ ...x, [r.id]: e.target.value }))} rows={2} placeholder="Catatan Principal (opsional)" className={field + " mt-2"} />
+          <div className="flex gap-2 mt-2">
+            <button onClick={() => review(r.id, "approve")} className="rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-xs font-semibold">Approve & Publish ke Parent</button>
+            <button onClick={() => review(r.id, "revise")} className="rounded-lg bg-blue-600 text-white px-3 py-1.5 text-xs font-semibold">Minta Revisi</button>
+          </div>
+        </li>
+      ))}
+      {pendingReports.length === 0 && <Hint>Tidak ada laporan menunggu approval.</Hint>}
+    </ul>
   );
 }
 
@@ -2497,10 +2505,13 @@ export function TeacherIndicatorAssessmentPanel({ pw, staffId, classes, division
 
   return (
     <div>
-      <div className="flex gap-2 mb-3 flex-wrap">
-        <button onClick={() => setSub("record")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "record" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Record Assessment</button>
-        <button onClick={() => setSub("character")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "character" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>14 Character</button>
-        <button onClick={() => setSub("report")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "report" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Create Report</button>
+      <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+        <div className="flex gap-2 flex-wrap">
+          <button onClick={() => setSub("record")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "record" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Record Assessment</button>
+          <button onClick={() => setSub("character")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "character" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>14 Character</button>
+          <button onClick={() => setSub("report")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "report" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Create Report</button>
+        </div>
+        <AssessmentGuideButton />
       </div>
 
       <div className="flex gap-2 flex-wrap mb-3">
@@ -2621,15 +2632,18 @@ export function AssessmentResultsPanel({ pw }: { pw: string }) {
   const res = useAsync(() => listAssessmentReports({ data: { password: pw, status: "published" } }), [pw]);
   const reports: Row[] = res.data && res.data.ok ? res.data.reports : [];
   return (
-    <ul className="space-y-2">
-      {reports.map((r) => (
-        <li key={r.id} className="rounded-lg bg-card border border-border p-3 text-sm">
-          <p className="font-semibold">{r.school_students?.full_name} — {r.division} — {r.period_type} {r.period_label}</p>
-          {r.summary && <p className="text-xs mt-1">{r.summary}</p>}
-        </li>
-      ))}
+    <div>
+      <div className="flex justify-end mb-2"><AssessmentGuideButton /></div>
+      <ul className="space-y-2">
+        {reports.map((r) => (
+          <li key={r.id} className="rounded-lg bg-card border border-border p-3 text-sm">
+            <p className="font-semibold">{r.school_students?.full_name} — {r.division} — {r.period_type} {r.period_label}</p>
+            {r.summary && <p className="text-xs mt-1">{r.summary}</p>}
+          </li>
+        ))}
       {reports.length === 0 && <Hint>Belum ada laporan yang sudah dipublikasikan.</Hint>}
-    </ul>
+      </ul>
+    </div>
   );
 }
 
@@ -2649,5 +2663,62 @@ export function ParentAssessmentReportsPanel({ code }: { code: string }) {
       ))}
       {reports.length === 0 && <Hint>Belum ada laporan perkembangan yang dipublikasikan.</Hint>}
     </ul>
+  );
+}
+
+/* ───────────── Ass-Guide — reference doc for Domain/Indicator Bank/14 Character ───────────── */
+function AssessmentGuideContent() {
+  return (
+    <div className="space-y-4 text-sm">
+      <div>
+        <p className="font-semibold mb-1">1. Domain</p>
+        <p className="text-xs text-muted-foreground mb-2">Kategori besar area perkembangan anak. Tiap divisi bisa punya set Domain sendiri (Principal yang setup). Contoh standar Preschool:</p>
+        <ul className="text-xs space-y-0.5">
+          <li><span className="font-mono font-semibold">MOR</span> — Moral & Spiritual</li>
+          <li><span className="font-mono font-semibold">SOC</span> — Social Emotional</li>
+          <li><span className="font-mono font-semibold">PHY</span> — Physical Development</li>
+          <li><span className="font-mono font-semibold">LAN</span> — Language</li>
+          <li><span className="font-mono font-semibold">COG</span> — Cognitive</li>
+          <li><span className="font-mono font-semibold">ART</span> — Creative Arts</li>
+        </ul>
+      </div>
+      <div>
+        <p className="font-semibold mb-1">2. Indicator Bank & Arti Kode</p>
+        <p className="text-xs text-muted-foreground mb-1">Format kode: <span className="font-mono">[Level]-[Domain]-[Nomor]</span></p>
+        <p className="text-xs">Contoh: <span className="font-mono font-semibold">K1-LAN-012</span> = Level K1, Domain Language, indikator nomor 012.</p>
+        <p className="text-xs text-muted-foreground mt-1">Setiap indikator berisi: kode, domain, level, deskripsi, contoh evidence, aktivitas terkait. Principal yang membuat/mengelola di Assessment Setup — begitu tersimpan, langsung muncul di Child Assessment milik Teacher sesuai level kelasnya.</p>
+      </div>
+      <div>
+        <p className="font-semibold mb-1">3. Skala Penilaian Kompetensi (I-E-D-M)</p>
+        <ul className="text-xs space-y-1">
+          <li><span className="font-mono font-semibold">I</span> — Independently: mandiri, konsisten, bisa jadi contoh untuk teman.</li>
+          <li><span className="font-mono font-semibold">E</span> — Expected: mencapai target sesuai usia.</li>
+          <li><span className="font-mono font-semibold">D</span> — Developing: sedang berkembang, masih perlu bimbingan.</li>
+          <li><span className="font-mono font-semibold">M</span> — More Support: perlu lebih banyak latihan & pendampingan.</li>
+        </ul>
+      </div>
+      <div>
+        <p className="font-semibold mb-1">4. 14 Character</p>
+        <p className="text-xs text-muted-foreground mb-1">Ciri khas Stella Maris — 14 sifat yang sama di semua level/divisi, terpisah dari Domain/Indicator Bank (yang per-divisi). Dinilai dengan skala <span className="font-semibold">0-100</span>, ditampilkan sebagai gradient warna putih (0) → emas (100).</p>
+        <p className="text-xs">Independent, Respect, Curiosity, Caring, Enthusiastic, Creative, Responsible, Self-Directed, Tolerant, Integrity, Self-Control, Assertive, Persuasive, Productive.</p>
+        <p className="text-xs text-muted-foreground mt-1">Narasi bisa dibuat otomatis (Auto/AI) atau ditulis manual — keduanya tetap bisa diedit sebelum disimpan.</p>
+      </div>
+      <div>
+        <p className="font-semibold mb-1">5. Alur Pengisian</p>
+        <p className="text-xs text-muted-foreground">Teacher isi Daily Assessment (Kompetensi + 14 Character) → dirangkum jadi laporan Week/Month/Semester → dikirim ke Principal untuk approval → setelah disetujui (Approve & Publish), baru laporan bisa dilihat Parent. HoS hanya melihat hasil laporan yang sudah published.</p>
+      </div>
+    </div>
+  );
+}
+
+export function AssessmentGuideButton() {
+  const { openPreview } = usePreview();
+  return (
+    <button
+      onClick={() => openPreview({ title: "Panduan Assessment (Ass-Guide)", body: <AssessmentGuideContent /> })}
+      className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold flex items-center gap-1.5"
+    >
+      📖 Panduan Assessment
+    </button>
   );
 }

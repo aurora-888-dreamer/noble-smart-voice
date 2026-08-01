@@ -9,7 +9,7 @@ import {
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   CalendarPanel, TimetablePanel, LessonPlanPanel, ProjectPanel, AttendancePanel, AgendaPanel, StaffMessagePanel, CasePanel,
-  AssessmentSetupPanel, TeacherIndicatorAssessmentPanel, AssessmentResultsPanel, ParentAssessmentReportsPanel, IncidentalContactPanel,
+  AssessmentSetupPanel, TeacherIndicatorAssessmentPanel, AssessmentResultsPanel, ParentAssessmentReportsPanel, IncidentalContactPanel, AssessmentReportApprovalPanel,
 } from "./SchoolAcademic";
 import {
   DIVISIONS, ROLE_LABEL, Hint, Section, StatCard, Tabs, ReadOnlyNote, useAsync, useClasses,
@@ -23,6 +23,7 @@ import {
   getParentNotifications, markAnnouncementsSeenForParent, type SchoolRole,
 } from "@/lib/school.functions";
 import { updateStaffAccount } from "@/lib/school-accounts.functions";
+import { listAssessmentReports } from "@/lib/school-assessment-v2.functions";
 import { getPendingCounts } from "@/lib/school-pending-counts.functions";
 import { listUnreadStaffSenderIds } from "@/lib/school-staff-messages.functions";
 import { sendHeartbeat } from "@/lib/school-presence.functions";
@@ -662,17 +663,23 @@ function PrincipalMessageHubPanel({ pw, staffId, staffName, division, classes, u
 }
 
 function ClassSetupPanel({ pw, staffId, division, classes }: { pw: string; staffId: string; division: string; classes: { id: string; name: string }[] }) {
-  const [sub, setSub] = useState<"timetable" | "lesson" | "assessmentsetup">("timetable");
+  const [sub, setSub] = useState<"timetable" | "lesson" | "assessmentsetup" | "reportapproval">("timetable");
+  const pendingRes = useAsync(() => listAssessmentReports({ data: { password: pw, division, status: "pending_approval" } }), [pw, division]);
+  const pendingCount = pendingRes.data && "ok" in pendingRes.data && pendingRes.data.ok ? pendingRes.data.reports.length : 0;
   return (
     <div>
       <div className="flex gap-2 mb-3 flex-wrap">
         <button onClick={() => setSub("timetable")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "timetable" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Time Table</button>
         <button onClick={() => setSub("lesson")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "lesson" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Lesson Plan</button>
         <button onClick={() => setSub("assessmentsetup")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "assessmentsetup" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Assessment Setup</button>
+        <button onClick={() => setSub("reportapproval")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "reportapproval" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>
+          Report Approval{pendingCount > 0 ? ` (${pendingCount})` : ""}
+        </button>
       </div>
       {sub === "timetable" && <TimetablePanel access={{ pw }} classes={classes} canEdit staffId={staffId} />}
       {sub === "lesson" && <LessonPlanPanel pw={pw} classes={classes} canEdit={false} />}
       {sub === "assessmentsetup" && <AssessmentSetupPanel pw={pw} staffId={staffId} division={division} />}
+      {sub === "reportapproval" && <AssessmentReportApprovalPanel pw={pw} staffId={staffId} division={division} />}
     </div>
   );
 }
