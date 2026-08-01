@@ -2516,7 +2516,7 @@ export function AssessmentReportApprovalPanel({ pw, staffId, division }: { pw: s
 }
 
 /* ───────────── Assessment v2 — Teacher: record per indicator + submit report ───────────── */
-export function TeacherIndicatorAssessmentPanel({ pw, staffId, classes, division }: { pw: string; staffId: string; classes: ClassOpt[]; division: string }) {
+export function TeacherIndicatorAssessmentPanel({ pw, staffId, classes, division, isSubject }: { pw: string; staffId: string; classes: ClassOpt[]; division: string; isSubject?: boolean }) {
   const [sub, setSub] = useState<"record" | "character" | "report">("record");
   const [classId, setClassId] = useState(classes[0]?.id ?? "");
   const [studentId, setStudentId] = useState("");
@@ -2597,7 +2597,7 @@ export function TeacherIndicatorAssessmentPanel({ pw, staffId, classes, division
     <div>
       <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
         <div className="flex gap-2 flex-wrap">
-          <button onClick={() => setSub("record")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "record" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Record Assessment</button>
+          <button onClick={() => setSub("record")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "record" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Daily Assessment</button>
           <button onClick={() => setSub("character")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "character" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>14 Character</button>
           <button onClick={() => setSub("report")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "report" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Create Report</button>
         </div>
@@ -2625,15 +2625,17 @@ export function TeacherIndicatorAssessmentPanel({ pw, staffId, classes, division
           placeholder={periodType === "day" ? "Tanggal (YYYY-MM-DD)" : "Label periode (mis. Week 3 Agustus 2026)"}
           className="rounded-lg bg-background border border-border px-2 py-2 text-sm flex-1 min-w-40"
         />
-        {sub === "record" && (
-          <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject (Subject Teacher — opsional)" className="rounded-lg bg-background border border-border px-2 py-2 text-sm" />
+        {sub === "record" && isSubject && (
+          <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject Anda (untuk kompetensi tambahan)" className="rounded-lg bg-background border border-border px-2 py-2 text-sm" />
         )}
       </div>
 
       {!studentId || !periodLabel.trim() ? (
         <Hint>Pilih murid dan isi periode dulu.</Hint>
       ) : sub === "record" ? (
-        <ul className="space-y-2">
+        <>
+          {periodType === "day" && <p className="text-[11px] text-muted-foreground mb-2">Ini tempat isi assessment harian — nanti dirangkum otomatis jadi laporan Week/Month/Semester saat Create Report.</p>}
+          <ul className="space-y-2">
           {indicators.map((i) => {
             const existing = records.find((r) => r.indicator_id === i.id);
             return (
@@ -2658,7 +2660,8 @@ export function TeacherIndicatorAssessmentPanel({ pw, staffId, classes, division
             );
           })}
           {indicators.length === 0 && <Hint>Belum ada indikator untuk level/subject ini — hubungi Principal untuk setup Indicator Bank.</Hint>}
-        </ul>
+          </ul>
+        </>
       ) : sub === "character" ? (
         <div>
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 mb-3">

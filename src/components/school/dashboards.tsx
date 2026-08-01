@@ -805,7 +805,7 @@ export function TeacherDashboard({ staffId, staffName, role, defaultClassId }: {
         {tab === "timetable" && <TimetablePanel access={{ pw }} classes={classList} canEdit={false} />}
         {tab === "lesson" && <LessonPlanPanel pw={pw} classes={classList} canEdit />}
         {tab === "projects" && <ProjectPanel pw={pw} classes={classList} canSubmit reviewerRole={null} reviewerName={staffName} staffId={staffId} />}
-        {tab === "childassessment" && <TeacherIndicatorAssessmentPanel pw={pw} staffId={staffId} classes={classList} division={classList[0]?.division ?? ""} />}
+        {tab === "childassessment" && <TeacherIndicatorAssessmentPanel pw={pw} staffId={staffId} classes={classList} division={classList[0]?.division ?? ""} isSubject={isSubject} />}
         {tab === "attendance" && isHomeroom && <AttendancePanel access={{ pw }} classes={classList} canEdit />}
         {tab === "message" && <StaffMessagePanel pw={pw} staffId={staffId} />}
         {tab === "agenda" && <AgendaPanel pw={pw} role="teacher" staffId={staffId} staffName={staffName} classes={classList} />}
