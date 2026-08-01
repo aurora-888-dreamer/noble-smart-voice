@@ -27,6 +27,12 @@ import {
 } from "@/lib/school-case.functions";
 import { listEvaluations, saveEvaluation, deleteEvaluation } from "@/lib/school-evaluation.functions";
 import { listIncidentalContacts, addIncidentalContact, removeIncidentalContact } from "@/lib/school-incidental.functions";
+import {
+  listAssessmentDomains, saveAssessmentDomain, deleteAssessmentDomain,
+  listAssessmentIndicators, saveAssessmentIndicator, deleteAssessmentIndicator,
+  listAssessmentRecords, saveAssessmentRecord, deleteAssessmentRecord,
+  listAssessmentReports, generateAssessmentReport, reviewAssessmentReport, listAssessmentReportsForCode,
+} from "@/lib/school-assessment-v2.functions";
 import { listSchoolStudents, listSchoolStaff } from "@/lib/school.functions";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -2237,5 +2243,290 @@ export function IncidentalContactPanel({ pw, staffId, context }: { pw: string; s
         {contacts.length === 0 && <Hint>Belum ada incidental contact.</Hint>}
       </ul>
     </div>
+  );
+}
+
+/* ───────────── Assessment v2 — indicator-based, per-division, Principal setup + approval ───────────── */
+const RUBRIC_OPTIONS = [
+  { v: "I", label: "I — Independently" },
+  { v: "E", label: "E — Expected" },
+  { v: "D", label: "D — Developing" },
+  { v: "M", label: "M — More Support" },
+];
+
+export function AssessmentSetupPanel({ pw, staffId, division }: { pw: string; staffId: string; division: string }) {
+  const [sub, setSub] = useState<"domains" | "indicators" | "approve">("domains");
+  const [reload, setReload] = useState(0);
+  const [domainCode, setDomainCode] = useState("");
+  const [domainName, setDomainName] = useState("");
+  const [level, setLevel] = useState("");
+  const [indDomain, setIndDomain] = useState("");
+  const [indCode, setIndCode] = useState("");
+  const [indDesc, setIndDesc] = useState("");
+  const [indEvidence, setIndEvidence] = useState("");
+  const [indActivity, setIndActivity] = useState("");
+  const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
+
+  const domainsRes = useAsync(() => listAssessmentDomains({ data: { password: pw, division } }), [pw, division, reload]);
+  const domains: Row[] = domainsRes.data && domainsRes.data.ok ? domainsRes.data.domains : [];
+  const indicatorsRes = useAsync(() => listAssessmentIndicators({ data: { password: pw, division, level: level || undefined } }), [pw, division, level, reload]);
+  const indicators: Row[] = indicatorsRes.data && indicatorsRes.data.ok ? indicatorsRes.data.indicators : [];
+  const reportsRes = useAsync(() => listAssessmentReports({ data: { password: pw, division, status: "pending_approval" } }), [pw, division, reload]);
+  const pendingReports: Row[] = reportsRes.data && reportsRes.data.ok ? reportsRes.data.reports : [];
+
+  async function addDomain() {
+    if (!domainCode.trim() || !domainName.trim()) return;
+    await saveAssessmentDomain({ data: { password: pw, staffId, division, code: domainCode, name: domainName } });
+    setDomainCode(""); setDomainName(""); setReload((x) => x + 1);
+  }
+  async function removeDomain(id: string) {
+    await deleteAssessmentDomain({ data: { password: pw, id } });
+    setReload((x) => x + 1);
+  }
+  async function addIndicator() {
+    if (!indCode.trim() || !indDesc.trim() || !level.trim() || !indDomain) return;
+    await saveAssessmentIndicator({
+      data: { password: pw, staffId, division, level, domainCode: indDomain, indicatorCode: indCode, description: indDesc, evidenceExample: indEvidence, relatedActivity: indActivity },
+    });
+    setIndCode(""); setIndDesc(""); setIndEvidence(""); setIndActivity(""); setReload((x) => x + 1);
+  }
+  async function removeIndicator(id: string) {
+    await deleteAssessmentIndicator({ data: { password: pw, id } });
+    setReload((x) => x + 1);
+  }
+  async function review(reportId: string, decision: "approve" | "revise") {
+    await reviewAssessmentReport({ data: { password: pw, staffId, reportId, decision, notes: reviewNotes[reportId] } });
+    setReload((x) => x + 1);
+  }
+
+  return (
+    <div>
+      <div className="flex gap-2 mb-3 flex-wrap">
+        <button onClick={() => setSub("domains")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "domains" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Domains</button>
+        <button onClick={() => setSub("indicators")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "indicators" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Indicator Bank</button>
+        <button onClick={() => setSub("approve")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "approve" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>
+          Report Approval{pendingReports.length > 0 ? ` (${pendingReports.length})` : ""}
+        </button>
+      </div>
+
+      {sub === "domains" && (
+        <div>
+          <div className={card + " mb-3 grid gap-2"}>
+            <input value={domainCode} onChange={(e) => setDomainCode(e.target.value)} placeholder="Kode (mis. MOR, SOC, PHY, LAN, COG, ART)" className={field} />
+            <input value={domainName} onChange={(e) => setDomainName(e.target.value)} placeholder="Nama domain" className={field} />
+            <button onClick={addDomain} className={btn + " justify-self-start"}><Plus size={13} /> Tambah Domain</button>
+          </div>
+          <ul className="space-y-1.5">
+            {domains.map((d) => (
+              <li key={d.id} className="flex items-center justify-between rounded-lg bg-card border border-border px-3 py-2 text-sm">
+                <span className="font-mono text-xs mr-2">{d.code}</span>{d.name}
+                <button onClick={() => removeDomain(d.id)} className="text-destructive ml-auto"><Trash2 size={13} /></button>
+              </li>
+            ))}
+            {domains.length === 0 && <Hint>Belum ada domain. Contoh: MOR (Moral & Spiritual), SOC (Social Emotional), PHY (Physical), LAN (Language), COG (Cognitive), ART (Creative Arts).</Hint>}
+          </ul>
+        </div>
+      )}
+
+      {sub === "indicators" && (
+        <div>
+          <div className={card + " mb-3 grid gap-2"}>
+            <div className="flex gap-2 flex-wrap">
+              <input value={level} onChange={(e) => setLevel(e.target.value)} placeholder="Level (mis. Toddler, Nursery, K1, K2)" className={field + " flex-1 min-w-32"} />
+              <select value={indDomain} onChange={(e) => setIndDomain(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-2 text-sm">
+                <option value="">pilih domain</option>
+                {domains.map((d) => <option key={d.id} value={d.code}>{d.code} — {d.name}</option>)}
+              </select>
+            </div>
+            <input value={indCode} onChange={(e) => setIndCode(e.target.value)} placeholder="Kode indikator (mis. K1-LAN-012)" className={field} />
+            <textarea value={indDesc} onChange={(e) => setIndDesc(e.target.value)} rows={2} placeholder="Deskripsi indikator" className={field} />
+            <input value={indEvidence} onChange={(e) => setIndEvidence(e.target.value)} placeholder="Contoh evidence (opsional)" className={field} />
+            <input value={indActivity} onChange={(e) => setIndActivity(e.target.value)} placeholder="Aktivitas terkait (opsional)" className={field} />
+            <button onClick={addIndicator} className={btn + " justify-self-start"}><Plus size={13} /> Tambah Indikator</button>
+          </div>
+          <ul className="space-y-1.5">
+            {indicators.map((i) => (
+              <li key={i.id} className="rounded-lg bg-card border border-border px-3 py-2 text-sm">
+                <div className="flex items-center justify-between">
+                  <span><span className="font-mono text-xs font-semibold">{i.indicator_code}</span> · {i.level} · {i.domain_code}</span>
+                  <button onClick={() => removeIndicator(i.id)} className="text-destructive"><Trash2 size={13} /></button>
+                </div>
+                <p className="text-xs mt-1">{i.description}</p>
+              </li>
+            ))}
+            {indicators.length === 0 && <Hint>Belum ada indikator untuk filter ini.</Hint>}
+          </ul>
+        </div>
+      )}
+
+      {sub === "approve" && (
+        <ul className="space-y-2">
+          {pendingReports.map((r) => (
+            <li key={r.id} className="rounded-lg bg-card border border-border p-3 text-sm">
+              <p className="font-semibold">{r.school_students?.full_name} — {r.period_type} {r.period_label}</p>
+              {r.summary && <p className="text-xs mt-1">{r.summary}</p>}
+              {r.recommendations && <p className="text-xs mt-1"><span className="text-muted-foreground">Rekomendasi: </span>{r.recommendations}</p>}
+              {r.next_target && <p className="text-xs mt-1"><span className="text-muted-foreground">Target berikutnya: </span>{r.next_target}</p>}
+              <textarea value={reviewNotes[r.id] ?? ""} onChange={(e) => setReviewNotes((x) => ({ ...x, [r.id]: e.target.value }))} rows={2} placeholder="Catatan Principal (opsional)" className={field + " mt-2"} />
+              <div className="flex gap-2 mt-2">
+                <button onClick={() => review(r.id, "approve")} className="rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-xs font-semibold">Approve & Publish ke Parent</button>
+                <button onClick={() => review(r.id, "revise")} className="rounded-lg bg-blue-600 text-white px-3 py-1.5 text-xs font-semibold">Minta Revisi</button>
+              </div>
+            </li>
+          ))}
+          {pendingReports.length === 0 && <Hint>Tidak ada laporan menunggu approval.</Hint>}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/* ───────────── Assessment v2 — Teacher: record per indicator + submit report ───────────── */
+export function TeacherIndicatorAssessmentPanel({ pw, staffId, classes, division }: { pw: string; staffId: string; classes: ClassOpt[]; division: string }) {
+  const [sub, setSub] = useState<"record" | "report">("record");
+  const [classId, setClassId] = useState(classes[0]?.id ?? "");
+  const [studentId, setStudentId] = useState("");
+  const [periodType, setPeriodType] = useState("week");
+  const [periodLabel, setPeriodLabel] = useState("");
+  const [rubrics, setRubrics] = useState<Record<string, string>>({});
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  const [reload, setReload] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [summary, setSummary] = useState("");
+  const [recommendations, setRecommendations] = useState("");
+  const [nextTarget, setNextTarget] = useState("");
+
+  const selectedClass = classes.find((c) => c.id === classId);
+  const studentsRes = useAsync(() => (classId ? listSchoolStudents({ data: { password: pw, classId } }) : Promise.resolve(null)), [pw, classId]);
+  const students: Row[] = studentsRes.data && "students" in studentsRes.data ? (studentsRes.data.students ?? []) : [];
+  const indicatorsRes = useAsync(
+    () => ((selectedClass as Row)?.level ? listAssessmentIndicators({ data: { password: pw, division, level: (selectedClass as Row).level } }) : Promise.resolve(null)),
+    [pw, division, selectedClass],
+  );
+  const indicators: Row[] = indicatorsRes.data && indicatorsRes.data.ok ? indicatorsRes.data.indicators : [];
+  const recordsRes = useAsync(
+    () => (studentId && periodLabel ? listAssessmentRecords({ data: { password: pw, studentId, periodType, periodLabel } }) : Promise.resolve(null)),
+    [pw, studentId, periodType, periodLabel, reload],
+  );
+  const records: Row[] = recordsRes.data && recordsRes.data.ok ? recordsRes.data.records : [];
+
+  async function saveOne(indicatorId: string) {
+    const rubric = rubrics[indicatorId];
+    if (!rubric || !studentId || !periodLabel.trim()) return;
+    setBusy(true);
+    await saveAssessmentRecord({
+      data: { password: pw, studentId, classId, indicatorId, teacherId: staffId, rubric: rubric as "I" | "E" | "D" | "M", evidenceNote: notes[indicatorId], periodType, periodLabel },
+    });
+    setBusy(false);
+    setReload((x) => x + 1);
+  }
+  async function submitReport() {
+    if (!studentId || !periodLabel.trim()) return;
+    setBusy(true);
+    await generateAssessmentReport({ data: { password: pw, staffId, studentId, division, periodType, periodLabel, summary, recommendations, nextTarget } });
+    setBusy(false);
+    setSummary(""); setRecommendations(""); setNextTarget(""); setReload((x) => x + 1);
+  }
+
+  return (
+    <div>
+      <div className="flex gap-2 mb-3 flex-wrap">
+        <button onClick={() => setSub("record")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "record" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Record Assessment</button>
+        <button onClick={() => setSub("report")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "report" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Create Report</button>
+      </div>
+
+      <div className="flex gap-2 flex-wrap mb-3">
+        {classes.length > 1 && (
+          <select value={classId} onChange={(e) => { setClassId(e.target.value); setStudentId(""); }} className="rounded-lg bg-background border border-border px-2 py-2 text-sm">
+            {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        )}
+        <select value={studentId} onChange={(e) => setStudentId(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-2 text-sm">
+          <option value="">pilih murid</option>
+          {students.map((s) => <option key={s.id} value={s.id}>{s.full_name}</option>)}
+        </select>
+        <select value={periodType} onChange={(e) => setPeriodType(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-2 text-sm">
+          <option value="week">Week</option>
+          <option value="month">Month</option>
+          <option value="semester">Semester</option>
+        </select>
+        <input value={periodLabel} onChange={(e) => setPeriodLabel(e.target.value)} placeholder="Label periode (mis. Week 3 Agustus 2026)" className="rounded-lg bg-background border border-border px-2 py-2 text-sm flex-1 min-w-40" />
+      </div>
+
+      {!studentId || !periodLabel.trim() ? (
+        <Hint>Pilih murid dan isi label periode dulu.</Hint>
+      ) : sub === "record" ? (
+        <ul className="space-y-2">
+          {indicators.map((i) => {
+            const existing = records.find((r) => r.indicator_id === i.id);
+            return (
+              <li key={i.id} className="rounded-lg bg-card border border-border p-3 text-sm">
+                <p><span className="font-mono text-xs font-semibold">{i.indicator_code}</span> · {i.domain_code}</p>
+                <p className="text-xs mt-0.5 mb-2">{i.description}</p>
+                {existing && <p className="text-[10px] text-emerald-600 mb-1">Sudah dinilai: {existing.rubric}</p>}
+                <div className="flex gap-1.5 flex-wrap mb-1.5">
+                  {RUBRIC_OPTIONS.map((r) => (
+                    <button
+                      key={r.v}
+                      onClick={() => setRubrics((x) => ({ ...x, [i.id]: r.v }))}
+                      className={"rounded-full px-2.5 py-1 text-xs border " + (rubrics[i.id] === r.v ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border")}
+                    >{r.v}</button>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input value={notes[i.id] ?? ""} onChange={(e) => setNotes((x) => ({ ...x, [i.id]: e.target.value }))} placeholder="Catatan/evidence singkat" className="rounded-lg bg-background border border-border px-2 py-1 text-xs flex-1" />
+                  <button onClick={() => saveOne(i.id)} disabled={busy || !rubrics[i.id]} className="rounded-lg bg-primary text-primary-foreground px-3 py-1 text-xs font-semibold disabled:opacity-40">Simpan</button>
+                </div>
+              </li>
+            );
+          })}
+          {indicators.length === 0 && <Hint>Belum ada indikator untuk level kelas ini — hubungi Principal untuk setup Indicator Bank.</Hint>}
+        </ul>
+      ) : (
+        <div className={card + " grid gap-2"}>
+          <p className="text-xs text-muted-foreground">Merangkum {records.length} penilaian indikator untuk periode ini menjadi laporan ke Parent (perlu approval Principal dulu).</p>
+          <textarea value={summary} onChange={(e) => setSummary(e.target.value)} rows={3} placeholder="Ringkasan perkembangan" className={field} />
+          <textarea value={recommendations} onChange={(e) => setRecommendations(e.target.value)} rows={2} placeholder="Rekomendasi aktivitas di rumah" className={field} />
+          <textarea value={nextTarget} onChange={(e) => setNextTarget(e.target.value)} rows={2} placeholder="Target periode berikutnya" className={field} />
+          <button onClick={submitReport} disabled={busy} className={btn + " justify-self-start"}>Submit ke Principal untuk Approval</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ───────────── Assessment v2 — HoS: results only (read-only, published) ───────────── */
+export function AssessmentResultsPanel({ pw }: { pw: string }) {
+  const res = useAsync(() => listAssessmentReports({ data: { password: pw, status: "published" } }), [pw]);
+  const reports: Row[] = res.data && res.data.ok ? res.data.reports : [];
+  return (
+    <ul className="space-y-2">
+      {reports.map((r) => (
+        <li key={r.id} className="rounded-lg bg-card border border-border p-3 text-sm">
+          <p className="font-semibold">{r.school_students?.full_name} — {r.division} — {r.period_type} {r.period_label}</p>
+          {r.summary && <p className="text-xs mt-1">{r.summary}</p>}
+        </li>
+      ))}
+      {reports.length === 0 && <Hint>Belum ada laporan yang sudah dipublikasikan.</Hint>}
+    </ul>
+  );
+}
+
+/* ───────────── Assessment v2 — Parent: published reports only ───────────── */
+export function ParentAssessmentReportsPanel({ code }: { code: string }) {
+  const res = useAsync(() => listAssessmentReportsForCode({ data: { code } }), [code]);
+  const reports: Row[] = res.data && res.data.ok ? res.data.reports : [];
+  return (
+    <ul className="space-y-2">
+      {reports.map((r) => (
+        <li key={r.id} className="rounded-xl bg-card border border-border p-3 text-sm">
+          <p className="font-semibold">{r.period_type} — {r.period_label}</p>
+          {r.summary && <p className="mt-1">{r.summary}</p>}
+          {r.recommendations && <p className="mt-2 text-xs"><span className="text-muted-foreground">Rekomendasi aktivitas di rumah: </span>{r.recommendations}</p>}
+          {r.next_target && <p className="mt-1 text-xs"><span className="text-muted-foreground">Target berikutnya: </span>{r.next_target}</p>}
+        </li>
+      ))}
+      {reports.length === 0 && <Hint>Belum ada laporan perkembangan yang dipublikasikan.</Hint>}
+    </ul>
   );
 }
