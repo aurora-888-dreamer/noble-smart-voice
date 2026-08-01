@@ -47,10 +47,13 @@ export const listAssessmentIndicators = createServerFn({ method: "POST" })
     const gate = staffClient(data.password);
     if (!gate.ok) return gate;
     let q = gate.supabase.from("school_assessment_indicators").select("*").eq("division", data.division).order("sort_order");
+    // Case-insensitive on level (school_classes.level and indicators typed
+    // by Principal can differ in case, e.g. "K1" vs "k1") — this class of
+    // mismatch silently hid all indicators from Teacher before.
     if (data.subject) {
-      q = data.level ? q.or(`level.eq.${data.level},subject.eq.${data.subject}`) : q.eq("subject", data.subject);
+      q = data.level ? q.or(`level.ilike.${data.level},subject.ilike.${data.subject}`) : q.ilike("subject", data.subject);
     } else if (data.level) {
-      q = q.eq("level", data.level);
+      q = q.ilike("level", data.level);
     }
     const { data: rows, error } = await q;
     if (error) return { ok: false, error: error.message };
