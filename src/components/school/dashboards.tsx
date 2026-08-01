@@ -4,18 +4,18 @@ import { useState, useEffect } from "react";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = Record<string, any>;
 import {
-  GraduationCap, Users, Baby, BookOpen, MessageSquare, Megaphone, Bell, Save, Trash2, LogOut, Shield, ArrowLeft,
+  GraduationCap, Users, Baby, BookOpen, MessageSquare, Megaphone, Bell, Save, Trash2, LogOut, Shield, ArrowLeft, KeyRound,
 } from "lucide-react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   CalendarPanel, TimetablePanel, LessonPlanPanel, ProjectPanel, AttendancePanel, AgendaPanel, StaffMessagePanel, CasePanel,
-  AssessmentSetupPanel, TeacherIndicatorAssessmentPanel, AssessmentResultsPanel, ParentAssessmentReportsPanel,
+  AssessmentSetupPanel, TeacherIndicatorAssessmentPanel, AssessmentResultsPanel, ParentAssessmentReportsPanel, IncidentalContactPanel,
 } from "./SchoolAcademic";
 import {
   DIVISIONS, ROLE_LABEL, Hint, Section, StatCard, Tabs, ReadOnlyNote, useAsync, useClasses,
   getStoredPassword, getSchoolIdSync, StaffRoster, StudentRoster, GuardianEditor, CsvImportPanel,
   AllActivitiesView, AnnouncementPanel, TeacherMessageThread, ParentMessageThread,
-  ChangePinPanel, PersonnelManager, StaffProfilePreviewButton, StudentProfilePreviewButton, GalleryPanel,
+  ChangePinPanel, PersonnelManager, StaffProfilePreviewButton, StudentProfilePreviewButton, GalleryPanel, ClassManagerPrincipal,
 } from "./shared";
 import {
   listSchoolStaff, listSchoolStudents, postSchoolActivity, deleteSchoolActivity, listActivitiesForClass,
