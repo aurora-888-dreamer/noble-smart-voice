@@ -33,6 +33,7 @@ import {
   listAssessmentRecords, saveAssessmentRecord, deleteAssessmentRecord,
   listAssessmentReports, generateAssessmentReport, reviewAssessmentReport, listAssessmentReportsForCode,
   listCharacters, saveCharacter, deleteCharacter, listCharacterRecords, draftCharacterNarrationBatch, saveCharacterRecordsBatch,
+  listDailyDomainRecords, saveDailyDomainRecordsBatch,
 } from "@/lib/school-assessment-v2.functions";
 import { listSchoolStudents, listSchoolStaff } from "@/lib/school.functions";
 
@@ -2398,14 +2399,15 @@ export function AssessmentSetupPanel({ pw, staffId, division }: { pw: string; st
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+      <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
         <div className="flex gap-2 flex-wrap">
           <button onClick={() => setSub("domains")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "domains" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Domains</button>
-          <button onClick={() => setSub("indicators")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "indicators" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Indicator Bank</button>
           <button onClick={() => setSub("character")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "character" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>14 Character</button>
+          <button onClick={() => setSub("indicators")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "indicators" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Indicator Bank (Advanced)</button>
         </div>
         <AssessmentGuideButton />
       </div>
+      <p className="text-[11px] text-muted-foreground mb-3">Cukup isi <span className="font-semibold">Domains</span> + <span className="font-semibold">14 Character</span> supaya Daily Assessment Teacher langsung bisa jalan — Indicator Bank sifatnya opsional, cuma dipakai kalau butuh assessment lebih detail per-kode indikator.</p>
 
       {sub === "domains" && (
         <div>
@@ -2517,7 +2519,7 @@ export function AssessmentReportApprovalPanel({ pw, staffId, division }: { pw: s
 
 /* ───────────── Assessment v2 — Teacher: record per indicator + submit report ───────────── */
 export function TeacherIndicatorAssessmentPanel({ pw, staffId, classes, division, isSubject }: { pw: string; staffId: string; classes: ClassOpt[]; division: string; isSubject?: boolean }) {
-  const [sub, setSub] = useState<"record" | "character" | "report">("record");
+  const [sub, setSub] = useState<"daily" | "record" | "character" | "report">("daily");
   const [classId, setClassId] = useState(classes[0]?.id ?? "");
   const [studentId, setStudentId] = useState("");
   const [subject, setSubject] = useState("");
@@ -2556,6 +2558,33 @@ export function TeacherIndicatorAssessmentPanel({ pw, staffId, classes, division
   const [charNarration, setCharNarration] = useState("");
   const [charGenerating, setCharGenerating] = useState(false);
   const selectedStudent = students.find((s) => s.id === studentId);
+
+  // ————— Simplified Daily Assessment (domain-direct, no indicator code) —————
+  const domainsRes = useAsync(() => listAssessmentDomains({ data: { password: pw, division } }), [pw, division]);
+  const domains: Row[] = domainsRes.data && domainsRes.data.ok ? domainsRes.data.domains : [];
+  const dailyDate = periodType === "day" ? periodLabel : today();
+  const dailyRecordsRes = useAsync(
+    () => (studentId ? listDailyDomainRecords({ data: { password: pw, studentId, date: dailyDate } }) : Promise.resolve(null)),
+    [pw, studentId, dailyDate, reload],
+  );
+  const dailyRecords: Row[] = dailyRecordsRes.data && dailyRecordsRes.data.ok ? dailyRecordsRes.data.records : [];
+  const [dailyPosition, setDailyPosition] = useState<Record<string, number>>({});
+  const [dailyActivity, setDailyActivity] = useState<Record<string, string>>({});
+  const [dailyEvidence, setDailyEvidence] = useState<Record<string, string>>({});
+
+  async function saveDailyAll() {
+    if (!studentId) return;
+    setBusy(true);
+    const entries = domains.map((d) => ({
+      domainCode: d.code,
+      position: dailyPosition[d.code] ?? 50,
+      activityNote: dailyActivity[d.code] ?? "",
+      evidenceNote: dailyEvidence[d.code] ?? "",
+    }));
+    await saveDailyDomainRecordsBatch({ data: { password: pw, studentId, classId, division, teacherId: staffId, date: dailyDate, entries } });
+    setBusy(false);
+    setReload((x) => x + 1);
+  }
 
   async function generateNarrationForAll() {
     setCharGenerating(true);
@@ -2597,7 +2626,8 @@ export function TeacherIndicatorAssessmentPanel({ pw, staffId, classes, division
     <div>
       <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
         <div className="flex gap-2 flex-wrap">
-          <button onClick={() => setSub("record")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "record" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Daily Assessment</button>
+          <button onClick={() => setSub("daily")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "daily" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Daily Assessment</button>
+          <button onClick={() => setSub("record")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "record" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Indicator (Advanced)</button>
           <button onClick={() => setSub("character")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "character" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>14 Character</button>
           <button onClick={() => setSub("report")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "report" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Create Report</button>
         </div>
@@ -2632,6 +2662,50 @@ export function TeacherIndicatorAssessmentPanel({ pw, staffId, classes, division
 
       {!studentId || !periodLabel.trim() ? (
         <Hint>Pilih murid dan isi periode dulu.</Hint>
+      ) : sub === "daily" ? (
+        <div>
+          <p className="text-[11px] text-muted-foreground mb-2">6 Domain otomatis, geser slider ke posisi mana pun antara I dan M (nggak harus tepat di satu titik) — nanti dirangkum otomatis jadi laporan Week/Month/Semester saat Create Report.</p>
+          <div className="space-y-3">
+            {domains.map((d) => {
+              const existing = dailyRecords.find((r) => r.domain_code === d.code);
+              const pos = dailyPosition[d.code] ?? existing?.position ?? 50;
+              const gradientStyle = { background: `linear-gradient(90deg, #ef4444 0%, #f97316 33%, #3b82f6 67%, #10b981 100%)` };
+              return (
+                <div key={d.id} className="rounded-lg bg-card border border-border p-3">
+                  <p className="text-sm font-semibold mb-2">{d.name} <span className="font-mono text-xs text-muted-foreground">({d.code})</span></p>
+                  {existing && <p className="text-[10px] text-emerald-600 mb-1">Sudah diisi hari ini</p>}
+                  <div className="mb-1">
+                    <div className="h-2 rounded-full overflow-hidden" style={gradientStyle} />
+                    <div className="flex justify-between text-[9px] text-muted-foreground px-0.5 mt-0.5">
+                      <span>M</span><span>D</span><span>E</span><span>I</span>
+                    </div>
+                  </div>
+                  <input
+                    type="range" min={0} max={100} value={pos}
+                    onChange={(e) => setDailyPosition((x) => ({ ...x, [d.code]: Number(e.target.value) }))}
+                    className="w-full mb-2"
+                  />
+                  <input
+                    value={dailyActivity[d.code] ?? existing?.activity_note ?? ""}
+                    onChange={(e) => setDailyActivity((x) => ({ ...x, [d.code]: e.target.value }))}
+                    placeholder="Activity (mis. Menggunakan gunting dengan aman)"
+                    className={field + " mb-1.5"}
+                  />
+                  <input
+                    value={dailyEvidence[d.code] ?? existing?.evidence_note ?? ""}
+                    onChange={(e) => setDailyEvidence((x) => ({ ...x, [d.code]: e.target.value }))}
+                    placeholder="Catatan/evidence singkat"
+                    className={field}
+                  />
+                </div>
+              );
+            })}
+            {domains.length === 0 && <Hint>Belum ada Domain — hubungi Principal untuk setup di Assessment Setup.</Hint>}
+          </div>
+          {domains.length > 0 && (
+            <button onClick={saveDailyAll} disabled={busy} className={btn + " mt-3"}>Simpan Semua Domain</button>
+          )}
+        </div>
       ) : sub === "record" ? (
         <>
           {periodType === "day" && <p className="text-[11px] text-muted-foreground mb-2">Ini tempat isi assessment harian — nanti dirangkum otomatis jadi laporan Week/Month/Semester saat Create Report.</p>}
@@ -2764,8 +2838,8 @@ function AssessmentGuideContent() {
   return (
     <div className="space-y-4 text-sm">
       <div>
-        <p className="font-semibold mb-1">1. Domain</p>
-        <p className="text-xs text-muted-foreground mb-2">Kategori besar area perkembangan anak. Tiap divisi bisa punya set Domain sendiri (Principal yang setup). Contoh standar Preschool:</p>
+        <p className="font-semibold mb-1">1. Domain (wajib disetup)</p>
+        <p className="text-xs text-muted-foreground mb-2">Kategori besar area perkembangan anak — ini yang otomatis muncul di Daily Assessment Teacher. Tiap divisi bisa punya set Domain sendiri (Principal yang setup). Contoh standar Preschool:</p>
         <ul className="text-xs space-y-0.5">
           <li><span className="font-mono font-semibold">MOR</span> — Moral & Spiritual</li>
           <li><span className="font-mono font-semibold">SOC</span> — Social Emotional</li>
@@ -2776,29 +2850,30 @@ function AssessmentGuideContent() {
         </ul>
       </div>
       <div>
-        <p className="font-semibold mb-1">2. Indicator Bank & Arti Kode</p>
-        <p className="text-xs text-muted-foreground mb-1">Format kode: <span className="font-mono">[Level]-[Domain]-[Nomor]</span></p>
-        <p className="text-xs">Contoh: <span className="font-mono font-semibold">K1-LAN-012</span> = Level K1, Domain Language, indikator nomor 012.</p>
-        <p className="text-xs text-muted-foreground mt-1">Setiap indikator berisi: kode, domain, level, deskripsi, contoh evidence, aktivitas terkait. Principal yang membuat/mengelola di Assessment Setup — begitu tersimpan, langsung muncul di Child Assessment milik Teacher sesuai level kelasnya.</p>
-      </div>
-      <div>
-        <p className="font-semibold mb-1">3. Skala Penilaian Kompetensi (I-E-D-M)</p>
-        <ul className="text-xs space-y-1">
+        <p className="font-semibold mb-1">2. Daily Assessment — cara isi Teacher</p>
+        <p className="text-xs text-muted-foreground mb-1">Setiap Domain dinilai dengan menggeser slider di sepanjang garis <span className="font-mono">M — D — E — I</span> — posisinya nggak harus tepat di satu titik, boleh di antara dua (misal antara E dan D).</p>
+        <ul className="text-xs space-y-1 mt-1">
           <li><span className="font-mono font-semibold">I</span> — Independently: mandiri, konsisten, bisa jadi contoh untuk teman.</li>
           <li><span className="font-mono font-semibold">E</span> — Expected: mencapai target sesuai usia.</li>
           <li><span className="font-mono font-semibold">D</span> — Developing: sedang berkembang, masih perlu bimbingan.</li>
           <li><span className="font-mono font-semibold">M</span> — More Support: perlu lebih banyak latihan & pendampingan.</li>
         </ul>
+        <p className="text-xs text-muted-foreground mt-1">Kolom "Activity" diisi bebas (aktivitas hari itu, mis. "Menggunakan gunting dengan aman"), plus Catatan/evidence singkat.</p>
       </div>
       <div>
-        <p className="font-semibold mb-1">4. 14 Character</p>
-        <p className="text-xs text-muted-foreground mb-1">Ciri khas Stella Maris — 14 sifat yang sama di semua level/divisi, terpisah dari Domain/Indicator Bank (yang per-divisi). Dinilai dengan skala <span className="font-semibold">0-100</span>, ditampilkan sebagai gradient warna putih (0) → emas (100).</p>
+        <p className="font-semibold mb-1">3. Indicator Bank (opsional/lanjutan)</p>
+        <p className="text-xs text-muted-foreground mb-1">Kalau butuh assessment lebih detail per-kode (bukan sekadar per-Domain), Principal bisa isi Indicator Bank di Assessment Setup. Format kode: <span className="font-mono">[Level]-[Domain]-[Nomor]</span> — contoh <span className="font-mono font-semibold">K1-LAN-012</span> = Level K1, Domain Language, indikator nomor 012.</p>
+        <p className="text-xs text-muted-foreground">Ini muncul di tab "Indicator (Advanced)" milik Teacher — terpisah dari Daily Assessment yang sederhana, dan sifatnya benar-benar opsional.</p>
+      </div>
+      <div>
+        <p className="font-semibold mb-1">4. 14 Character (wajib disetup)</p>
+        <p className="text-xs text-muted-foreground mb-1">Ciri khas Stella Maris — 14 sifat yang sama di semua level/divisi, terpisah dari Domain (yang per-divisi). Dinilai dengan skala <span className="font-semibold">0-100</span>, ditampilkan sebagai gradient warna putih (0) → emas (100).</p>
         <p className="text-xs">Independent, Respect, Curiosity, Caring, Enthusiastic, Creative, Responsible, Self-Directed, Tolerant, Integrity, Self-Control, Assertive, Persuasive, Productive.</p>
         <p className="text-xs text-muted-foreground mt-1">Narasi bisa dibuat otomatis (Auto/AI) atau ditulis manual — keduanya tetap bisa diedit sebelum disimpan.</p>
       </div>
       <div>
         <p className="font-semibold mb-1">5. Alur Pengisian</p>
-        <p className="text-xs text-muted-foreground">Teacher isi Daily Assessment (Kompetensi + 14 Character) → dirangkum jadi laporan Week/Month/Semester → dikirim ke Principal untuk approval → setelah disetujui (Approve & Publish), baru laporan bisa dilihat Parent. HoS hanya melihat hasil laporan yang sudah published.</p>
+        <p className="text-xs text-muted-foreground">Teacher isi Daily Assessment (Domain + 14 Character) tiap hari → dirangkum jadi laporan Week/Month/Semester → dikirim ke Principal untuk approval → setelah disetujui (Approve & Publish), baru laporan bisa dilihat Parent. HoS hanya melihat hasil laporan yang sudah published.</p>
       </div>
     </div>
   );
