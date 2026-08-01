@@ -623,8 +623,81 @@ export function AdminHosDashboard() {
 }
 
 /* ───────────── Principal ───────────── */
+function UnitProfilePanel({ pw, division, classes }: { pw: string; division: string; classes: { id: string; name: string; level?: string }[] }) {
+  const [sub, setSub] = useState<"class" | "staff" | "student">("class");
+  return (
+    <div>
+      <div className="flex gap-2 mb-3 flex-wrap">
+        <button onClick={() => setSub("class")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "class" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Class</button>
+        <button onClick={() => setSub("staff")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "staff" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Staffs</button>
+        <button onClick={() => setSub("student")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "student" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Students</button>
+      </div>
+      {sub === "class" && <ClassManagerPrincipal division={division} classes={classes} />}
+      {sub === "staff" && <StaffRoster canEdit classes={classes} scopeDivision={division} />}
+      {sub === "student" && <StudentRoster canEdit classes={classes} />}
+    </div>
+  );
+}
+
+function PrincipalMessageHubPanel({ pw, staffId, staffName, division, classes, unreadStaffCount }: {
+  pw: string; staffId: string; staffName: string; division: string; classes: { id: string; name: string }[]; unreadStaffCount: number;
+}) {
+  const [sub, setSub] = useState<"direct" | "announce" | "letter" | "report">("direct");
+  return (
+    <div>
+      <div className="flex gap-2 mb-3 flex-wrap">
+        <button onClick={() => setSub("direct")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "direct" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>
+          Direct Message{unreadStaffCount > 0 ? ` 🟠${unreadStaffCount}` : ""}
+        </button>
+        <button onClick={() => setSub("announce")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "announce" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Announcement</button>
+        <button onClick={() => setSub("letter")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "letter" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Official Letter</button>
+        <button onClick={() => setSub("report")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "report" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Report</button>
+      </div>
+      {sub === "direct" && <StaffMessagePanel pw={pw} staffId={staffId} />}
+      {sub === "announce" && <AnnouncementPanel subrole="principal" division={division} classes={classes} />}
+      {sub === "letter" && <ProjectPanel pw={pw} classes={classes} canSubmit staffId={staffId} reviewerRole="principal" reviewerName="Principal" />}
+      {sub === "report" && <CasePanel access={{ pw }} role="principal" staffId={staffId} staffName={staffName} division={division} classes={classes} />}
+    </div>
+  );
+}
+
+function ClassSetupPanel({ pw, staffId, division, classes }: { pw: string; staffId: string; division: string; classes: { id: string; name: string }[] }) {
+  const [sub, setSub] = useState<"timetable" | "lesson" | "assessmentsetup">("timetable");
+  return (
+    <div>
+      <div className="flex gap-2 mb-3 flex-wrap">
+        <button onClick={() => setSub("timetable")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "timetable" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Time Table</button>
+        <button onClick={() => setSub("lesson")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "lesson" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Lesson Plan</button>
+        <button onClick={() => setSub("assessmentsetup")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "assessmentsetup" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Assessment Setup</button>
+      </div>
+      {sub === "timetable" && <TimetablePanel access={{ pw }} classes={classes} canEdit staffId={staffId} />}
+      {sub === "lesson" && <LessonPlanPanel pw={pw} classes={classes} canEdit={false} />}
+      {sub === "assessmentsetup" && <AssessmentSetupPanel pw={pw} staffId={staffId} division={division} />}
+    </div>
+  );
+}
+
+function PrincipalSettingPanel({ pw, staffId }: { pw: string; staffId: string }) {
+  const [sub, setSub] = useState<"pin" | "profile">("pin");
+  const [editing, setEditing] = useState(false);
+  return (
+    <div>
+      <div className="flex gap-2 mb-3 flex-wrap">
+        <button onClick={() => setSub("pin")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "pin" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Change PIN</button>
+        <button onClick={() => setSub("profile")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "profile" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Edit Own Profile</button>
+      </div>
+      {sub === "pin" && <ChangePinPanel />}
+      {sub === "profile" && (
+        editing
+          ? <StaffProfileForm pw={pw} staffId={staffId} onSaved={() => setEditing(false)} />
+          : <button onClick={() => setEditing(true)} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold">Edit Profile</button>
+      )}
+    </div>
+  );
+}
+
 export function PrincipalDashboard({ division, staffId, staffName }: { division: string; staffId: string; staffName: string }) {
-  const [tab, setTab] = useState("overview");
+  const [tab, setTab] = useState("unitprofile");
   const pw = getStoredPassword();
   const classes = useClasses(division);
   const counts = useAsync(() => getPendingCounts({ data: { password: pw, role: "principal", division } }), [pw, division]);
@@ -632,28 +705,28 @@ export function PrincipalDashboard({ division, staffId, staffName }: { division:
   const unreadStaffRes = useAsync(() => listUnreadStaffSenderIds({ data: { password: pw, staffId } }), [pw, staffId]);
   const unreadStaffCount = unreadStaffRes.data && "ok" in unreadStaffRes.data && unreadStaffRes.data.ok ? unreadStaffRes.data.senderIds.length : 0;
   const withCount = (label: string, n: number) => (n > 0 ? `${label} (${n})` : label);
-  const academicTabsWithCount = ACADEMIC_TABS.filter((t) => t.id !== "assessment").map((t) => t.id === "projects" ? { ...t, label: withCount(t.label, pending.officialLetters) } : t);
+  const messageBadgeCount = unreadStaffCount + pending.officialLetters + pending.reports;
   const tabs = [
-    { id: "overview", label: "Overview" }, { id: "students", label: "Student" },
-    { id: "staff", label: "Staff" }, { id: "message", label: unreadStaffCount > 0 ? `Message 🟠${unreadStaffCount}` : "Message" }, { id: "agenda", label: withCount("Agenda", pending.agendas) }, { id: "laporan", label: withCount("Report", pending.reports) }, { id: "activity", label: "Teacher Activity" },
-    { id: "announce", label: "Announcements" }, ...academicTabsWithCount, { id: "assessmentsetup", label: "Assessment Setup" }, { id: "gallery", label: "Gallery" }, PIN_TAB,
+    { id: "unitprofile", label: `Unit Profile (${DIVISIONS.find((d) => d.id === division)?.label ?? division})` },
+    { id: "message", label: withCount("Message", messageBadgeCount) },
+    { id: "classsetup", label: "Class Setup" },
+    { id: "agenda", label: withCount("Agenda", pending.agendas) },
+    { id: "calendar", label: "Calendar" },
+    { id: "activity", label: "Daily Activity" },
+    { id: "gallery", label: "Gallery" },
+    { id: "setting", label: "Setting" },
   ];
   return (
     <div>
-      <p className="text-xs text-muted-foreground mb-3">Divisi: {DIVISIONS.find((d) => d.id === division)?.label ?? division}</p>
-      <Tabs tabs={tabs} tab={tab} onChange={setTab}>
-        {tab === "overview" && <div className="grid grid-cols-2 gap-3"><StatCard label="Classes" value={classes.length} Icon={GraduationCap} /></div>}
-        {tab === "assessmentsetup" && <AssessmentSetupPanel pw={pw} staffId={staffId} division={division} />}
-        {tab === "gallery" && <GalleryPanel pw={pw} staffId={staffId} />}
-        {tab === "students" && <StudentRoster canEdit classes={classes} />}
-        {tab === "staff" && <StaffRoster canEdit classes={classes} scopeDivision={division} />}
-        {tab === "message" && <StaffMessagePanel pw={pw} staffId={staffId} />}
+      <Tabs tabs={tabs} tab={tab} onChange={setTab} mobileGrid>
+        {tab === "unitprofile" && <UnitProfilePanel pw={pw} division={division} classes={classes} />}
+        {tab === "message" && <PrincipalMessageHubPanel pw={pw} staffId={staffId} staffName={staffName} division={division} classes={classes} unreadStaffCount={unreadStaffCount} />}
+        {tab === "classsetup" && <ClassSetupPanel pw={pw} staffId={staffId} division={division} classes={classes} />}
         {tab === "agenda" && <AgendaPanel pw={pw} role="principal" staffId={staffId} staffName={staffName} division={division} classes={classes} />}
-        {tab === "laporan" && <CasePanel access={{ pw }} role="principal" staffId={staffId} staffName={staffName} division={division} classes={classes} />}
+        {tab === "calendar" && <CalendarPanel access={{ pw, staffId }} classes={classes} canEdit roleScope="principal" fixedDivision={division} />}
         {tab === "activity" && <AllActivitiesView division={division} />}
-        {tab === "announce" && <AnnouncementPanel subrole="principal" division={division} classes={classes} />}
-        {tab === "pin" && <ChangePinPanel />}
-        <AcademicReadOnly tab={tab} classes={classes} reviewerRole="principal" reviewerName="Principal" calendarStaffId={staffId} timetableStaffId={staffId} staffId={staffId} division={division} />
+        {tab === "gallery" && <GalleryPanel pw={pw} staffId={staffId} />}
+        {tab === "setting" && <PrincipalSettingPanel pw={pw} staffId={staffId} />}
       </Tabs>
     </div>
   );

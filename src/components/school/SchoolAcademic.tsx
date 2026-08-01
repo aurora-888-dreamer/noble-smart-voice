@@ -32,7 +32,7 @@ import {
   listAssessmentIndicators, saveAssessmentIndicator, deleteAssessmentIndicator,
   listAssessmentRecords, saveAssessmentRecord, deleteAssessmentRecord,
   listAssessmentReports, generateAssessmentReport, reviewAssessmentReport, listAssessmentReportsForCode,
-  listCharacters, saveCharacter, deleteCharacter, listCharacterRecords, saveCharacterRecord, draftCharacterNarration,
+  listCharacters, saveCharacter, deleteCharacter, listCharacterRecords, draftCharacterNarrationBatch, saveCharacterRecordsBatch,
 } from "@/lib/school-assessment-v2.functions";
 import { listSchoolStudents, listSchoolStaff } from "@/lib/school.functions";
 
@@ -2318,7 +2318,7 @@ export function AssessmentSetupPanel({ pw, staffId, division }: { pw: string; st
       <div className="flex gap-2 mb-3 flex-wrap">
         <button onClick={() => setSub("domains")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "domains" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Domains</button>
         <button onClick={() => setSub("indicators")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "indicators" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Indicator Bank</button>
-        <button onClick={() => setSub("character")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "character" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>9 Character</button>
+        <button onClick={() => setSub("character")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "character" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>14 Character</button>
         <button onClick={() => setSub("approve")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "approve" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>
           Report Approval{pendingReports.length > 0 ? ` (${pendingReports.length})` : ""}
         </button>
@@ -2377,7 +2377,7 @@ export function AssessmentSetupPanel({ pw, staffId, division }: { pw: string; st
 
       {sub === "character" && (
         <div>
-          <p className="text-xs text-muted-foreground mb-3">9 Character — ciri khas Stella Maris, berlaku sama di semua divisi/level, terpisah dari Indicator Bank per-divisi.</p>
+          <p className="text-xs text-muted-foreground mb-3">14 Character — ciri khas Stella Maris, berlaku sama di semua divisi/level, terpisah dari Indicator Bank per-divisi.</p>
           <div className={card + " mb-3 grid gap-2"}>
             <input value={charName} onChange={(e) => setCharName(e.target.value)} placeholder="Nama character (mis. Respect, Curiosity, Integrity)" className={field} />
             <input value={charDesc} onChange={(e) => setCharDesc(e.target.value)} placeholder="Deskripsi (opsional)" className={field} />
@@ -2454,27 +2454,24 @@ export function TeacherIndicatorAssessmentPanel({ pw, staffId, classes, division
   );
   const charRecords: Row[] = charRecordsRes.data && charRecordsRes.data.ok ? charRecordsRes.data.records : [];
   const [charScores, setCharScores] = useState<Record<string, number>>({});
-  const [charMode, setCharMode] = useState<Record<string, "auto" | "manual">>({});
-  const [charNarration, setCharNarration] = useState<Record<string, string>>({});
-  const [charGenerating, setCharGenerating] = useState<Record<string, boolean>>({});
+  const [charMode, setCharMode] = useState<"auto" | "manual">("manual");
+  const [charNarration, setCharNarration] = useState("");
+  const [charGenerating, setCharGenerating] = useState(false);
   const selectedStudent = students.find((s) => s.id === studentId);
 
-  async function generateNarrationFor(characterId: string, characterName: string) {
-    const score = charScores[characterId] ?? 50;
-    setCharGenerating((x) => ({ ...x, [characterId]: true }));
-    const r = await draftCharacterNarration({ data: { password: pw, studentName: selectedStudent?.full_name ?? "murid", characterName, score } });
-    setCharGenerating((x) => ({ ...x, [characterId]: false }));
-    if (r.ok) setCharNarration((x) => ({ ...x, [characterId]: r.note }));
+  async function generateNarrationForAll() {
+    setCharGenerating(true);
+    const list = characters.map((c) => ({ name: c.name, score: charScores[c.id] ?? 50 }));
+    const r = await draftCharacterNarrationBatch({ data: { password: pw, studentName: selectedStudent?.full_name ?? "murid", characters: list } });
+    setCharGenerating(false);
+    if (r.ok) setCharNarration(r.note);
   }
-  async function saveCharacterOne(characterId: string) {
+  async function saveAllCharacters() {
     if (!studentId || !periodLabel.trim()) return;
-    const score = charScores[characterId] ?? 50;
     setBusy(true);
-    await saveCharacterRecord({
-      data: {
-        password: pw, studentId, characterId, teacherId: staffId, score,
-        narration: charNarration[characterId] || "", narrationMode: charMode[characterId] ?? "manual", periodType, periodLabel,
-      },
+    const scores = characters.map((c) => ({ characterId: c.id, score: charScores[c.id] ?? 50 }));
+    await saveCharacterRecordsBatch({
+      data: { password: pw, studentId, teacherId: staffId, narrationMode: charMode, narration: charNarration, periodType, periodLabel, scores },
     });
     setBusy(false);
     setReload((x) => x + 1);
@@ -2502,7 +2499,7 @@ export function TeacherIndicatorAssessmentPanel({ pw, staffId, classes, division
     <div>
       <div className="flex gap-2 mb-3 flex-wrap">
         <button onClick={() => setSub("record")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "record" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Record Assessment</button>
-        <button onClick={() => setSub("character")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "character" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>9 Character</button>
+        <button onClick={() => setSub("character")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "character" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>14 Character</button>
         <button onClick={() => setSub("report")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "report" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Create Report</button>
       </div>
 
@@ -2562,51 +2559,50 @@ export function TeacherIndicatorAssessmentPanel({ pw, staffId, classes, division
           {indicators.length === 0 && <Hint>Belum ada indikator untuk level/subject ini — hubungi Principal untuk setup Indicator Bank.</Hint>}
         </ul>
       ) : sub === "character" ? (
-        <ul className="space-y-2">
-          {characters.map((c) => {
-            const existing = charRecords.find((r) => r.character_id === c.id);
-            const score = charScores[c.id] ?? existing?.score ?? 50;
-            const mode = charMode[c.id] ?? "manual";
-            const pct = Math.max(0, Math.min(100, score));
-            // White (0) -> Gold (100) gradient, driven by the score.
-            const gradientStyle = { background: `linear-gradient(90deg, #ffffff 0%, #d4af37 100%)` };
-            return (
-              <li key={c.id} className="rounded-lg bg-card border border-border p-3 text-sm">
-                <p className="font-semibold">{c.name}</p>
-                {c.description && <p className="text-xs text-muted-foreground mt-0.5 mb-2">{c.description}</p>}
-                {existing && <p className="text-[10px] text-emerald-600 mb-1">Sudah dinilai: {existing.score}/100</p>}
-                <div className="mb-2">
-                  <div className="h-3 rounded-full border border-border overflow-hidden relative" style={gradientStyle}>
+        <div>
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 mb-3">
+            {characters.map((c) => {
+              const existing = charRecords.find((r) => r.character_id === c.id);
+              const score = charScores[c.id] ?? existing?.score ?? 50;
+              const pct = Math.max(0, Math.min(100, score));
+              const gradientStyle = { background: `linear-gradient(90deg, #ffffff 0%, #d4af37 100%)` };
+              return (
+                <div key={c.id} className="rounded-lg bg-card border border-border p-2">
+                  <p className="text-xs font-semibold truncate mb-1">{c.name}</p>
+                  <div className="h-2 rounded-full border border-border overflow-hidden relative mb-1" style={gradientStyle}>
                     <div className="absolute inset-y-0 right-0 bg-background/70" style={{ width: `${100 - pct}%` }} />
                   </div>
-                  <div className="flex items-center gap-2 mt-1.5">
+                  <div className="flex items-center gap-1.5">
                     <input
                       type="range" min={0} max={100} value={score}
                       onChange={(e) => setCharScores((x) => ({ ...x, [c.id]: Number(e.target.value) }))}
-                      className="flex-1"
+                      className="flex-1 h-3"
                     />
-                    <span className="text-xs font-mono w-10 text-right">{score}</span>
+                    <span className="text-[10px] font-mono w-7 text-right">{score}</span>
                   </div>
                 </div>
-                <div className="flex gap-1.5 mb-1.5">
-                  <button onClick={() => setCharMode((x) => ({ ...x, [c.id]: "auto" }))} className={"rounded-full px-2.5 py-1 text-xs border " + (mode === "auto" ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border")}>Auto (AI)</button>
-                  <button onClick={() => setCharMode((x) => ({ ...x, [c.id]: "manual" }))} className={"rounded-full px-2.5 py-1 text-xs border " + (mode === "manual" ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border")}>Manual</button>
-                  {mode === "auto" && (
-                    <button onClick={() => generateNarrationFor(c.id, c.name)} disabled={charGenerating[c.id]} className="rounded-lg border border-border px-2.5 py-1 text-xs font-semibold">
-                      {charGenerating[c.id] ? "Membuat…" : "Generate"}
-                    </button>
-                  )}
-                </div>
-                <textarea
-                  value={charNarration[c.id] ?? ""} onChange={(e) => setCharNarration((x) => ({ ...x, [c.id]: e.target.value }))}
-                  rows={2} placeholder="Narasi (bisa diedit walau dari AI)" className={field + " mb-1.5"}
-                />
-                <button onClick={() => saveCharacterOne(c.id)} disabled={busy} className="rounded-lg bg-primary text-primary-foreground px-3 py-1 text-xs font-semibold disabled:opacity-40">Simpan</button>
-              </li>
-            );
-          })}
-          {characters.length === 0 && <Hint>Belum ada daftar 9 Character — hubungi Principal untuk setup di Assessment Setup.</Hint>}
-        </ul>
+              );
+            })}
+            {characters.length === 0 && <Hint>Belum ada daftar 14 Character — hubungi Principal untuk setup di Assessment Setup.</Hint>}
+          </div>
+
+          {characters.length > 0 && (
+            <div className={card + " grid gap-2"}>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Narasi (1x untuk semua Character)</p>
+              <div className="flex gap-1.5">
+                <button onClick={() => setCharMode("auto")} className={"rounded-full px-2.5 py-1 text-xs border " + (charMode === "auto" ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border")}>Auto (AI)</button>
+                <button onClick={() => setCharMode("manual")} className={"rounded-full px-2.5 py-1 text-xs border " + (charMode === "manual" ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border")}>Manual</button>
+                {charMode === "auto" && (
+                  <button onClick={generateNarrationForAll} disabled={charGenerating} className="rounded-lg border border-border px-2.5 py-1 text-xs font-semibold">
+                    {charGenerating ? "Membuat…" : "Generate"}
+                  </button>
+                )}
+              </div>
+              <textarea value={charNarration} onChange={(e) => setCharNarration(e.target.value)} rows={3} placeholder="Narasi keseluruhan 14 Character (bisa diedit walau dari AI)" className={field} />
+              <button onClick={saveAllCharacters} disabled={busy} className={btn + " justify-self-start"}>Simpan Semua</button>
+            </div>
+          )}
+        </div>
       ) : (
         <div className={card + " grid gap-2"}>
           <p className="text-xs text-muted-foreground">Merangkum {records.length} penilaian indikator + {charRecords.length} penilaian Character untuk periode ini menjadi laporan ke Parent (perlu approval Principal dulu).</p>
