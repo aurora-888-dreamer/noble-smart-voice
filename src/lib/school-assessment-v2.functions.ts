@@ -198,7 +198,7 @@ export const listAssessmentReportsForCode = createServerFn({ method: "POST" })
     return { ok: true, reports: rows ?? [] };
   });
 
-// ————— "9 Character" — school-wide traits, separate from Competency Indicators —————
+// ————— "14 Character" — school-wide traits, separate from Competency Indicators —————
 export const listCharacters = createServerFn({ method: "POST" })
   .inputValidator((input: { password: string }) => input)
   .handler(async ({ data }): Promise<{ ok: true; characters: Row[] } | Fail> => {

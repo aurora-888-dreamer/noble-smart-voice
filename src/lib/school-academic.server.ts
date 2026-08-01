@@ -85,6 +85,33 @@ export async function generateNoteDraft(input: {
   }
 }
 
+/** AI narration for a single Character trait score (0-100), used by the
+ * "14 Character" assessment — Auto mode calls this, result stays editable. */
+export async function generateCharacterNarration(input: {
+  studentName: string;
+  characterName: string;
+  score: number;
+}): Promise<{ ok: true; note: string } | { ok: false; error: string }> {
+  const key = process.env.LOVABLE_API_KEY;
+  if (!key) return { ok: false, error: "AI belum dikonfigurasi." };
+  const { createNobleAI } = await import("./ai-gateway.server");
+  const { generateText } = await import("ai");
+  try {
+    const gateway = createNobleAI(key);
+    const { text } = await generateText({
+      model: gateway("google/gemini-3.6-flash"),
+      prompt:
+        `Tulis narasi penilaian karakter singkat (2-4 kalimat) untuk rapor murid bernama ${input.studentName}, ` +
+        `karakter yang dinilai: "${input.characterName}", dengan skor ${input.score}/100. ` +
+        `Gunakan bahasa Indonesia yang hangat, positif, dan konkret untuk orangtua — jelaskan apa yang skor ` +
+        `itu tunjukkan tentang perkembangan anak dan satu saran kecil untuk terus berkembang. Jangan sebutkan angka skornya secara eksplisit.`,
+    });
+    return { ok: true, note: text.trim() };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "AI gagal membuat narasi." };
+  }
+}
+
 /** Appends an entry to an agenda's activity timeline. */
 export async function logAgendaTimeline(
   supabase: Client,
