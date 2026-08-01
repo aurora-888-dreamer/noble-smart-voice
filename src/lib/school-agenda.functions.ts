@@ -1,52 +1,50 @@
 import { createServerFn } from "@tanstack/react-start";
-import { staffClient, schoolId } from "./school-academic.server";
+import { staffClient, schoolId, logAgendaTimeline as logTimeline } from "./school-academic.server";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = Record<string, any>;
 type Fail = { ok: false; error: string };
+type Role = "hos" | "principal" | "teacher";
 
-async function addTimelineEntry(supabase: Row, agendaId: string, authorName: string, authorRole: string | undefined, body: string, entryType: "comment" | "system" = "comment") {
-  await supabase.from("school_agenda_timeline").insert({ agenda_id: agendaId, author_name: authorName, author_role: authorRole || null, body, entry_type: entryType });
-}
+const AGENDA_SELECT =
+  "*, school_staff(full_name), school_agenda_pic(id, staff_id, external_name, external_contact, is_external, school_staff(full_name)), school_agenda_classes(id, class_id, school_classes(name))";
 
-// ————— Agenda: HoS (school-wide, auto-approved), Principal (division/classes,
-// needs HoS approval), Teacher (their own class, auto-approved) —————
+// ————— Agenda Sekolah: HoS school-wide, Principal division/class with HoS
+// approval, Teacher class-level. —————
 
 export const listAgendas = createServerFn({ method: "POST" })
-  .inputValidator((input: { password: string; role: "hos" | "principal" | "teacher"; staffId: string; division?: string; classId?: string | null }) => input)
+  .inputValidator((input: { password: string; role?: Role; staffId?: string; division?: string }) => input)
   .handler(async ({ data }): Promise<{ ok: true; agendas: Row[] } | Fail> => {
     const gate = staffClient(data.password);
     if (!gate.ok) return gate;
-    let q = gate.supabase
-      .from("school_agendas")
-      .select("*, school_staff(full_name), school_agenda_pic(id, staff_id, external_name, external_contact, is_external, school_staff(full_name)), school_agenda_classes(class_id, school_classes(name))")
-      .order("start_date", { ascending: true });
-    if (data.role === "teacher") {
-      q = q.eq("created_by", data.staffId).eq("scope_level", "class");
-    } else if (data.role === "principal" && data.division) {
-      q = q.or(`division.eq.${data.division},created_by.eq.${data.staffId}`);
+    let q = gate.supabase.from("school_agendas").select(AGENDA_SELECT).order("start_date", { ascending: true });
+    if (data.role === "principal" && data.division) {
+      q = q.or(`scope_level.eq.school,division.eq.${data.division}`);
     }
-    // HoS sees everything (school-wide ones they made, plus all Principal submissions for approval/oversight).
     const { data: rows, error } = await q;
     if (error) return { ok: false, error: error.message };
-    return { ok: true, agendas: rows ?? [] };
+    let agendas = (rows ?? []) as Row[];
+    if (data.role === "teacher") {
+      agendas = agendas.filter(
+        (a) => a.scope_level !== "class" || a.created_by === data.staffId || a.approval_status === "approved",
+      );
+    }
+    return { ok: true, agendas };
   });
 
 export const saveAgenda = createServerFn({ method: "POST" })
   .inputValidator(
     (input: {
-      password: string; id?: string; staffId: string; role: "hos" | "principal" | "teacher";
+      password: string; id?: string; staffId: string; role?: Role;
       title: string; purpose?: string; theme?: string;
-      startDate?: string; endDate?: string;
-      scopeLevel: "school" | "division" | "class"; division?: string; classIds?: string[];
+      startDate?: string; endDate?: string; status?: string;
+      scopeLevel?: "school" | "division" | "class"; division?: string; classIds?: string[];
     }) => input,
   )
   .handler(async ({ data }): Promise<{ ok: true; agenda: Row } | Fail> => {
     const gate = staffClient(data.password);
     if (!gate.ok) return gate;
-    // Only Principal-created agendas go through HoS approval — HoS and Teacher
-    // agendas are auto-approved (nobody above them needs to sign off).
-    const approvalStatus = data.role === "principal" ? "draft" : "approved";
+    const scope = data.scopeLevel ?? (data.role === "hos" ? "school" : data.role === "teacher" ? "class" : "division");
     const payload = {
       school_id: schoolId(),
       title: data.title.trim(),
@@ -54,102 +52,35 @@ export const saveAgenda = createServerFn({ method: "POST" })
       theme: data.theme || null,
       start_date: data.startDate || null,
       end_date: data.endDate || null,
-      creator_role: data.role,
-      scope_level: data.scopeLevel,
+      status: data.status || "aktif",
+      scope_level: scope,
       division: data.division || null,
-      approval_status: approvalStatus,
     };
-    let agendaId = data.id;
-    if (data.id) {
-      const { error } = await gate.supabase.from("school_agendas").update(payload).eq("id", data.id);
-      if (error) return { ok: false, error: error.message };
-    } else {
-      const { data: row, error } = await gate.supabase
-        .from("school_agendas").insert({ ...payload, created_by: data.staffId || null }).select().single();
-      if (error) return { ok: false, error: error.message };
-      agendaId = row.id;
-      await addTimelineEntry(gate.supabase, row.id as string, "System", undefined, `Agenda created by ${data.role}.`, "system");
-    }
-    if (agendaId && data.scopeLevel === "class" && data.classIds) {
-      await gate.supabase.from("school_agenda_classes").delete().eq("agenda_id", agendaId);
+    const q = data.id
+      ? gate.supabase.from("school_agendas").update(payload).eq("id", data.id).select().single()
+      : gate.supabase
+          .from("school_agendas")
+          .insert({
+            ...payload,
+            created_by: data.staffId || null,
+            approval_status: data.role === "hos" ? "approved" : "draft",
+          })
+          .select()
+          .single();
+    const { data: row, error } = await q;
+    if (error) return { ok: false, error: error.message };
+    const agenda = row as Row;
+
+    if (data.classIds) {
+      await gate.supabase.from("school_agenda_classes").delete().eq("agenda_id", agenda.id);
       if (data.classIds.length > 0) {
-        await gate.supabase.from("school_agenda_classes").insert(data.classIds.map((cid) => ({ agenda_id: agendaId, class_id: cid })));
+        const { error: cErr } = await gate.supabase
+          .from("school_agenda_classes")
+          .insert(data.classIds.map((class_id) => ({ agenda_id: agenda.id, class_id })));
+        if (cErr) return { ok: false, error: cErr.message };
       }
     }
-    const { data: final, error: readErr } = await gate.supabase.from("school_agendas").select("*").eq("id", agendaId).single();
-    if (readErr) return { ok: false, error: readErr.message };
-    return { ok: true, agenda: final as Row };
-  });
-
-export const submitAgendaForApproval = createServerFn({ method: "POST" })
-  .inputValidator((input: { password: string; agendaId: string; actorName: string }) => input)
-  .handler(async ({ data }): Promise<{ ok: true } | Fail> => {
-    const gate = staffClient(data.password);
-    if (!gate.ok) return gate;
-    const { error } = await gate.supabase.from("school_agendas").update({ approval_status: "submitted" }).eq("id", data.agendaId);
-    if (error) return { ok: false, error: error.message };
-    await addTimelineEntry(gate.supabase, data.agendaId, data.actorName, "principal", "Delivered to HoS for approval.", "system");
-    return { ok: true };
-  });
-
-export const reviewAgenda = createServerFn({ method: "POST" })
-  .inputValidator((input: { password: string; agendaId: string; actorName: string; decision: "approve" | "reject" | "revise"; notes?: string }) => input)
-  .handler(async ({ data }): Promise<{ ok: true } | Fail> => {
-    const gate = staffClient(data.password, true); // HoS only
-    if (!gate.ok) return gate;
-    const next = data.decision === "approve" ? "approved" : data.decision === "reject" ? "rejected" : "revision_requested";
-    const { error } = await gate.supabase.from("school_agendas").update({ approval_status: next, last_review_notes: data.notes || null }).eq("id", data.agendaId);
-    if (error) return { ok: false, error: error.message };
-    const msg = next === "approved" ? "Approved by HoS." : next === "rejected" ? "Rejected by HoS." : "HoS requested revision.";
-    await addTimelineEntry(gate.supabase, data.agendaId, data.actorName, "hos", msg + (data.notes ? " " + data.notes : ""), "system");
-    return { ok: true };
-  });
-
-export const startAgendaExecution = createServerFn({ method: "POST" })
-  .inputValidator((input: { password: string; agendaId: string; actorName: string }) => input)
-  .handler(async ({ data }): Promise<{ ok: true } | Fail> => {
-    const gate = staffClient(data.password);
-    if (!gate.ok) return gate;
-    const { error } = await gate.supabase.from("school_agendas").update({ execution_status: "in_progress" }).eq("id", data.agendaId);
-    if (error) return { ok: false, error: error.message };
-    await addTimelineEntry(gate.supabase, data.agendaId, data.actorName, undefined, "Agenda execution started.", "system");
-    return { ok: true };
-  });
-
-export const closeAgenda = createServerFn({ method: "POST" })
-  .inputValidator((input: { password: string; agendaId: string; actorName: string; finalReport: string }) => input)
-  .handler(async ({ data }): Promise<{ ok: true } | Fail> => {
-    const gate = staffClient(data.password);
-    if (!gate.ok) return gate;
-    if (!data.finalReport.trim()) return { ok: false, error: "Evaluation / Final Report tidak boleh kosong." };
-    const { error } = await gate.supabase
-      .from("school_agendas")
-      .update({ execution_status: "closed", final_report: data.finalReport.trim(), closed_at: new Date().toISOString() })
-      .eq("id", data.agendaId);
-    if (error) return { ok: false, error: error.message };
-    await addTimelineEntry(gate.supabase, data.agendaId, data.actorName, undefined, "Agenda closed. Final Report sent to HoS: " + data.finalReport.trim(), "system");
-    return { ok: true };
-  });
-
-export const listAgendaTimeline = createServerFn({ method: "POST" })
-  .inputValidator((input: { password: string; agendaId: string }) => input)
-  .handler(async ({ data }): Promise<{ ok: true; entries: Row[] } | Fail> => {
-    const gate = staffClient(data.password);
-    if (!gate.ok) return gate;
-    const { data: rows, error } = await gate.supabase
-      .from("school_agenda_timeline").select("*").eq("agenda_id", data.agendaId).order("created_at", { ascending: true });
-    if (error) return { ok: false, error: error.message };
-    return { ok: true, entries: rows ?? [] };
-  });
-
-export const addAgendaComment = createServerFn({ method: "POST" })
-  .inputValidator((input: { password: string; agendaId: string; authorName: string; authorRole?: string; body: string }) => input)
-  .handler(async ({ data }): Promise<{ ok: true } | Fail> => {
-    const gate = staffClient(data.password);
-    if (!gate.ok) return gate;
-    if (!data.body.trim()) return { ok: false, error: "Comment kosong." };
-    await addTimelineEntry(gate.supabase, data.agendaId, data.authorName, data.authorRole, data.body.trim());
-    return { ok: true };
+    return { ok: true, agenda };
   });
 
 export const deleteAgenda = createServerFn({ method: "POST" })
@@ -162,8 +93,7 @@ export const deleteAgenda = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-// PIC assignment — internal staff (linked account) or external name/contact
-// only (no login, can't fill in anything themselves).
+// PIC assignment — external PIC is name/contact only (no login).
 export const addAgendaPic = createServerFn({ method: "POST" })
   .inputValidator(
     (input: {
@@ -193,6 +123,122 @@ export const removeAgendaPic = createServerFn({ method: "POST" })
     const gate = staffClient(data.password);
     if (!gate.ok) return gate;
     const { error } = await gate.supabase.from("school_agenda_pic").delete().eq("id", data.id);
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  });
+
+// ————— Approval & execution workflow —————
+
+export const submitAgendaForApproval = createServerFn({ method: "POST" })
+  .inputValidator((input: { password: string; staffId?: string; agendaId: string; actorName?: string }) => input)
+  .handler(async ({ data }): Promise<{ ok: true } | Fail> => {
+    const gate = staffClient(data.password);
+    if (!gate.ok) return gate;
+    const { data: agenda, error: readErr } = await gate.supabase
+      .from("school_agendas").select("creator_role").eq("id", data.agendaId).maybeSingle();
+    if (readErr) return { ok: false, error: readErr.message };
+    const target = agenda?.creator_role === "teacher" ? "Principal" : "Head of School";
+    const { error } = await gate.supabase
+      .from("school_agendas")
+      .update({ approval_status: "submitted" })
+      .eq("id", data.agendaId);
+    if (error) return { ok: false, error: error.message };
+    await logTimeline(gate.supabase, data.agendaId, "submitted", data.actorName ?? "", `Forward to ${target} for approval.`);
+    return { ok: true };
+  });
+
+export const reviewAgenda = createServerFn({ method: "POST" })
+  .inputValidator(
+    (input: { password: string; staffId: string; agendaId: string; decision: "approve" | "reject" | "revise"; actorName?: string; notes?: string }) => input,
+  )
+  .handler(async ({ data }): Promise<{ ok: true } | Fail> => {
+    const gate = staffClient(data.password);
+    if (!gate.ok) return gate;
+    const { data: reviewer, error: rErr } = await gate.supabase
+      .from("school_staff").select("role, division").eq("id", data.staffId).maybeSingle();
+    if (rErr) return { ok: false, error: rErr.message };
+    const { data: agenda, error: aErr } = await gate.supabase
+      .from("school_agendas").select("creator_role, division").eq("id", data.agendaId).maybeSingle();
+    if (aErr) return { ok: false, error: aErr.message };
+    // Teacher's agenda is approved by Principal (same division); Principal's
+    // agenda is approved by Head of School. HoS's own agendas never reach
+    // here (auto-approved at creation).
+    if (agenda?.creator_role === "teacher") {
+      if (!reviewer || reviewer.role !== "principal" || reviewer.division !== agenda.division) {
+        return { ok: false, error: "Hanya Principal di divisi yang sama yang bisa approve agenda ini." };
+      }
+    } else if (agenda?.creator_role === "principal") {
+      if (!reviewer || reviewer.role !== "hos") {
+        return { ok: false, error: "Hanya Head of School yang bisa approve agenda ini." };
+      }
+    } else {
+      return { ok: false, error: "Agenda ini tidak memerlukan approval." };
+    }
+    const status =
+      data.decision === "approve" ? "approved" : data.decision === "reject" ? "rejected" : "revision_requested";
+    const { error } = await gate.supabase
+      .from("school_agendas")
+      .update({ approval_status: status, last_review_notes: data.notes || null })
+      .eq("id", data.agendaId);
+    if (error) return { ok: false, error: error.message };
+    await logTimeline(gate.supabase, data.agendaId, status, data.actorName ?? "", data.notes ?? "", reviewer.role);
+    return { ok: true };
+  });
+
+export const startAgendaExecution = createServerFn({ method: "POST" })
+  .inputValidator((input: { password: string; agendaId: string; actorName?: string }) => input)
+  .handler(async ({ data }): Promise<{ ok: true } | Fail> => {
+    const gate = staffClient(data.password);
+    if (!gate.ok) return gate;
+    const { error } = await gate.supabase
+      .from("school_agendas")
+      .update({ execution_status: "in_progress" })
+      .eq("id", data.agendaId);
+    if (error) return { ok: false, error: error.message };
+    await logTimeline(gate.supabase, data.agendaId, "started", data.actorName ?? "", "Execution started.");
+    return { ok: true };
+  });
+
+export const closeAgenda = createServerFn({ method: "POST" })
+  .inputValidator((input: { password: string; agendaId: string; actorName?: string; finalReport?: string }) => input)
+  .handler(async ({ data }): Promise<{ ok: true } | Fail> => {
+    const gate = staffClient(data.password);
+    if (!gate.ok) return gate;
+    const { error } = await gate.supabase
+      .from("school_agendas")
+      .update({ execution_status: "closed", final_report: data.finalReport || null })
+      .eq("id", data.agendaId);
+    if (error) return { ok: false, error: error.message };
+    await logTimeline(gate.supabase, data.agendaId, "closed", data.actorName ?? "", data.finalReport ?? "");
+    return { ok: true };
+  });
+
+export const listAgendaTimeline = createServerFn({ method: "POST" })
+  .inputValidator((input: { password: string; agendaId: string }) => input)
+  .handler(async ({ data }): Promise<{ ok: true; entries: Row[] } | Fail> => {
+    const gate = staffClient(data.password);
+    if (!gate.ok) return gate;
+    const { data: rows, error } = await gate.supabase
+      .from("school_agenda_timeline")
+      .select("*")
+      .eq("agenda_id", data.agendaId)
+      .order("created_at", { ascending: true });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, entries: (rows ?? []) as Row[] };
+  });
+
+export const addAgendaComment = createServerFn({ method: "POST" })
+  .inputValidator((input: { password: string; agendaId: string; authorName?: string; authorRole?: string; body: string }) => input)
+  .handler(async ({ data }): Promise<{ ok: true } | Fail> => {
+    const gate = staffClient(data.password);
+    if (!gate.ok) return gate;
+    const { error } = await gate.supabase.from("school_agenda_timeline").insert({
+      agenda_id: data.agendaId,
+      kind: "comment",
+      author_name: data.authorName || null,
+      author_role: data.authorRole || null,
+      body: data.body,
+    });
     if (error) return { ok: false, error: error.message };
     return { ok: true };
   });

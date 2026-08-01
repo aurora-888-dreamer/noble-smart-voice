@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { staffClient, schoolId, parentScope } from "./school-academic.server";
+import { staffClient, schoolId, parentScope, generateCharacterNarration } from "./school-academic.server";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = Record<string, any>;
@@ -42,12 +42,16 @@ export const deleteAssessmentDomain = createServerFn({ method: "POST" })
 
 // ————— Master Indicator Bank —————
 export const listAssessmentIndicators = createServerFn({ method: "POST" })
-  .inputValidator((input: { password: string; division: string; level?: string }) => input)
+  .inputValidator((input: { password: string; division: string; level?: string; subject?: string }) => input)
   .handler(async ({ data }): Promise<{ ok: true; indicators: Row[] } | Fail> => {
     const gate = staffClient(data.password);
     if (!gate.ok) return gate;
     let q = gate.supabase.from("school_assessment_indicators").select("*").eq("division", data.division).order("sort_order");
-    if (data.level) q = q.eq("level", data.level);
+    if (data.subject) {
+      q = data.level ? q.or(`level.eq.${data.level},subject.eq.${data.subject}`) : q.eq("subject", data.subject);
+    } else if (data.level) {
+      q = q.eq("level", data.level);
+    }
     const { data: rows, error } = await q;
     if (error) return { ok: false, error: error.message };
     return { ok: true, indicators: rows ?? [] };
@@ -57,7 +61,7 @@ export const saveAssessmentIndicator = createServerFn({ method: "POST" })
   .inputValidator(
     (input: {
       password: string; staffId: string; division: string; level: string; domainCode: string;
-      indicatorCode: string; description: string; evidenceExample?: string; relatedActivity?: string;
+      indicatorCode: string; description: string; evidenceExample?: string; relatedActivity?: string; subject?: string;
     }) => input,
   )
   .handler(async ({ data }): Promise<{ ok: true } | Fail> => {
@@ -67,7 +71,8 @@ export const saveAssessmentIndicator = createServerFn({ method: "POST" })
     const { error } = await gate.supabase.from("school_assessment_indicators").insert({
       school_id: schoolId(), division: data.division, level: data.level, domain_code: data.domainCode,
       indicator_code: data.indicatorCode.trim().toUpperCase(), description: data.description.trim(),
-      evidence_example: data.evidenceExample || null, related_activity: data.relatedActivity || null, created_by: data.staffId || null,
+      evidence_example: data.evidenceExample || null, related_activity: data.relatedActivity || null,
+      subject: data.subject || null, created_by: data.staffId || null,
     });
     if (error) return { ok: false, error: error.message };
     return { ok: true };
@@ -191,4 +196,80 @@ export const listAssessmentReportsForCode = createServerFn({ method: "POST" })
       .from("school_assessment_reports").select("*").eq("student_id", scope.studentId).eq("status", "published").order("created_at", { ascending: false });
     if (error) return { ok: false, error: error.message };
     return { ok: true, reports: rows ?? [] };
+  });
+
+// ————— "9 Character" — school-wide traits, separate from Competency Indicators —————
+export const listCharacters = createServerFn({ method: "POST" })
+  .inputValidator((input: { password: string }) => input)
+  .handler(async ({ data }): Promise<{ ok: true; characters: Row[] } | Fail> => {
+    const gate = staffClient(data.password);
+    if (!gate.ok) return gate;
+    const { data: rows, error } = await gate.supabase.from("school_assessment_characters").select("*").order("sort_order");
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, characters: rows ?? [] };
+  });
+
+export const saveCharacter = createServerFn({ method: "POST" })
+  .inputValidator((input: { password: string; staffId: string; name: string; description?: string }) => input)
+  .handler(async ({ data }): Promise<{ ok: true } | Fail> => {
+    const gate = staffClient(data.password);
+    if (!gate.ok) return gate;
+    if (!data.name.trim()) return { ok: false, error: "Nama karakter wajib diisi." };
+    const { error } = await gate.supabase.from("school_assessment_characters").insert({
+      school_id: schoolId(), name: data.name.trim(), description: data.description || null, created_by: data.staffId || null,
+    });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  });
+
+export const deleteCharacter = createServerFn({ method: "POST" })
+  .inputValidator((input: { password: string; id: string }) => input)
+  .handler(async ({ data }): Promise<{ ok: true } | Fail> => {
+    const gate = staffClient(data.password);
+    if (!gate.ok) return gate;
+    const { error } = await gate.supabase.from("school_assessment_characters").delete().eq("id", data.id);
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  });
+
+export const listCharacterRecords = createServerFn({ method: "POST" })
+  .inputValidator((input: { password: string; studentId: string; periodType?: string; periodLabel?: string }) => input)
+  .handler(async ({ data }): Promise<{ ok: true; records: Row[] } | Fail> => {
+    const gate = staffClient(data.password);
+    if (!gate.ok) return gate;
+    let q = gate.supabase
+      .from("school_assessment_character_records").select("*, school_assessment_characters(name)").eq("student_id", data.studentId).order("assessed_at", { ascending: false });
+    if (data.periodType) q = q.eq("period_type", data.periodType);
+    if (data.periodLabel) q = q.eq("period_label", data.periodLabel);
+    const { data: rows, error } = await q;
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, records: rows ?? [] };
+  });
+
+export const draftCharacterNarration = createServerFn({ method: "POST" })
+  .inputValidator((input: { password: string; studentName: string; characterName: string; score: number }) => input)
+  .handler(async ({ data }): Promise<{ ok: true; note: string } | Fail> => {
+    const gate = staffClient(data.password);
+    if (!gate.ok) return gate;
+    return generateCharacterNarration({ studentName: data.studentName, characterName: data.characterName, score: data.score });
+  });
+
+export const saveCharacterRecord = createServerFn({ method: "POST" })
+  .inputValidator(
+    (input: {
+      password: string; studentId: string; characterId: string; teacherId: string;
+      score: number; narration?: string; narrationMode: "auto" | "manual"; periodType: string; periodLabel: string;
+    }) => input,
+  )
+  .handler(async ({ data }): Promise<{ ok: true } | Fail> => {
+    const gate = staffClient(data.password);
+    if (!gate.ok) return gate;
+    if (data.score < 0 || data.score > 100) return { ok: false, error: "Skor harus 0-100." };
+    const { error } = await gate.supabase.from("school_assessment_character_records").insert({
+      school_id: schoolId(), student_id: data.studentId, character_id: data.characterId, teacher_id: data.teacherId || null,
+      score: data.score, narration: data.narration || null, narration_mode: data.narrationMode,
+      period_type: data.periodType, period_label: data.periodLabel,
+    });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
   });
