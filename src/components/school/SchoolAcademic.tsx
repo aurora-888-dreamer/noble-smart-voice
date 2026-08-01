@@ -1634,40 +1634,37 @@ function AgendaRow({ agenda, pw, role, staffId, staffName, staffList, open, onTo
             </div>
           )}
 
-          {agenda.approval_status === "approved" && agenda.execution_status !== "closed" && (
-            <>
-              <div>
-                <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">PIC (Person in Charge)</p>
-                <ul className="space-y-1.5 mb-2">
-                  {picList.map((p) => (
-                    <li key={p.id} className="flex items-center justify-between text-sm rounded-lg bg-secondary/40 px-2 py-1.5">
-                      <span>{p.is_external ? p.external_name + " (external)" : p.school_staff?.full_name}</span>
-                      <button onClick={() => removePic(p.id)} className="text-destructive"><Trash2 size={13} /></button>
-                    </li>
-                  ))}
-                  {picList.length === 0 && <Hint>No PIC assigned yet.</Hint>}
-                </ul>
-                <div className="flex gap-2 flex-wrap">
-                  <select value={picStaffId} onChange={(e) => setPicStaffId(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm">
-                    <option value="">pick internal staff</option>
-                    {staffList.map((s) => <option key={s.id} value={s.id}>{s.full_name}</option>)}
-                  </select>
-                  <button onClick={addInternal} disabled={!picStaffId} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold disabled:opacity-40">Add Internal PIC</button>
-                  <button onClick={() => setAddingExternal((v) => !v)} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold">+ External PIC</button>
-                </div>
-                {addingExternal && (
-                  <div className="mt-2 flex gap-2 flex-wrap">
-                    <input value={extName} onChange={(e) => setExtName(e.target.value)} placeholder="External PIC name" className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm" />
-                    <input value={extContact} onChange={(e) => setExtContact(e.target.value)} placeholder="Contact (optional)" className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm" />
-                    <button onClick={addExternal} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold">Add</button>
-                  </div>
-                )}
+          <div>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Invite Team (PIC)</p>
+            <ul className="space-y-1.5 mb-2">
+              {picList.map((p) => (
+                <li key={p.id} className="flex items-center justify-between text-sm rounded-lg bg-secondary/40 px-2 py-1.5">
+                  <span>{p.is_external ? p.external_name + " (external)" : p.school_staff?.full_name}</span>
+                  <button onClick={() => removePic(p.id)} className="text-destructive"><Trash2 size={13} /></button>
+                </li>
+              ))}
+              {picList.length === 0 && <Hint>No one invited yet.</Hint>}
+            </ul>
+            <div className="flex gap-2 flex-wrap">
+              <select value={picStaffId} onChange={(e) => setPicStaffId(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm">
+                <option value="">pick internal staff</option>
+                {staffList.map((s) => <option key={s.id} value={s.id}>{s.full_name}</option>)}
+              </select>
+              <button onClick={addInternal} disabled={!picStaffId} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold disabled:opacity-40">Add Internal PIC</button>
+              <button onClick={() => setAddingExternal((v) => !v)} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold">+ External PIC</button>
+            </div>
+            {addingExternal && (
+              <div className="mt-2 flex gap-2 flex-wrap">
+                <input value={extName} onChange={(e) => setExtName(e.target.value)} placeholder="External PIC name" className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm" />
+                <input value={extContact} onChange={(e) => setExtContact(e.target.value)} placeholder="Contact (optional)" className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm" />
+                <button onClick={addExternal} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold">Add</button>
               </div>
+            )}
+            <p className="text-[11px] text-muted-foreground mt-1.5">Staff internal yang diundang otomatis lihat Agenda ini di dashboard mereka sendiri.</p>
+          </div>
 
-              {agenda.execution_status === "not_started" && role !== "hos" && (
-                <button onClick={startExecution} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold">Start Execution</button>
-              )}
-            </>
+          {agenda.approval_status === "approved" && agenda.execution_status === "not_started" && role !== "hos" && (
+            <button onClick={startExecution} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold">Start Execution</button>
           )}
 
           <Err msg={err} />
@@ -1925,8 +1922,13 @@ function CaseRow({ kase, access, role, staffId, staffName, open, onToggle, onCha
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [showInvite, setShowInvite] = useState(false);
+  const [inviteMode, setInviteMode] = useState<"staff" | "external">("staff");
+  const [inviteStaffId, setInviteStaffId] = useState("");
   const [extName, setExtName] = useState("");
   const [extContact, setExtContact] = useState("");
+
+  const staffListRes = useAsync(() => (showInvite && !access.code ? listSchoolStaff({ data: { password: access.pw! } }) : Promise.resolve(null)), [showInvite, access.pw]);
+  const staffOptions: Row[] = staffListRes.data && "staff" in staffListRes.data ? (staffListRes.data.staff ?? []) : [];
 
   const timelineRes = useAsync(
     () => open
@@ -1972,6 +1974,13 @@ function CaseRow({ kase, access, role, staffId, staffName, open, onToggle, onCha
     const r = await reopenCase({ data: { password: access.pw, caseId: kase.id, actorName: staffName ?? "", actorRole: role as "principal" | "hos" } });
     if (!r.ok) { setErr(r.error); return; }
     onChanged();
+  }
+  async function inviteStaff() {
+    if (!access.pw || !inviteStaffId) return;
+    await addCaseParticipant({
+      data: { password: access.pw, caseId: kase.id, invitedBy: staffId ?? "", invitedByName: staffName ?? "", participantType: "staff", staffId: inviteStaffId },
+    });
+    setInviteStaffId(""); setShowInvite(false); onChanged();
   }
   async function inviteExternal() {
     if (!access.pw || !extName.trim()) return;
@@ -2043,10 +2052,27 @@ function CaseRow({ kase, access, role, staffId, staffName, open, onToggle, onCha
               <Err msg={err} />
 
               {showInvite && (
-                <div className="flex gap-2 flex-wrap mt-1">
-                  <input value={extName} onChange={(e) => setExtName(e.target.value)} placeholder="Nama (staff/parent lain/eksternal)" className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm" />
-                  <input value={extContact} onChange={(e) => setExtContact(e.target.value)} placeholder="Kontak" className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm" />
-                  <button onClick={inviteExternal} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold">Undang</button>
+                <div className="mt-1 space-y-2">
+                  <div className="flex gap-1.5">
+                    <button onClick={() => setInviteMode("staff")} className={"rounded-full px-2.5 py-1 text-xs border " + (inviteMode === "staff" ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border")}>Staff Internal</button>
+                    <button onClick={() => setInviteMode("external")} className={"rounded-full px-2.5 py-1 text-xs border " + (inviteMode === "external" ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border")}>Eksternal</button>
+                  </div>
+                  {inviteMode === "staff" ? (
+                    <div className="flex gap-2 flex-wrap">
+                      <select value={inviteStaffId} onChange={(e) => setInviteStaffId(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm">
+                        <option value="">pilih staff</option>
+                        {staffOptions.map((s) => <option key={s.id} value={s.id}>{s.full_name}</option>)}
+                      </select>
+                      <button onClick={inviteStaff} disabled={!inviteStaffId} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold disabled:opacity-40">Undang</button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2 flex-wrap">
+                      <input value={extName} onChange={(e) => setExtName(e.target.value)} placeholder="Nama (eksternal)" className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm" />
+                      <input value={extContact} onChange={(e) => setExtContact(e.target.value)} placeholder="Kontak" className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm" />
+                      <button onClick={inviteExternal} disabled={!extName.trim()} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold disabled:opacity-40">Undang</button>
+                    </div>
+                  )}
+                  <p className="text-[11px] text-muted-foreground">Staff internal yang diundang otomatis lihat Report ini di dashboard mereka sendiri.</p>
                 </div>
               )}
 
