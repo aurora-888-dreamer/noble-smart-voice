@@ -112,6 +112,34 @@ export async function generateCharacterNarration(input: {
   }
 }
 
+/** AI narration covering all Character traits at once (one combined
+ * narrative for the report), used by the compact "Save once" flow. */
+export async function generateCharacterNarrationBatch(input: {
+  studentName: string;
+  characters: { name: string; score: number }[];
+}): Promise<{ ok: true; note: string } | { ok: false; error: string }> {
+  const key = process.env.LOVABLE_API_KEY;
+  if (!key) return { ok: false, error: "AI belum dikonfigurasi." };
+  const { createNobleAI } = await import("./ai-gateway.server");
+  const { generateText } = await import("ai");
+  try {
+    const gateway = createNobleAI(key);
+    const list = input.characters.map((c) => `${c.name}: ${c.score}/100`).join(", ");
+    const { text } = await generateText({
+      model: gateway("google/gemini-3.6-flash"),
+      prompt:
+        `Tulis satu narasi penilaian karakter (4-6 kalimat) untuk rapor murid bernama ${input.studentName}, ` +
+        `merangkum ke-14 sifat karakter berikut beserta skornya: ${list}. ` +
+        `Gunakan bahasa Indonesia yang hangat, positif, dan konkret untuk orangtua — soroti 2-3 kekuatan utama ` +
+        `dan 1-2 area yang masih berkembang, plus satu saran kecil. Jangan sebutkan angka skornya secara eksplisit, ` +
+        `dan jangan sebut semua 14 nama satu-satu, cukup rangkum secara alami.`,
+    });
+    return { ok: true, note: text.trim() };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "AI gagal membuat narasi." };
+  }
+}
+
 /** Appends an entry to an agenda's activity timeline. */
 export async function logAgendaTimeline(
   supabase: Client,

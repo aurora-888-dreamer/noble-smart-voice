@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { staffClient, schoolId, parentScope, generateCharacterNarration } from "./school-academic.server";
+import { staffClient, schoolId, parentScope, generateCharacterNarration, generateCharacterNarrationBatch } from "./school-academic.server";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = Record<string, any>;
@@ -244,6 +244,37 @@ export const listCharacterRecords = createServerFn({ method: "POST" })
     const { data: rows, error } = await q;
     if (error) return { ok: false, error: error.message };
     return { ok: true, records: rows ?? [] };
+  });
+
+export const draftCharacterNarrationBatch = createServerFn({ method: "POST" })
+  .inputValidator((input: { password: string; studentName: string; characters: { name: string; score: number }[] }) => input)
+  .handler(async ({ data }): Promise<{ ok: true; note: string } | Fail> => {
+    const gate = staffClient(data.password);
+    if (!gate.ok) return gate;
+    return generateCharacterNarrationBatch({ studentName: data.studentName, characters: data.characters });
+  });
+
+export const saveCharacterRecordsBatch = createServerFn({ method: "POST" })
+  .inputValidator(
+    (input: {
+      password: string; studentId: string; teacherId: string; narrationMode: "auto" | "manual"; narration: string;
+      periodType: string; periodLabel: string; scores: { characterId: string; score: number }[];
+    }) => input,
+  )
+  .handler(async ({ data }): Promise<{ ok: true } | Fail> => {
+    const gate = staffClient(data.password);
+    if (!gate.ok) return gate;
+    const rows = data.scores
+      .filter((s) => s.score >= 0 && s.score <= 100)
+      .map((s) => ({
+        school_id: schoolId(), student_id: data.studentId, character_id: s.characterId, teacher_id: data.teacherId || null,
+        score: s.score, narration: data.narration || null, narration_mode: data.narrationMode,
+        period_type: data.periodType, period_label: data.periodLabel,
+      }));
+    if (rows.length === 0) return { ok: false, error: "Tidak ada skor untuk disimpan." };
+    const { error } = await gate.supabase.from("school_assessment_character_records").insert(rows);
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
   });
 
 export const draftCharacterNarration = createServerFn({ method: "POST" })
