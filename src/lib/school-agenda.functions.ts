@@ -24,10 +24,24 @@ export const listAgendas = createServerFn({ method: "POST" })
     const { data: rows, error } = await q;
     if (error) return { ok: false, error: error.message };
     let agendas = (rows ?? []) as Row[];
+    // Whoever is invited as PIC sees the agenda too, regardless of role/division/class scope.
+    let invitedIds: string[] = [];
+    if (data.staffId) {
+      const { data: picRows } = await gate.supabase.from("school_agenda_pic").select("agenda_id").eq("staff_id", data.staffId);
+      invitedIds = (picRows ?? []).map((r: Row) => r.agenda_id);
+    }
     if (data.role === "teacher") {
       agendas = agendas.filter(
-        (a) => a.scope_level !== "class" || a.created_by === data.staffId || a.approval_status === "approved",
+        (a) => a.scope_level !== "class" || a.created_by === data.staffId || a.approval_status === "approved" || invitedIds.includes(a.id),
       );
+    }
+    if (invitedIds.length > 0) {
+      const alreadyIn = new Set(agendas.map((a) => a.id));
+      const missingInvited = invitedIds.filter((id) => !alreadyIn.has(id));
+      if (missingInvited.length > 0) {
+        const { data: extraRows } = await gate.supabase.from("school_agendas").select(AGENDA_SELECT).in("id", missingInvited);
+        agendas = [...agendas, ...((extraRows ?? []) as Row[])];
+      }
     }
     return { ok: true, agendas };
   });

@@ -131,18 +131,18 @@ export const listCases = createServerFn({ method: "POST" })
       .select("*, school_students(full_name), school_classes(name), reporter:reported_by_staff_id(full_name)")
       .order("created_at", { ascending: false });
 
+    // Whoever is an invited participant sees it too, regardless of role/division/escalation scope.
+    const { data: partRows } = await gate.supabase
+      .from("school_case_participants").select("case_id").eq("participant_type", "staff").eq("staff_id", data.staffId);
+    const invitedIds = (partRows ?? []).map((r: Row) => r.case_id);
+    const invitedClause = invitedIds.length > 0 ? `,id.in.(${invitedIds.join(",")})` : "";
+
     if (data.role === "hos") {
-      q = q.eq("was_escalated", true); // HoS only sees cases that were actually escalated
+      q = q.or(`was_escalated.eq.true${invitedClause}`); // HoS sees escalated cases + anything they're invited to
     } else if (data.role === "principal" && data.division) {
-      q = q.eq("division", data.division);
+      q = q.or(`division.eq.${data.division}${invitedClause}`);
     } else if (data.role === "teacher") {
-      // Teacher sees cases they reported, or where they're an invited participant.
-      const { data: partRows } = await gate.supabase
-        .from("school_case_participants").select("case_id").eq("participant_type", "staff").eq("staff_id", data.staffId);
-      const caseIds = (partRows ?? []).map((r: Row) => r.case_id);
-      q = caseIds.length > 0
-        ? q.or(`reported_by_staff_id.eq.${data.staffId},id.in.(${caseIds.join(",")})`)
-        : q.eq("reported_by_staff_id", data.staffId);
+      q = q.or(`reported_by_staff_id.eq.${data.staffId}${invitedClause}`);
     }
     const { data: rows, error } = await q;
     if (error) return { ok: false, error: error.message };
