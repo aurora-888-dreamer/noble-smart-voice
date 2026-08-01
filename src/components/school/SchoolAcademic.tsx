@@ -746,8 +746,8 @@ export function ProjectPanel({
             Perlu approval Head of School (kalau tidak dicentang, keputusan Principal sudah final)
           </label>
           <div className="flex gap-2 flex-wrap">
-            <button onClick={() => submit(true)} disabled={busy} className="rounded-lg border border-border px-3 py-1.5 text-sm font-semibold disabled:opacity-50">Simpan Draft</button>
-            <button onClick={() => submit(false)} disabled={busy} className={btn}>
+            <button onClick={() => submit(true)} disabled={busy || !title.trim() || !classId} className="rounded-lg border border-border px-3 py-1.5 text-sm font-semibold disabled:opacity-50">Simpan Draft</button>
+            <button onClick={() => submit(false)} disabled={busy || !title.trim() || !classId} className={btn + " disabled:opacity-50"}>
               <Save size={13} /> {reviewerRole === "principal" ? (editingId ? "Ajukan Ulang ke Head of School" : "Ajukan ke Head of School") : (editingId ? "Ajukan Ulang ke Principal" : "Ajukan ke Principal")}
             </button>
             {editingId && <button onClick={() => { setEditingId(null); setTitle(""); setDescription(""); setClassId(""); }} className="rounded-lg border border-border px-3 py-1.5 text-sm">Batal Edit</button>}
@@ -1422,7 +1422,7 @@ export function AgendaPanel({ pw, role, staffId, staffName, division, classes }:
               <label className="text-xs text-muted-foreground">End</label>
               <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm" />
             </div>
-            <button onClick={create} disabled={busy} className={btn + " justify-self-start"}><Plus size={13} /> Create Agenda</button>
+            <button onClick={create} disabled={busy || !title.trim()} className={btn + " justify-self-start disabled:opacity-50"}><Plus size={13} /> Create Agenda</button>
             <Err msg={err} />
           </div>
         )}
@@ -1467,7 +1467,7 @@ export function AgendaPanel({ pw, role, staffId, staffName, division, classes }:
             )}
           </div>
         )}
-        <button onClick={create} disabled={busy} className={btn + " justify-self-start"}><Plus size={13} /> Create Agenda</button>
+        <button onClick={create} disabled={busy || !title.trim()} className={btn + " justify-self-start disabled:opacity-50"}><Plus size={13} /> Create Agenda</button>
         {(role === "principal" || role === "teacher") && <p className="text-[11px] text-muted-foreground">New agendas start as Draft — use "Forward for Approval" below once ready.</p>}
         <Err msg={err} />
       </div>
@@ -1568,7 +1568,7 @@ function AgendaRow({ agenda, pw, role, staffId, staffName, staffList, open, onTo
             </p>
           )}
         </button>
-        <PreviewButton title={agenda.title} body={<AgendaTimelinePreview agenda={agenda} pw={pw} badge={badge} classNames={classNames} picList={picList} />} />
+        <PreviewButton title={agenda.title} body={<AgendaTimelinePreview agenda={agenda} pw={pw} badge={badge} classNames={classNames} picList={picList} role={role} staffId={staffId} staffName={staffName} onChanged={onChanged} />} />
       </div>
       {open && (
         <div className="mt-3 pt-3 border-t border-border space-y-3">
@@ -1680,9 +1680,32 @@ function AgendaRow({ agenda, pw, role, staffId, staffName, staffList, open, onTo
 
 /** Self-contained preview body for the Agenda — fetches its own timeline so
  * it renders correctly whenever it's opened in the Preview panel. */
-function AgendaTimelinePreview({ agenda, pw, badge, classNames, picList }: { agenda: Row; pw: string; badge: { label: string; cls: string }; classNames: string; picList: Row[] }) {
-  const timelineRes = useAsync(() => listAgendaTimeline({ data: { password: pw, agendaId: agenda.id } }), [pw, agenda.id]);
+function AgendaTimelinePreview({ agenda, pw, badge, classNames, picList, role, staffId, staffName, onChanged }: {
+  agenda: Row; pw: string; badge: { label: string; cls: string }; classNames: string; picList: Row[];
+  role: "hos" | "principal" | "teacher"; staffId: string; staffName: string; onChanged: () => void;
+}) {
+  const [reload, setReload] = useState(0);
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const timelineRes = useAsync(() => listAgendaTimeline({ data: { password: pw, agendaId: agenda.id } }), [pw, agenda.id, reload]);
   const timeline: Row[] = timelineRes.data && timelineRes.data.ok ? timelineRes.data.entries : [];
+
+  async function addNote() {
+    if (!note.trim()) return;
+    setBusy(true);
+    await addAgendaComment({ data: { password: pw, agendaId: agenda.id, authorName: staffName, authorRole: role, body: note } });
+    setBusy(false);
+    setNote(""); setReload((x) => x + 1); onChanged();
+  }
+  async function reForward() {
+    setBusy(true);
+    await submitAgendaForApproval({ data: { password: pw, staffId, agendaId: agenda.id, actorName: staffName } });
+    setBusy(false);
+    setReload((x) => x + 1); onChanged();
+  }
+
+  const canReForward = (role === "principal" || role === "teacher") && (agenda.approval_status === "draft" || agenda.approval_status === "revision_requested");
+
   return (
     <div className="space-y-4">
       <div>
@@ -1708,7 +1731,7 @@ function AgendaTimelinePreview({ agenda, pw, badge, classNames, picList }: { age
       )}
       <div>
         <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Timeline</p>
-        <ul className="space-y-1.5">
+        <ul className="space-y-1.5 mb-2">
           {timeline.map((t) => (
             <li key={t.id} className={"text-xs rounded-lg p-2 " + (t.entry_type === "system" ? "bg-secondary/40 text-muted-foreground italic" : "bg-secondary/60")}>
               <span className="font-semibold not-italic">{t.author_name}</span>{t.author_role ? " (" + t.author_role + ")" : ""}: {t.body}
@@ -1717,6 +1740,15 @@ function AgendaTimelinePreview({ agenda, pw, badge, classNames, picList }: { age
           ))}
           {timeline.length === 0 && <Hint>No timeline entries yet.</Hint>}
         </ul>
+        <div className="grid gap-1.5">
+          <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Tambah catatan timeline…" className={field} />
+          <div className="flex gap-2 flex-wrap">
+            <button onClick={addNote} disabled={busy || !note.trim()} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold disabled:opacity-50">+ Add Timeline</button>
+            {canReForward && (
+              <button onClick={reForward} disabled={busy} className="rounded-lg bg-blue-600 text-white px-3 py-1.5 text-xs font-semibold disabled:opacity-50">Re-forward & Save</button>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -1866,7 +1898,7 @@ export function CasePanel({
           )}
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Judul kasus" className={field} />
           <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Detail kasus" className={field} />
-          <button onClick={report} disabled={busy} className={btn + " justify-self-start"}>{role === "principal" ? "Buka Kasus" : "Lapor ke Principal"}</button>
+          <button onClick={report} disabled={busy || !title.trim()} className={btn + " justify-self-start disabled:opacity-50"}>{role === "principal" ? "Buka Kasus" : "Lapor ke Principal"}</button>
           <Err msg={err} />
         </div>
       )}
@@ -1961,7 +1993,7 @@ function CaseRow({ kase, access, role, staffId, staffName, open, onToggle, onCha
             {kase.school_students?.full_name ?? kase.school_classes?.name ?? ""}
           </p>
         </button>
-        {!access.code && <PreviewButton title={kase.title} body={<CaseTimelinePreview kase={kase} access={access} badge={badge} />} />}
+        {!access.code && <PreviewButton title={kase.title} body={<CaseTimelinePreview kase={kase} access={access} badge={badge} role={role} staffId={staffId} staffName={staffName} onChanged={onChanged} />} />}
       </div>
       {open && (
         <div className="mt-3 pt-3 border-t border-border space-y-3">
@@ -2033,9 +2065,32 @@ function CaseRow({ kase, access, role, staffId, staffName, open, onToggle, onCha
 }
 
 /** Self-contained preview body for a Report/Case — fetches its own timeline. */
-function CaseTimelinePreview({ kase, access, badge }: { kase: Row; access: Access; badge: { label: string; cls: string } }) {
-  const timelineRes = useAsync(() => listCaseTimeline({ data: { password: access.pw!, caseId: kase.id } }), [access.pw, kase.id]);
+function CaseTimelinePreview({ kase, access, badge, role, staffId, staffName, onChanged }: {
+  kase: Row; access: Access; badge: { label: string; cls: string };
+  role: "hos" | "principal" | "teacher"; staffId?: string | null; staffName?: string | null; onChanged: () => void;
+}) {
+  const [reload, setReload] = useState(0);
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const timelineRes = useAsync(() => listCaseTimeline({ data: { password: access.pw!, caseId: kase.id } }), [access.pw, kase.id, reload]);
   const timeline: Row[] = timelineRes.data && timelineRes.data.ok ? timelineRes.data.entries : [];
+
+  async function addNote() {
+    if (!note.trim() || !access.pw) return;
+    setBusy(true);
+    await addCaseComment({ data: { password: access.pw, caseId: kase.id, authorName: staffName ?? "", authorRole: role, body: note } });
+    setBusy(false);
+    setNote(""); setReload((x) => x + 1); onChanged();
+  }
+  async function escalate() {
+    if (!access.pw) return;
+    setBusy(true);
+    await escalateCaseToHos({ data: { password: access.pw, caseId: kase.id, actorName: staffName ?? "" } });
+    setBusy(false);
+    setReload((x) => x + 1); onChanged();
+  }
+  const canEscalate = role === "principal" && kase.status === "open";
+
   return (
     <div className="space-y-4">
       <div>
@@ -2045,7 +2100,7 @@ function CaseTimelinePreview({ kase, access, badge }: { kase: Row; access: Acces
       </div>
       <div>
         <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Timeline</p>
-        <ul className="space-y-1.5">
+        <ul className="space-y-1.5 mb-2">
           {timeline.map((t) => (
             <li key={t.id} className={"text-xs rounded-lg p-2 " + (t.entry_type === "system" ? "bg-secondary/40 text-muted-foreground italic" : "bg-secondary/60")}>
               <span className="font-semibold not-italic">{t.author_name}</span>{t.author_role ? " (" + t.author_role + ")" : ""}: {t.body}
@@ -2054,6 +2109,15 @@ function CaseTimelinePreview({ kase, access, badge }: { kase: Row; access: Acces
           ))}
           {timeline.length === 0 && <Hint>Belum ada riwayat.</Hint>}
         </ul>
+        <div className="grid gap-1.5">
+          <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Tambah catatan timeline…" className={field} />
+          <div className="flex gap-2 flex-wrap">
+            <button onClick={addNote} disabled={busy || !note.trim()} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold disabled:opacity-50">+ Add Timeline</button>
+            {canEscalate && (
+              <button onClick={escalate} disabled={busy} className="rounded-lg bg-orange-600 text-white px-3 py-1.5 text-xs font-semibold disabled:opacity-50">Teruskan ke HoS & Save</button>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
