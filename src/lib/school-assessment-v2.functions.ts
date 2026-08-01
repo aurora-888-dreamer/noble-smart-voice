@@ -190,6 +190,41 @@ export const reviewAssessmentReport = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+// ————— Simplified Daily Assessment — direct-to-Domain, no Indicator code —————
+export const listDailyDomainRecords = createServerFn({ method: "POST" })
+  .inputValidator((input: { password: string; studentId: string; date: string }) => input)
+  .handler(async ({ data }): Promise<{ ok: true; records: Row[] } | Fail> => {
+    const gate = staffClient(data.password);
+    if (!gate.ok) return gate;
+    const { data: rows, error } = await gate.supabase
+      .from("school_assessment_daily_domain").select("*").eq("student_id", data.studentId).eq("assessed_date", data.date);
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, records: rows ?? [] };
+  });
+
+export const saveDailyDomainRecordsBatch = createServerFn({ method: "POST" })
+  .inputValidator(
+    (input: {
+      password: string; studentId: string; classId?: string; division: string; teacherId: string; date: string;
+      entries: { domainCode: string; position: number; activityNote?: string; evidenceNote?: string }[];
+    }) => input,
+  )
+  .handler(async ({ data }): Promise<{ ok: true } | Fail> => {
+    const gate = staffClient(data.password);
+    if (!gate.ok) return gate;
+    const rows = data.entries
+      .filter((e) => e.position >= 0 && e.position <= 100)
+      .map((e) => ({
+        school_id: schoolId(), student_id: data.studentId, class_id: data.classId || null, division: data.division,
+        domain_code: e.domainCode, teacher_id: data.teacherId || null, position: Math.round(e.position),
+        activity_note: e.activityNote || null, evidence_note: e.evidenceNote || null, assessed_date: data.date,
+      }));
+    if (rows.length === 0) return { ok: false, error: "Tidak ada data untuk disimpan." };
+    const { error } = await gate.supabase.from("school_assessment_daily_domain").insert(rows);
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  });
+
 export const listAssessmentReportsForCode = createServerFn({ method: "POST" })
   .inputValidator((input: { code: string }) => input)
   .handler(async ({ data }): Promise<{ ok: true; reports: Row[] } | Fail> => {
