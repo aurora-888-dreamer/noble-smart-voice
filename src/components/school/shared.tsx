@@ -9,6 +9,7 @@ import {
 import { getStoredSchoolPassword, changeSchoolPin, useSchoolSession } from "@/lib/school-store";
 import { usePreview } from "@/lib/preview-context";
 import { getStaffProfileForViewer, getStudentProfileForViewer, saveStaffStatus, saveStudentStatus } from "@/lib/school-profile.functions";
+import { listGalleryFiles, saveGalleryFile, deleteGalleryFile } from "@/lib/school-gallery.functions";
 import { CREATABLE_ROLES, ROLE_LABELS, roleLabel, type SchoolRole } from "@/lib/school-roles";
 import {
   listSchoolClasses, createSchoolClass, listSchoolStaff, deleteSchoolStaff,
@@ -214,8 +215,6 @@ export function ClassManagerPrincipal({ division, classes }: { division: string;
 type StaffRow = {
   id: string; full_name: string; role: SchoolRole; division?: string; class_id?: string | null;
   user_id?: string | null; pin_is_default?: boolean; is_active?: boolean; subjects?: string[] | null; email?: string | null;
-  last_seen_at?: string | null;
-
 };
 
 export function CredentialCard({ userId, pin, onDismiss }: { userId: string; pin: string; onDismiss?: () => void }) {
@@ -1169,6 +1168,78 @@ export function PersonnelManager({ classes }: { classes: { id: string; name: str
           {guardians.length === 0 && <Hint>Belum ada akun orangtua.</Hint>}
         </ul>
       )}
+    </div>
+  );
+}
+
+/* ───────────── Gallery (universal file bank — photos + PDF/Word/txt attachments) ───────────── */
+export function GalleryPanel({ pw, code, staffId }: { pw?: string; code?: string; staffId?: string }) {
+  const [reload, setReload] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const res = useAsync(
+    () => listGalleryFiles({ data: code ? { code } : { password: pw, staffId } }),
+    [pw, code, staffId, reload],
+  );
+  const files = (res.data && "ok" in res.data && res.data.ok ? res.data.files : []) as Row[];
+
+  function typeFromName(name: string): "image" | "pdf" | "doc" | "txt" | "other" {
+    const ext = name.split(".").pop()?.toLowerCase() ?? "";
+    if (["jpg", "jpeg", "png", "gif", "webp"].includes(ext)) return "image";
+    if (ext === "pdf") return "pdf";
+    if (["doc", "docx"].includes(ext)) return "doc";
+    if (ext === "txt") return "txt";
+    return "other";
+  }
+
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setBusy(true);
+    const reader = new FileReader();
+    reader.onload = async () => {
+      await saveGalleryFile({
+        data: code
+          ? { code, fileType: typeFromName(file.name), fileName: file.name, dataUrl: String(reader.result), source: "upload" }
+          : { password: pw, staffId, fileType: typeFromName(file.name), fileName: file.name, dataUrl: String(reader.result), source: "upload" },
+      });
+      setBusy(false);
+      setReload((x) => x + 1);
+      if (fileRef.current) fileRef.current.value = "";
+    };
+    reader.readAsDataURL(file);
+  }
+  async function remove(id: string) {
+    await deleteGalleryFile({ data: code ? { code, id } : { password: pw, id } });
+    setReload((x) => x + 1);
+  }
+
+  return (
+    <div>
+      <div className="mb-3">
+        <button onClick={() => fileRef.current?.click()} disabled={busy} className="rounded-lg border border-border px-3 py-2 text-sm font-semibold">
+          {busy ? "Mengunggah…" : "+ Upload Foto / PDF / Word / txt"}
+        </button>
+        <input ref={fileRef} type="file" accept="image/*,.pdf,.doc,.docx,.txt" onChange={handleUpload} className="hidden" />
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        {files.map((f) => (
+          <div key={f.id} className="rounded-xl bg-card border border-border p-2">
+            {f.file_type === "image" ? (
+              <img src={f.data_url} alt={f.file_name} className="w-full aspect-square object-cover rounded-lg mb-1.5" />
+            ) : (
+              <div className="w-full aspect-square rounded-lg bg-secondary/50 flex items-center justify-center text-[10px] font-semibold uppercase text-muted-foreground mb-1.5">{f.file_type}</div>
+            )}
+            <p className="text-[11px] truncate mb-1">{f.file_name}</p>
+            <div className="flex gap-1.5">
+              <a href={f.data_url} download={f.file_name} className="flex-1 text-center rounded-lg border border-border py-1 text-[10px] font-semibold">Download</a>
+              <button onClick={() => remove(f.id)} className="rounded-lg border border-border px-2 text-destructive"><Trash2 size={12} /></button>
+            </div>
+          </div>
+        ))}
+        {files.length === 0 && <Hint>Belum ada foto atau file tersimpan.</Hint>}
+      </div>
+      <p className="text-[10px] text-muted-foreground mt-3">Catatan: file disimpan langsung di database (belum pakai storage khusus) — cocok untuk foto & dokumen ukuran wajar, file besar bisa lambat.</p>
     </div>
   );
 }

@@ -32,6 +32,7 @@ import {
   listAssessmentIndicators, saveAssessmentIndicator, deleteAssessmentIndicator,
   listAssessmentRecords, saveAssessmentRecord, deleteAssessmentRecord,
   listAssessmentReports, generateAssessmentReport, reviewAssessmentReport, listAssessmentReportsForCode,
+  listCharacters, saveCharacter, deleteCharacter, listCharacterRecords, saveCharacterRecord, draftCharacterNarration,
 } from "@/lib/school-assessment-v2.functions";
 import { listSchoolStudents, listSchoolStaff } from "@/lib/school.functions";
 
@@ -746,7 +747,9 @@ export function ProjectPanel({
           </label>
           <div className="flex gap-2 flex-wrap">
             <button onClick={() => submit(true)} disabled={busy} className="rounded-lg border border-border px-3 py-1.5 text-sm font-semibold disabled:opacity-50">Simpan Draft</button>
-            <button onClick={() => submit(false)} disabled={busy} className={btn}><Save size={13} /> {editingId ? "Ajukan Ulang ke Principal" : "Ajukan ke Principal"}</button>
+            <button onClick={() => submit(false)} disabled={busy} className={btn}>
+              <Save size={13} /> {reviewerRole === "principal" ? (editingId ? "Ajukan Ulang ke Head of School" : "Ajukan ke Head of School") : (editingId ? "Ajukan Ulang ke Principal" : "Ajukan ke Principal")}
+            </button>
             {editingId && <button onClick={() => { setEditingId(null); setTitle(""); setDescription(""); setClassId(""); }} className="rounded-lg border border-border px-3 py-1.5 text-sm">Batal Edit</button>}
           </div>
           <Err msg={err} />
@@ -1033,7 +1036,7 @@ export function AssessmentPanel({ access, classes, canEdit, staffId }: { access:
               <span className="text-xs text-muted-foreground shrink-0">{a.period} - {new Date(a.period_start).toLocaleDateString()}</span>
             </div>
             <ul className="mt-2 space-y-0.5">
-              {(a.school_assessment_forms ?? []).map((f: Row) => (
+              {(Array.isArray(a.school_assessment_forms) ? a.school_assessment_forms : a.school_assessment_forms ? [a.school_assessment_forms] : []).map((f: Row) => (
                 <li key={f.id} className="text-xs flex items-center gap-2">
                   <span className={f.achieved ? "text-emerald-600" : "text-muted-foreground"}>{f.achieved ? "✓" : "○"}</span>
                   <span className="flex-1">{f.competency}</span>
@@ -1041,7 +1044,7 @@ export function AssessmentPanel({ access, classes, canEdit, staffId }: { access:
                 </li>
               ))}
             </ul>
-            {(a.school_assessment_notes ?? []).map((n: Row) => n.final_note && (
+            {(Array.isArray(a.school_assessment_notes) ? a.school_assessment_notes : a.school_assessment_notes ? [a.school_assessment_notes] : []).map((n: Row) => n.final_note && (
               <p key={n.id} className="text-sm mt-2 whitespace-pre-wrap rounded-lg bg-secondary/40 p-2">{n.final_note}</p>
             ))}
             {canEdit && <button onClick={() => remove(a.id)} className="mt-2 text-xs text-destructive flex items-center gap-1"><Trash2 size={12} /> Hapus</button>}
@@ -1426,7 +1429,7 @@ export function AgendaPanel({ pw, role, staffId, staffName, division, classes }:
 
         <ul className="space-y-2">
           {(hosView === "approval" ? pendingForHos : hosView === "proposal" ? proposalsFromPrincipal : hosOwnAgendas).map((a) => (
-            <AgendaRow key={a.id} agenda={a} pw={pw} role={role} staffName={staffName ?? ""} staffList={staffList} open={open === a.id} onToggle={() => setOpen(open === a.id ? null : a.id)} onRemove={() => remove(a.id)} onChanged={() => setReload((x) => x + 1)} />
+            <AgendaRow key={a.id} agenda={a} pw={pw} role={role} staffId={staffId} staffName={staffName ?? ""} staffList={staffList} open={open === a.id} onToggle={() => setOpen(open === a.id ? null : a.id)} onRemove={() => remove(a.id)} onChanged={() => setReload((x) => x + 1)} />
           ))}
           {(hosView === "approval" ? pendingForHos : hosView === "proposal" ? proposalsFromPrincipal : hosOwnAgendas).length === 0 && (
             <Hint>{hosView === "approval" ? "Tidak ada yang menunggu approval." : hosView === "proposal" ? "Belum ada proposal dari Principal." : "Belum ada agenda sekolah yang dibuat HoS."}</Hint>
@@ -1465,13 +1468,13 @@ export function AgendaPanel({ pw, role, staffId, staffName, division, classes }:
           </div>
         )}
         <button onClick={create} disabled={busy} className={btn + " justify-self-start"}><Plus size={13} /> Create Agenda</button>
-        {role === "principal" && <p className="text-[11px] text-muted-foreground">New agendas start as Draft — use "Deliver to HoS for Approval" below once ready.</p>}
+        {(role === "principal" || role === "teacher") && <p className="text-[11px] text-muted-foreground">New agendas start as Draft — use "Forward for Approval" below once ready.</p>}
         <Err msg={err} />
       </div>
 
       <ul className="space-y-2">
         {agendas.map((a) => (
-          <AgendaRow key={a.id} agenda={a} pw={pw} role={role} staffName={staffName ?? ""} staffList={staffList} open={open === a.id} onToggle={() => setOpen(open === a.id ? null : a.id)} onRemove={() => remove(a.id)} onChanged={() => setReload((x) => x + 1)} />
+          <AgendaRow key={a.id} agenda={a} pw={pw} role={role} staffId={staffId} staffName={staffName ?? ""} staffList={staffList} open={open === a.id} onToggle={() => setOpen(open === a.id ? null : a.id)} onRemove={() => remove(a.id)} onChanged={() => setReload((x) => x + 1)} />
         ))}
         {agendas.length === 0 && <Hint>No agendas yet.</Hint>}
       </ul>
@@ -1479,8 +1482,8 @@ export function AgendaPanel({ pw, role, staffId, staffName, division, classes }:
   );
 }
 
-function AgendaRow({ agenda, pw, role, staffName, staffList, open, onToggle, onRemove, onChanged }: {
-  agenda: Row; pw: string; role: "hos" | "principal" | "teacher"; staffName: string; staffList: Row[];
+function AgendaRow({ agenda, pw, role, staffId, staffName, staffList, open, onToggle, onRemove, onChanged }: {
+  agenda: Row; pw: string; role: "hos" | "principal" | "teacher"; staffId: string; staffName: string; staffList: Row[];
   open: boolean; onToggle: () => void; onRemove: () => void; onChanged: () => void;
 }) {
   const [picStaffId, setPicStaffId] = useState("");
@@ -1515,14 +1518,14 @@ function AgendaRow({ agenda, pw, role, staffName, staffList, open, onToggle, onR
   }
   async function submitForApproval() {
     setBusy(true); setErr(null);
-    const r = await submitAgendaForApproval({ data: { password: pw, agendaId: agenda.id, actorName: staffName } });
+    const r = await submitAgendaForApproval({ data: { password: pw, staffId, agendaId: agenda.id, actorName: staffName } });
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     onChanged();
   }
   async function review(decision: "approve" | "reject" | "revise") {
     setBusy(true); setErr(null);
-    const r = await reviewAgenda({ data: { password: pw, agendaId: agenda.id, actorName: staffName, decision, notes: reviewNotes } });
+    const r = await reviewAgenda({ data: { password: pw, staffId, agendaId: agenda.id, actorName: staffName, decision, notes: reviewNotes } });
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     setReviewNotes(""); onChanged();
@@ -1573,20 +1576,60 @@ function AgendaRow({ agenda, pw, role, staffName, staffList, open, onToggle, onR
           {agenda.last_review_notes && <p className="text-xs rounded-lg bg-secondary/50 p-2"><span className="text-muted-foreground">HoS notes: </span>{agenda.last_review_notes}</p>}
           {agenda.final_report && <p className="text-xs rounded-lg bg-emerald-500/10 p-2"><span className="text-muted-foreground">Final Report: </span>{agenda.final_report}</p>}
 
-          {role === "principal" && agenda.approval_status === "draft" && (
-            <button onClick={submitForApproval} disabled={busy} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold">Deliver to HoS for Approval</button>
+          {(role === "principal" || role === "teacher") && agenda.approval_status === "draft" && (
+            <button onClick={submitForApproval} disabled={busy} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold">
+              {role === "teacher" ? "Forward to Principal for Approval" : "Forward to Head of School for Approval"}
+            </button>
           )}
-          {role === "principal" && agenda.approval_status === "revision_requested" && (
-            <p className="text-xs text-blue-600">HoS asked for revision — edit details above and deliver again once ready.</p>
+          {(role === "principal" || role === "teacher") && agenda.approval_status === "revision_requested" && (
+            <p className="text-xs text-blue-600">{role === "teacher" ? "Principal" : "Head of School"} asked for revision — edit details above and forward again once ready.</p>
           )}
 
-          {role === "hos" && agenda.approval_status === "submitted" && (
+          {role === "principal" && agenda.creator_role === "teacher" && agenda.approval_status === "submitted" && (
+            <div className="grid gap-2">
+              <textarea value={reviewNotes} onChange={(e) => setReviewNotes(e.target.value)} rows={2} placeholder="Notes for Teacher (optional)" className={field} />
+              <div className="flex gap-2 flex-wrap">
+                <button onClick={() => review("approve")} disabled={busy} className="rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-xs font-semibold">Approve</button>
+                <button onClick={() => review("revise")} disabled={busy} className="rounded-lg bg-blue-600 text-white px-3 py-1.5 text-xs font-semibold">Request Revision</button>
+                <button onClick={() => review("reject")} disabled={busy} className="rounded-lg bg-destructive text-destructive-foreground px-3 py-1.5 text-xs font-semibold">Reject</button>
+              </div>
+            </div>
+          )}
+          {role === "hos" && agenda.creator_role === "principal" && agenda.approval_status === "submitted" && (
             <div className="grid gap-2">
               <textarea value={reviewNotes} onChange={(e) => setReviewNotes(e.target.value)} rows={2} placeholder="Notes for Principal (optional)" className={field} />
               <div className="flex gap-2 flex-wrap">
                 <button onClick={() => review("approve")} disabled={busy} className="rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-xs font-semibold">Approve</button>
                 <button onClick={() => review("revise")} disabled={busy} className="rounded-lg bg-blue-600 text-white px-3 py-1.5 text-xs font-semibold">Request Revision</button>
                 <button onClick={() => review("reject")} disabled={busy} className="rounded-lg bg-destructive text-destructive-foreground px-3 py-1.5 text-xs font-semibold">Reject</button>
+              </div>
+            </div>
+          )}
+
+          {agenda.approval_status !== "draft" && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Timeline</p>
+                <ul className="space-y-1.5 max-h-56 overflow-y-auto">
+                  {timeline.map((t) => (
+                    <li key={t.id} className={"text-xs rounded-lg p-2 " + (t.entry_type === "system" ? "bg-secondary/40 text-muted-foreground italic" : "bg-secondary/60")}>
+                      <span className="font-semibold not-italic">{t.author_name}</span>{t.author_role ? " (" + t.author_role + ")" : ""}: {t.body}
+                      <span className="block text-[10px] opacity-60 mt-0.5">{new Date(t.created_at).toLocaleString()}</span>
+                    </li>
+                  ))}
+                  {timeline.length === 0 && <Hint>No timeline entries yet.</Hint>}
+                </ul>
+              </div>
+              <div className="grid gap-2 content-start">
+                <textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={2} placeholder="Add a timeline note…" className={field} />
+                <button onClick={sendComment} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold justify-self-start">Add Note</button>
+                {role === "principal" && agenda.approval_status === "approved" && agenda.execution_status === "in_progress" && (
+                  <div className="grid gap-2 pt-2 border-t border-border">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Close with Evaluation / Final Report</p>
+                    <textarea value={finalReport} onChange={(e) => setFinalReport(e.target.value)} rows={3} placeholder="Evaluation summary — sent to HoS as the Final Report" className={field} />
+                    <button onClick={close} disabled={busy} className="rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-xs font-semibold justify-self-start">Close & Send Final Report</button>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1624,50 +1667,7 @@ function AgendaRow({ agenda, pw, role, staffName, staffList, open, onToggle, onR
               {agenda.execution_status === "not_started" && role !== "hos" && (
                 <button onClick={startExecution} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold">Start Execution</button>
               )}
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Timeline</p>
-                  <ul className="space-y-1.5 max-h-56 overflow-y-auto">
-                    {timeline.map((t) => (
-                      <li key={t.id} className={"text-xs rounded-lg p-2 " + (t.entry_type === "system" ? "bg-secondary/40 text-muted-foreground italic" : "bg-secondary/60")}>
-                        <span className="font-semibold not-italic">{t.author_name}</span>{t.author_role ? " (" + t.author_role + ")" : ""}: {t.body}
-                        <span className="block text-[10px] opacity-60 mt-0.5">{new Date(t.created_at).toLocaleString()}</span>
-                      </li>
-                    ))}
-                    {timeline.length === 0 && <Hint>No timeline entries yet.</Hint>}
-                  </ul>
-                </div>
-                <div className="grid gap-2 content-start">
-                  {role !== "hos" && agenda.execution_status === "in_progress" && (
-                    <>
-                      <textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={2} placeholder="Add a timeline note…" className={field} />
-                      <button onClick={sendComment} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold justify-self-start">Add Note</button>
-                    </>
-                  )}
-                  {role === "principal" && agenda.execution_status === "in_progress" && (
-                    <div className="grid gap-2 pt-2 border-t border-border">
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Close with Evaluation / Final Report</p>
-                      <textarea value={finalReport} onChange={(e) => setFinalReport(e.target.value)} rows={3} placeholder="Evaluation summary — sent to HoS as the Final Report" className={field} />
-                      <button onClick={close} disabled={busy} className="rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-xs font-semibold justify-self-start">Close & Send Final Report</button>
-                    </div>
-                  )}
-                </div>
-              </div>
             </>
-          )}
-
-          {agenda.execution_status === "closed" && timeline.length > 0 && (
-            <div>
-              <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Timeline</p>
-              <ul className="space-y-1.5 max-h-56 overflow-y-auto">
-                {timeline.map((t) => (
-                  <li key={t.id} className={"text-xs rounded-lg p-2 " + (t.entry_type === "system" ? "bg-secondary/40 text-muted-foreground italic" : "bg-secondary/60")}>
-                    <span className="font-semibold not-italic">{t.author_name}</span>{t.author_role ? " (" + t.author_role + ")" : ""}: {t.body}
-                  </li>
-                ))}
-              </ul>
-            </div>
           )}
 
           <Err msg={err} />
@@ -1866,7 +1866,7 @@ export function CasePanel({
           )}
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Judul kasus" className={field} />
           <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Detail kasus" className={field} />
-          <button onClick={report} disabled={busy} className={btn + " justify-self-start"}>Lapor ke Principal</button>
+          <button onClick={report} disabled={busy} className={btn + " justify-self-start"}>{role === "principal" ? "Buka Kasus" : "Lapor ke Principal"}</button>
           <Err msg={err} />
         </div>
       )}
@@ -2255,7 +2255,7 @@ const RUBRIC_OPTIONS = [
 ];
 
 export function AssessmentSetupPanel({ pw, staffId, division }: { pw: string; staffId: string; division: string }) {
-  const [sub, setSub] = useState<"domains" | "indicators" | "approve">("domains");
+  const [sub, setSub] = useState<"domains" | "indicators" | "character" | "approve">("domains");
   const [reload, setReload] = useState(0);
   const [domainCode, setDomainCode] = useState("");
   const [domainName, setDomainName] = useState("");
@@ -2265,6 +2265,9 @@ export function AssessmentSetupPanel({ pw, staffId, division }: { pw: string; st
   const [indDesc, setIndDesc] = useState("");
   const [indEvidence, setIndEvidence] = useState("");
   const [indActivity, setIndActivity] = useState("");
+  const [indSubject, setIndSubject] = useState("");
+  const [charName, setCharName] = useState("");
+  const [charDesc, setCharDesc] = useState("");
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
 
   const domainsRes = useAsync(() => listAssessmentDomains({ data: { password: pw, division } }), [pw, division, reload]);
@@ -2273,6 +2276,8 @@ export function AssessmentSetupPanel({ pw, staffId, division }: { pw: string; st
   const indicators: Row[] = indicatorsRes.data && indicatorsRes.data.ok ? indicatorsRes.data.indicators : [];
   const reportsRes = useAsync(() => listAssessmentReports({ data: { password: pw, division, status: "pending_approval" } }), [pw, division, reload]);
   const pendingReports: Row[] = reportsRes.data && reportsRes.data.ok ? reportsRes.data.reports : [];
+  const charactersRes = useAsync(() => listCharacters({ data: { password: pw } }), [pw, reload]);
+  const characters: Row[] = charactersRes.data && charactersRes.data.ok ? charactersRes.data.characters : [];
 
   async function addDomain() {
     if (!domainCode.trim() || !domainName.trim()) return;
@@ -2286,12 +2291,21 @@ export function AssessmentSetupPanel({ pw, staffId, division }: { pw: string; st
   async function addIndicator() {
     if (!indCode.trim() || !indDesc.trim() || !level.trim() || !indDomain) return;
     await saveAssessmentIndicator({
-      data: { password: pw, staffId, division, level, domainCode: indDomain, indicatorCode: indCode, description: indDesc, evidenceExample: indEvidence, relatedActivity: indActivity },
+      data: { password: pw, staffId, division, level, domainCode: indDomain, indicatorCode: indCode, description: indDesc, evidenceExample: indEvidence, relatedActivity: indActivity, subject: indSubject || undefined },
     });
-    setIndCode(""); setIndDesc(""); setIndEvidence(""); setIndActivity(""); setReload((x) => x + 1);
+    setIndCode(""); setIndDesc(""); setIndEvidence(""); setIndActivity(""); setIndSubject(""); setReload((x) => x + 1);
   }
   async function removeIndicator(id: string) {
     await deleteAssessmentIndicator({ data: { password: pw, id } });
+    setReload((x) => x + 1);
+  }
+  async function addCharacter() {
+    if (!charName.trim()) return;
+    await saveCharacter({ data: { password: pw, staffId, name: charName, description: charDesc } });
+    setCharName(""); setCharDesc(""); setReload((x) => x + 1);
+  }
+  async function removeCharacter(id: string) {
+    await deleteCharacter({ data: { password: pw, id } });
     setReload((x) => x + 1);
   }
   async function review(reportId: string, decision: "approve" | "revise") {
@@ -2304,6 +2318,7 @@ export function AssessmentSetupPanel({ pw, staffId, division }: { pw: string; st
       <div className="flex gap-2 mb-3 flex-wrap">
         <button onClick={() => setSub("domains")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "domains" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Domains</button>
         <button onClick={() => setSub("indicators")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "indicators" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Indicator Bank</button>
+        <button onClick={() => setSub("character")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "character" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>9 Character</button>
         <button onClick={() => setSub("approve")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "approve" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>
           Report Approval{pendingReports.length > 0 ? ` (${pendingReports.length})` : ""}
         </button>
@@ -2342,19 +2357,40 @@ export function AssessmentSetupPanel({ pw, staffId, division }: { pw: string; st
             <textarea value={indDesc} onChange={(e) => setIndDesc(e.target.value)} rows={2} placeholder="Deskripsi indikator" className={field} />
             <input value={indEvidence} onChange={(e) => setIndEvidence(e.target.value)} placeholder="Contoh evidence (opsional)" className={field} />
             <input value={indActivity} onChange={(e) => setIndActivity(e.target.value)} placeholder="Aktivitas terkait (opsional)" className={field} />
+            <input value={indSubject} onChange={(e) => setIndSubject(e.target.value)} placeholder="Subject (opsional — untuk kompetensi tambahan Subject Teacher)" className={field} />
             <button onClick={addIndicator} className={btn + " justify-self-start"}><Plus size={13} /> Tambah Indikator</button>
           </div>
           <ul className="space-y-1.5">
             {indicators.map((i) => (
               <li key={i.id} className="rounded-lg bg-card border border-border px-3 py-2 text-sm">
                 <div className="flex items-center justify-between">
-                  <span><span className="font-mono text-xs font-semibold">{i.indicator_code}</span> · {i.level} · {i.domain_code}</span>
+                  <span><span className="font-mono text-xs font-semibold">{i.indicator_code}</span> · {i.level} · {i.domain_code}{i.subject ? " · " + i.subject : ""}</span>
                   <button onClick={() => removeIndicator(i.id)} className="text-destructive"><Trash2 size={13} /></button>
                 </div>
                 <p className="text-xs mt-1">{i.description}</p>
               </li>
             ))}
             {indicators.length === 0 && <Hint>Belum ada indikator untuk filter ini.</Hint>}
+          </ul>
+        </div>
+      )}
+
+      {sub === "character" && (
+        <div>
+          <p className="text-xs text-muted-foreground mb-3">9 Character — ciri khas Stella Maris, berlaku sama di semua divisi/level, terpisah dari Indicator Bank per-divisi.</p>
+          <div className={card + " mb-3 grid gap-2"}>
+            <input value={charName} onChange={(e) => setCharName(e.target.value)} placeholder="Nama character (mis. Respect, Curiosity, Integrity)" className={field} />
+            <input value={charDesc} onChange={(e) => setCharDesc(e.target.value)} placeholder="Deskripsi (opsional)" className={field} />
+            <button onClick={addCharacter} className={btn + " justify-self-start"}><Plus size={13} /> Tambah Character</button>
+          </div>
+          <ul className="space-y-1.5">
+            {characters.map((c) => (
+              <li key={c.id} className="flex items-center justify-between rounded-lg bg-card border border-border px-3 py-2 text-sm">
+                <span>{c.name}{c.description && <span className="block text-xs text-muted-foreground">{c.description}</span>}</span>
+                <button onClick={() => removeCharacter(c.id)} className="text-destructive shrink-0"><Trash2 size={13} /></button>
+              </li>
+            ))}
+            {characters.length === 0 && <Hint>Belum ada character. Contoh: Independent, Respect, Curiosity, Caring, Enthusiastic, Creative, Responsible, Self-Directed, Tolerant.</Hint>}
           </ul>
         </div>
       )}
@@ -2383,11 +2419,12 @@ export function AssessmentSetupPanel({ pw, staffId, division }: { pw: string; st
 
 /* ───────────── Assessment v2 — Teacher: record per indicator + submit report ───────────── */
 export function TeacherIndicatorAssessmentPanel({ pw, staffId, classes, division }: { pw: string; staffId: string; classes: ClassOpt[]; division: string }) {
-  const [sub, setSub] = useState<"record" | "report">("record");
+  const [sub, setSub] = useState<"record" | "character" | "report">("record");
   const [classId, setClassId] = useState(classes[0]?.id ?? "");
   const [studentId, setStudentId] = useState("");
-  const [periodType, setPeriodType] = useState("week");
-  const [periodLabel, setPeriodLabel] = useState("");
+  const [subject, setSubject] = useState("");
+  const [periodType, setPeriodType] = useState("day");
+  const [periodLabel, setPeriodLabel] = useState(today());
   const [rubrics, setRubrics] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [reload, setReload] = useState(0);
@@ -2400,8 +2437,8 @@ export function TeacherIndicatorAssessmentPanel({ pw, staffId, classes, division
   const studentsRes = useAsync(() => (classId ? listSchoolStudents({ data: { password: pw, classId } }) : Promise.resolve(null)), [pw, classId]);
   const students: Row[] = studentsRes.data && "students" in studentsRes.data ? (studentsRes.data.students ?? []) : [];
   const indicatorsRes = useAsync(
-    () => ((selectedClass as Row)?.level ? listAssessmentIndicators({ data: { password: pw, division, level: (selectedClass as Row).level } }) : Promise.resolve(null)),
-    [pw, division, selectedClass],
+    () => ((selectedClass as Row)?.level ? listAssessmentIndicators({ data: { password: pw, division, level: (selectedClass as Row).level, subject: subject.trim() || undefined } }) : Promise.resolve(null)),
+    [pw, division, selectedClass, subject],
   );
   const indicators: Row[] = indicatorsRes.data && indicatorsRes.data.ok ? indicatorsRes.data.indicators : [];
   const recordsRes = useAsync(
@@ -2409,6 +2446,39 @@ export function TeacherIndicatorAssessmentPanel({ pw, staffId, classes, division
     [pw, studentId, periodType, periodLabel, reload],
   );
   const records: Row[] = recordsRes.data && recordsRes.data.ok ? recordsRes.data.records : [];
+  const charactersRes = useAsync(() => listCharacters({ data: { password: pw } }), [pw]);
+  const characters: Row[] = charactersRes.data && charactersRes.data.ok ? charactersRes.data.characters : [];
+  const charRecordsRes = useAsync(
+    () => (studentId && periodLabel ? listCharacterRecords({ data: { password: pw, studentId, periodType, periodLabel } }) : Promise.resolve(null)),
+    [pw, studentId, periodType, periodLabel, reload],
+  );
+  const charRecords: Row[] = charRecordsRes.data && charRecordsRes.data.ok ? charRecordsRes.data.records : [];
+  const [charScores, setCharScores] = useState<Record<string, number>>({});
+  const [charMode, setCharMode] = useState<Record<string, "auto" | "manual">>({});
+  const [charNarration, setCharNarration] = useState<Record<string, string>>({});
+  const [charGenerating, setCharGenerating] = useState<Record<string, boolean>>({});
+  const selectedStudent = students.find((s) => s.id === studentId);
+
+  async function generateNarrationFor(characterId: string, characterName: string) {
+    const score = charScores[characterId] ?? 50;
+    setCharGenerating((x) => ({ ...x, [characterId]: true }));
+    const r = await draftCharacterNarration({ data: { password: pw, studentName: selectedStudent?.full_name ?? "murid", characterName, score } });
+    setCharGenerating((x) => ({ ...x, [characterId]: false }));
+    if (r.ok) setCharNarration((x) => ({ ...x, [characterId]: r.note }));
+  }
+  async function saveCharacterOne(characterId: string) {
+    if (!studentId || !periodLabel.trim()) return;
+    const score = charScores[characterId] ?? 50;
+    setBusy(true);
+    await saveCharacterRecord({
+      data: {
+        password: pw, studentId, characterId, teacherId: staffId, score,
+        narration: charNarration[characterId] || "", narrationMode: charMode[characterId] ?? "manual", periodType, periodLabel,
+      },
+    });
+    setBusy(false);
+    setReload((x) => x + 1);
+  }
 
   async function saveOne(indicatorId: string) {
     const rubric = rubrics[indicatorId];
@@ -2432,6 +2502,7 @@ export function TeacherIndicatorAssessmentPanel({ pw, staffId, classes, division
     <div>
       <div className="flex gap-2 mb-3 flex-wrap">
         <button onClick={() => setSub("record")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "record" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Record Assessment</button>
+        <button onClick={() => setSub("character")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "character" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>9 Character</button>
         <button onClick={() => setSub("report")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "report" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Create Report</button>
       </div>
 
@@ -2446,22 +2517,30 @@ export function TeacherIndicatorAssessmentPanel({ pw, staffId, classes, division
           {students.map((s) => <option key={s.id} value={s.id}>{s.full_name}</option>)}
         </select>
         <select value={periodType} onChange={(e) => setPeriodType(e.target.value)} className="rounded-lg bg-background border border-border px-2 py-2 text-sm">
+          <option value="day">Day</option>
           <option value="week">Week</option>
           <option value="month">Month</option>
           <option value="semester">Semester</option>
         </select>
-        <input value={periodLabel} onChange={(e) => setPeriodLabel(e.target.value)} placeholder="Label periode (mis. Week 3 Agustus 2026)" className="rounded-lg bg-background border border-border px-2 py-2 text-sm flex-1 min-w-40" />
+        <input
+          value={periodLabel} onChange={(e) => setPeriodLabel(e.target.value)}
+          placeholder={periodType === "day" ? "Tanggal (YYYY-MM-DD)" : "Label periode (mis. Week 3 Agustus 2026)"}
+          className="rounded-lg bg-background border border-border px-2 py-2 text-sm flex-1 min-w-40"
+        />
+        {sub === "record" && (
+          <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject (Subject Teacher — opsional)" className="rounded-lg bg-background border border-border px-2 py-2 text-sm" />
+        )}
       </div>
 
       {!studentId || !periodLabel.trim() ? (
-        <Hint>Pilih murid dan isi label periode dulu.</Hint>
+        <Hint>Pilih murid dan isi periode dulu.</Hint>
       ) : sub === "record" ? (
         <ul className="space-y-2">
           {indicators.map((i) => {
             const existing = records.find((r) => r.indicator_id === i.id);
             return (
               <li key={i.id} className="rounded-lg bg-card border border-border p-3 text-sm">
-                <p><span className="font-mono text-xs font-semibold">{i.indicator_code}</span> · {i.domain_code}</p>
+                <p><span className="font-mono text-xs font-semibold">{i.indicator_code}</span> · {i.domain_code}{i.subject ? " · " + i.subject : ""}</p>
                 <p className="text-xs mt-0.5 mb-2">{i.description}</p>
                 {existing && <p className="text-[10px] text-emerald-600 mb-1">Sudah dinilai: {existing.rubric}</p>}
                 <div className="flex gap-1.5 flex-wrap mb-1.5">
@@ -2480,11 +2559,57 @@ export function TeacherIndicatorAssessmentPanel({ pw, staffId, classes, division
               </li>
             );
           })}
-          {indicators.length === 0 && <Hint>Belum ada indikator untuk level kelas ini — hubungi Principal untuk setup Indicator Bank.</Hint>}
+          {indicators.length === 0 && <Hint>Belum ada indikator untuk level/subject ini — hubungi Principal untuk setup Indicator Bank.</Hint>}
+        </ul>
+      ) : sub === "character" ? (
+        <ul className="space-y-2">
+          {characters.map((c) => {
+            const existing = charRecords.find((r) => r.character_id === c.id);
+            const score = charScores[c.id] ?? existing?.score ?? 50;
+            const mode = charMode[c.id] ?? "manual";
+            const pct = Math.max(0, Math.min(100, score));
+            // White (0) -> Gold (100) gradient, driven by the score.
+            const gradientStyle = { background: `linear-gradient(90deg, #ffffff 0%, #d4af37 100%)` };
+            return (
+              <li key={c.id} className="rounded-lg bg-card border border-border p-3 text-sm">
+                <p className="font-semibold">{c.name}</p>
+                {c.description && <p className="text-xs text-muted-foreground mt-0.5 mb-2">{c.description}</p>}
+                {existing && <p className="text-[10px] text-emerald-600 mb-1">Sudah dinilai: {existing.score}/100</p>}
+                <div className="mb-2">
+                  <div className="h-3 rounded-full border border-border overflow-hidden relative" style={gradientStyle}>
+                    <div className="absolute inset-y-0 right-0 bg-background/70" style={{ width: `${100 - pct}%` }} />
+                  </div>
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <input
+                      type="range" min={0} max={100} value={score}
+                      onChange={(e) => setCharScores((x) => ({ ...x, [c.id]: Number(e.target.value) }))}
+                      className="flex-1"
+                    />
+                    <span className="text-xs font-mono w-10 text-right">{score}</span>
+                  </div>
+                </div>
+                <div className="flex gap-1.5 mb-1.5">
+                  <button onClick={() => setCharMode((x) => ({ ...x, [c.id]: "auto" }))} className={"rounded-full px-2.5 py-1 text-xs border " + (mode === "auto" ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border")}>Auto (AI)</button>
+                  <button onClick={() => setCharMode((x) => ({ ...x, [c.id]: "manual" }))} className={"rounded-full px-2.5 py-1 text-xs border " + (mode === "manual" ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border")}>Manual</button>
+                  {mode === "auto" && (
+                    <button onClick={() => generateNarrationFor(c.id, c.name)} disabled={charGenerating[c.id]} className="rounded-lg border border-border px-2.5 py-1 text-xs font-semibold">
+                      {charGenerating[c.id] ? "Membuat…" : "Generate"}
+                    </button>
+                  )}
+                </div>
+                <textarea
+                  value={charNarration[c.id] ?? ""} onChange={(e) => setCharNarration((x) => ({ ...x, [c.id]: e.target.value }))}
+                  rows={2} placeholder="Narasi (bisa diedit walau dari AI)" className={field + " mb-1.5"}
+                />
+                <button onClick={() => saveCharacterOne(c.id)} disabled={busy} className="rounded-lg bg-primary text-primary-foreground px-3 py-1 text-xs font-semibold disabled:opacity-40">Simpan</button>
+              </li>
+            );
+          })}
+          {characters.length === 0 && <Hint>Belum ada daftar 9 Character — hubungi Principal untuk setup di Assessment Setup.</Hint>}
         </ul>
       ) : (
         <div className={card + " grid gap-2"}>
-          <p className="text-xs text-muted-foreground">Merangkum {records.length} penilaian indikator untuk periode ini menjadi laporan ke Parent (perlu approval Principal dulu).</p>
+          <p className="text-xs text-muted-foreground">Merangkum {records.length} penilaian indikator + {charRecords.length} penilaian Character untuk periode ini menjadi laporan ke Parent (perlu approval Principal dulu).</p>
           <textarea value={summary} onChange={(e) => setSummary(e.target.value)} rows={3} placeholder="Ringkasan perkembangan" className={field} />
           <textarea value={recommendations} onChange={(e) => setRecommendations(e.target.value)} rows={2} placeholder="Rekomendasi aktivitas di rumah" className={field} />
           <textarea value={nextTarget} onChange={(e) => setNextTarget(e.target.value)} rows={2} placeholder="Target periode berikutnya" className={field} />
