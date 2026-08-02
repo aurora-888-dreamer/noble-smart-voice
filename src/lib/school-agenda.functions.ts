@@ -163,7 +163,7 @@ export const submitAgendaForApproval = createServerFn({ method: "POST" })
 
 export const reviewAgenda = createServerFn({ method: "POST" })
   .inputValidator(
-    (input: { password: string; staffId: string; agendaId: string; decision: "approve" | "reject" | "revise"; actorName?: string; notes?: string }) => input,
+    (input: { password: string; staffId: string; agendaId: string; decision: "approve" | "reject" | "revise" | "forward"; actorName?: string; notes?: string }) => input,
   )
   .handler(async ({ data }): Promise<{ ok: true } | Fail> => {
     const gate = staffClient(data.password);
@@ -172,16 +172,30 @@ export const reviewAgenda = createServerFn({ method: "POST" })
       .from("school_staff").select("role, division").eq("id", data.staffId).maybeSingle();
     if (rErr) return { ok: false, error: rErr.message };
     const { data: agenda, error: aErr } = await gate.supabase
-      .from("school_agendas").select("creator_role, division").eq("id", data.agendaId).maybeSingle();
+      .from("school_agendas").select("creator_role, division, forwarded_to_hos").eq("id", data.agendaId).maybeSingle();
     if (aErr) return { ok: false, error: aErr.message };
-    // Teacher's agenda is approved by Principal (same division); Principal's
-    // agenda is approved by Head of School. HoS's own agendas never reach
-    // here (auto-approved at creation).
-    if (agenda?.creator_role === "teacher") {
+    // Teacher's agenda is approved by Principal (same division), who may
+    // also forward it onward to HoS instead of finalizing it themselves.
+    // Principal's own agenda (or a forwarded Teacher one) is approved by
+    // Head of School. HoS's own agendas never reach here (auto-approved).
+    const reachedHos = agenda?.creator_role === "principal" || agenda?.forwarded_to_hos === true;
+    if (data.decision === "forward") {
+      if (agenda?.creator_role !== "teacher" || !reviewer || reviewer.role !== "principal" || reviewer.division !== agenda.division) {
+        return { ok: false, error: "Hanya Principal di divisi yang sama yang bisa forward agenda ini ke HoS." };
+      }
+      const { error } = await gate.supabase
+        .from("school_agendas")
+        .update({ approval_status: "submitted", forwarded_to_hos: true, last_review_notes: data.notes || null })
+        .eq("id", data.agendaId);
+      if (error) return { ok: false, error: error.message };
+      await logTimeline(gate.supabase, data.agendaId, "forwarded", data.actorName ?? "", "Approved by Principal & forwarded to Head of School." + (data.notes ? " " + data.notes : ""), reviewer.role);
+      return { ok: true };
+    }
+    if (agenda?.creator_role === "teacher" && !reachedHos) {
       if (!reviewer || reviewer.role !== "principal" || reviewer.division !== agenda.division) {
         return { ok: false, error: "Hanya Principal di divisi yang sama yang bisa approve agenda ini." };
       }
-    } else if (agenda?.creator_role === "principal") {
+    } else if (reachedHos) {
       if (!reviewer || reviewer.role !== "hos") {
         return { ok: false, error: "Hanya Head of School yang bisa approve agenda ini." };
       }
