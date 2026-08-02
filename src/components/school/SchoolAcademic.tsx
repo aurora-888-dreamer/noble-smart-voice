@@ -786,8 +786,9 @@ function ProjectRow({
   const [notes, setNotes] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [localReload, setLocalReload] = useState(0);
   const badge = projectBadge(project);
-  const history = useAsync(() => (open ? listProjectReviews({ data: { password: pw, projectId: project.id } }) : Promise.resolve(null)), [open, pw, project.id]);
+  const history = useAsync(() => (open ? listProjectReviews({ data: { password: pw, projectId: project.id } }) : Promise.resolve(null)), [open, pw, project.id, localReload]);
   const reviews: Row[] = history.data && history.data.ok ? history.data.reviews : [];
 
   async function decide(kind: "approve" | "reject" | "revisi") {
@@ -803,7 +804,7 @@ function ProjectRow({
     });
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
-    setNotes(""); onChanged();
+    setNotes(""); setLocalReload((x) => x + 1); onChanged();
   }
 
   return (
@@ -844,10 +845,11 @@ function ProjectRow({
               <div className="grid gap-2 content-start">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Catatan & Keputusan</p>
                 <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Catatan untuk guru (opsional)" className={field} />
+                <p className="text-xs">Status: <span className={"rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase " + badge.cls}>{badge.label}</span></p>
                 <div className="flex gap-2 flex-wrap">
-                  <button onClick={() => decide("approve")} disabled={busy} className="rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-sm font-semibold disabled:opacity-50 flex items-center gap-1"><Check size={13} /> Approve</button>
-                  <button onClick={() => decide("revisi")} disabled={busy} className="rounded-lg bg-blue-600 text-white px-3 py-1.5 text-sm font-semibold disabled:opacity-50">Minta Revisi</button>
-                  <button onClick={() => decide("reject")} disabled={busy} className="rounded-lg bg-destructive text-destructive-foreground px-3 py-1.5 text-sm font-semibold disabled:opacity-50 flex items-center gap-1"><X size={13} /> Reject</button>
+                  <button onClick={() => decide("approve")} disabled={busy} className="rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-sm font-semibold disabled:opacity-50 flex items-center gap-1">🟢 <Check size={13} /> Approve</button>
+                  <button onClick={() => decide("revisi")} disabled={busy} className="rounded-lg bg-amber-500 text-white px-3 py-1.5 text-sm font-semibold disabled:opacity-50">🟡 Minta Revisi</button>
+                  <button onClick={() => decide("reject")} disabled={busy} className="rounded-lg bg-red-600 text-white px-3 py-1.5 text-sm font-semibold disabled:opacity-50 flex items-center gap-1">🔴 <X size={13} /> Reject</button>
                 </div>
                 <Err msg={err} />
               </div>
@@ -1496,11 +1498,12 @@ function AgendaRow({ agenda, pw, role, staffId, staffName, staffList, open, onTo
   const [finalReport, setFinalReport] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [localReload, setLocalReload] = useState(0);
   const picList: Row[] = agenda.school_agenda_pic ?? [];
   const badge = AGENDA_STATUS[agenda.approval_status] ?? AGENDA_STATUS.draft;
   const classNames: string = (agenda.school_agenda_classes ?? []).map((c: Row) => c.school_classes?.name).filter(Boolean).join(", ");
 
-  const timelineRes = useAsync(() => (open ? listAgendaTimeline({ data: { password: pw, agendaId: agenda.id } }) : Promise.resolve(null)), [open, pw, agenda.id]);
+  const timelineRes = useAsync(() => (open ? listAgendaTimeline({ data: { password: pw, agendaId: agenda.id } }) : Promise.resolve(null)), [open, pw, agenda.id, localReload]);
   const timeline: Row[] = timelineRes.data && timelineRes.data.ok ? timelineRes.data.entries : [];
 
   async function addInternal() {
@@ -1522,24 +1525,24 @@ function AgendaRow({ agenda, pw, role, staffId, staffName, staffList, open, onTo
     const r = await submitAgendaForApproval({ data: { password: pw, staffId, agendaId: agenda.id, actorName: staffName } });
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
-    onChanged();
+    setLocalReload((x) => x + 1); onChanged();
   }
   async function review(decision: "approve" | "reject" | "revise") {
     setBusy(true); setErr(null);
     const r = await reviewAgenda({ data: { password: pw, staffId, agendaId: agenda.id, actorName: staffName, decision, notes: reviewNotes } });
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
-    setReviewNotes(""); onChanged();
+    setReviewNotes(""); setLocalReload((x) => x + 1); onChanged();
   }
   async function startExecution() {
     const r = await startAgendaExecution({ data: { password: pw, agendaId: agenda.id, actorName: staffName } });
     if (!r.ok) { setErr(r.error); return; }
-    onChanged();
+    setLocalReload((x) => x + 1); onChanged();
   }
   async function sendComment() {
     if (!comment.trim()) return;
     await addAgendaComment({ data: { password: pw, agendaId: agenda.id, authorName: staffName, authorRole: role, body: comment } });
-    setComment(""); onChanged();
+    setComment(""); setLocalReload((x) => x + 1); onChanged();
   }
   async function close() {
     setBusy(true); setErr(null);
@@ -1586,23 +1589,26 @@ function AgendaRow({ agenda, pw, role, staffId, staffName, staffList, open, onTo
             <p className="text-xs text-blue-600">{role === "teacher" ? "Principal" : "Head of School"} asked for revision — edit details above and forward again once ready.</p>
           )}
 
-          {role === "principal" && agenda.creator_role === "teacher" && agenda.approval_status === "submitted" && (
+          {role === "principal" && agenda.creator_role === "teacher" && agenda.approval_status === "submitted" && !agenda.forwarded_to_hos && (
             <div className="grid gap-2">
+              <p className="text-xs">Status: <span className={"rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase " + badge.cls}>{badge.label}</span></p>
               <textarea value={reviewNotes} onChange={(e) => setReviewNotes(e.target.value)} rows={2} placeholder="Notes for Teacher (optional)" className={field} />
               <div className="flex gap-2 flex-wrap">
-                <button onClick={() => review("approve")} disabled={busy} className="rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-xs font-semibold">Approve</button>
-                <button onClick={() => review("revise")} disabled={busy} className="rounded-lg bg-blue-600 text-white px-3 py-1.5 text-xs font-semibold">Request Revision</button>
-                <button onClick={() => review("reject")} disabled={busy} className="rounded-lg bg-destructive text-destructive-foreground px-3 py-1.5 text-xs font-semibold">Reject</button>
+                <button onClick={() => review("approve")} disabled={busy} className="rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-xs font-semibold">🟢 Approve</button>
+                <button onClick={() => review("forward")} disabled={busy} className="rounded-lg bg-emerald-700 text-white px-3 py-1.5 text-xs font-semibold">🟢 Approve & Forward to HoS</button>
+                <button onClick={() => review("revise")} disabled={busy} className="rounded-lg bg-amber-500 text-white px-3 py-1.5 text-xs font-semibold">🟡 Ask to Revise</button>
+                <button onClick={() => review("reject")} disabled={busy} className="rounded-lg bg-red-600 text-white px-3 py-1.5 text-xs font-semibold">🔴 Reject</button>
               </div>
             </div>
           )}
-          {role === "hos" && agenda.creator_role === "principal" && agenda.approval_status === "submitted" && (
+          {role === "hos" && (agenda.creator_role === "principal" || agenda.forwarded_to_hos) && agenda.approval_status === "submitted" && (
             <div className="grid gap-2">
-              <textarea value={reviewNotes} onChange={(e) => setReviewNotes(e.target.value)} rows={2} placeholder="Notes for Principal (optional)" className={field} />
+              <p className="text-xs">Status: <span className={"rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase " + badge.cls}>{badge.label}</span></p>
+              <textarea value={reviewNotes} onChange={(e) => setReviewNotes(e.target.value)} rows={2} placeholder={"Notes for " + (agenda.creator_role === "teacher" ? "Principal" : "Principal") + " (optional)"} className={field} />
               <div className="flex gap-2 flex-wrap">
-                <button onClick={() => review("approve")} disabled={busy} className="rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-xs font-semibold">Approve</button>
-                <button onClick={() => review("revise")} disabled={busy} className="rounded-lg bg-blue-600 text-white px-3 py-1.5 text-xs font-semibold">Request Revision</button>
-                <button onClick={() => review("reject")} disabled={busy} className="rounded-lg bg-destructive text-destructive-foreground px-3 py-1.5 text-xs font-semibold">Reject</button>
+                <button onClick={() => review("approve")} disabled={busy} className="rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-xs font-semibold">🟢 Approve</button>
+                <button onClick={() => review("revise")} disabled={busy} className="rounded-lg bg-amber-500 text-white px-3 py-1.5 text-xs font-semibold">🟡 Ask to Revise</button>
+                <button onClick={() => review("reject")} disabled={busy} className="rounded-lg bg-red-600 text-white px-3 py-1.5 text-xs font-semibold">🔴 Reject</button>
               </div>
             </div>
           )}
@@ -1927,6 +1933,7 @@ function CaseRow({ kase, access, role, staffId, staffName, open, onToggle, onCha
   const [inviteStaffId, setInviteStaffId] = useState("");
   const [extName, setExtName] = useState("");
   const [extContact, setExtContact] = useState("");
+  const [localReload, setLocalReload] = useState(0);
 
   const staffListRes = useAsync(() => (showInvite && !access.code ? listSchoolStaff({ data: { password: access.pw! } }) : Promise.resolve(null)), [showInvite, access.pw]);
   const staffOptions: Row[] = staffListRes.data && "staff" in staffListRes.data ? (staffListRes.data.staff ?? []) : [];
@@ -1935,7 +1942,7 @@ function CaseRow({ kase, access, role, staffId, staffName, open, onToggle, onCha
     () => open
       ? (access.code ? listCaseTimelineForParent({ data: { code: access.code, caseId: kase.id } }) : listCaseTimeline({ data: { password: access.pw!, caseId: kase.id } }))
       : Promise.resolve(null),
-    [open, access.pw, access.code, kase.id],
+    [open, access.pw, access.code, kase.id, localReload],
   );
   const timeline: Row[] = timelineRes.data && timelineRes.data.ok ? timelineRes.data.entries : [];
 
@@ -1956,25 +1963,25 @@ function CaseRow({ kase, access, role, staffId, staffName, open, onToggle, onCha
       : await addCaseComment({ data: { password: access.pw!, caseId: kase.id, authorName: staffName ?? "", authorRole: role, body: comment } });
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
-    setComment(""); onChanged();
+    setComment(""); setLocalReload((x) => x + 1); onChanged();
   }
   async function escalate() {
     if (!access.pw) return;
     const r = await escalateCaseToHos({ data: { password: access.pw, caseId: kase.id, actorName: staffName ?? "" } });
     if (!r.ok) { setErr(r.error); return; }
-    onChanged();
+    setLocalReload((x) => x + 1); onChanged();
   }
   async function close() {
     if (!access.pw) return;
     const r = await closeCase({ data: { password: access.pw, caseId: kase.id, actorName: staffName ?? "", actorRole: role as "principal" | "hos" } });
     if (!r.ok) { setErr(r.error); return; }
-    onChanged();
+    setLocalReload((x) => x + 1); onChanged();
   }
   async function reopen() {
     if (!access.pw) return;
     const r = await reopenCase({ data: { password: access.pw, caseId: kase.id, actorName: staffName ?? "", actorRole: role as "principal" | "hos" } });
     if (!r.ok) { setErr(r.error); return; }
-    onChanged();
+    setLocalReload((x) => x + 1); onChanged();
   }
   async function inviteStaff() {
     if (!access.pw || !inviteStaffId) return;
@@ -2032,22 +2039,25 @@ function CaseRow({ kase, access, role, staffId, staffName, open, onToggle, onCha
               )}
 
               {!access.code && (
-                <div className="flex gap-2 flex-wrap pt-1">
-                  {role === "principal" && kase.status === "open" && (
-                    <button onClick={escalate} className="rounded-lg bg-orange-600 text-white px-3 py-1.5 text-xs font-semibold">Teruskan ke HoS</button>
-                  )}
-                  {isOwner && (
-                    <button onClick={close} className="rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-xs font-semibold">Tandai Selesai</button>
-                  )}
-                  {role === "hos" && kase.status !== "selesai" && kase.status !== "hos" && (
-                    <button onClick={close} className="rounded-lg bg-emerald-700 text-white px-3 py-1.5 text-xs font-semibold">Authorized Final Close</button>
-                  )}
-                  {kase.status === "selesai" && (role === "principal" || role === "hos") && (
-                    <button onClick={reopen} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold">Buka Kembali</button>
-                  )}
-                  {role === "principal" && (
-                    <button onClick={() => setShowInvite((v) => !v)} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold">+ Undang Pihak Lain</button>
-                  )}
+                <div className="grid gap-1.5 pt-1">
+                  <p className="text-xs">Status: <span className={"rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase " + badge.cls}>{badge.label}</span></p>
+                  <div className="flex gap-2 flex-wrap">
+                    {role === "principal" && kase.status === "open" && (
+                      <button onClick={escalate} className="rounded-lg bg-amber-500 text-white px-3 py-1.5 text-xs font-semibold">🟡 Teruskan ke HoS</button>
+                    )}
+                    {isOwner && (
+                      <button onClick={close} className="rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-xs font-semibold">🟢 Tandai Selesai</button>
+                    )}
+                    {role === "hos" && kase.status !== "selesai" && kase.status !== "hos" && (
+                      <button onClick={close} className="rounded-lg bg-emerald-700 text-white px-3 py-1.5 text-xs font-semibold">🟢 Authorized Final Close</button>
+                    )}
+                    {kase.status === "selesai" && (role === "principal" || role === "hos") && (
+                      <button onClick={reopen} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold">🔵 Buka Kembali</button>
+                    )}
+                    {role === "principal" && (
+                      <button onClick={() => setShowInvite((v) => !v)} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold">+ Undang Pihak Lain</button>
+                    )}
+                  </div>
                 </div>
               )}
               <Err msg={err} />
