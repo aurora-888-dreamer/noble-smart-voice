@@ -678,6 +678,23 @@ function projectBadge(p: Row): { label: string; cls: string } {
   }
 }
 
+/** Review-history entries used to show the raw decision word ("approve"),
+ * which reads as final even when it was just Principal forwarding to HoS —
+ * confusing if HoS later asks for revision. This gives an honest label
+ * that reflects whether that specific decision was actually the end of
+ * the road, using the project's own requires_hos + current status. */
+function reviewDecisionLabel(r: Row, project: Row): string {
+  const isRevisi = (r.notes ?? "").startsWith(REVISI_TAG);
+  if (r.decision === "reject") return isRevisi ? "Diminta Revisi" : "Ditolak";
+  if (r.reviewer_role === "principal") {
+    return project.requires_hos
+      ? "Disetujui Principal — diteruskan ke Head of School (belum final)"
+      : "Disetujui Principal (final)";
+  }
+  if (r.reviewer_role === "hos") return "Disetujui Head of School (final)";
+  return r.decision;
+}
+
 export function ProjectPanel({
   pw, classes, canSubmit, reviewerRole, reviewerName, staffId,
 }: {
@@ -835,7 +852,7 @@ function ProjectRow({
                 <ul className="space-y-1">
                   {reviews.map((r) => (
                     <li key={r.id} className="text-[11px] text-muted-foreground">
-                      {new Date(r.reviewed_at).toLocaleDateString()} - {r.reviewer_role} - {r.decision}{r.notes ? ": " + r.notes : ""}
+                      {new Date(r.reviewed_at).toLocaleDateString()} - {reviewDecisionLabel(r, project)}{r.notes ? ": " + r.notes : ""}
                     </li>
                   ))}
                 </ul>
@@ -886,7 +903,7 @@ function ProjectLetterPreview({ project, pw, badge }: { project: Row; pw: string
         <ul className="space-y-1.5">
           {reviews.map((r) => (
             <li key={r.id} className="text-xs rounded-lg bg-secondary/40 p-2">
-              {new Date(r.reviewed_at).toLocaleDateString()} - {r.reviewer_role} - {r.decision}{r.notes ? ": " + r.notes : ""}
+              {new Date(r.reviewed_at).toLocaleDateString()} - {reviewDecisionLabel(r, project)}{r.notes ? ": " + r.notes : ""}
             </li>
           ))}
           {reviews.length === 0 && <Hint>Belum ada riwayat review.</Hint>}
@@ -1581,9 +1598,12 @@ function AgendaRow({ agenda, pw, role, staffId, staffName, staffList, open, onTo
           {agenda.final_report && <p className="text-xs rounded-lg bg-emerald-500/10 p-2"><span className="text-muted-foreground">Final Report: </span>{agenda.final_report}</p>}
 
           {(role === "principal" || role === "teacher") && agenda.approval_status === "draft" && (
-            <button onClick={submitForApproval} disabled={busy} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold">
-              {role === "teacher" ? "Forward to Principal for Approval" : "Forward to Head of School for Approval"}
-            </button>
+            <>
+              <button onClick={submitForApproval} disabled={busy || !agenda.purpose?.trim()} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold disabled:opacity-50">
+                {role === "teacher" ? "Forward to Principal for Approval" : "Forward to Head of School for Approval"}
+              </button>
+              {!agenda.purpose?.trim() && <p className="text-[11px] text-muted-foreground mt-1">Isi Purpose dulu sebelum bisa di-forward.</p>}
+            </>
           )}
           {(role === "principal" || role === "teacher") && agenda.approval_status === "revision_requested" && (
             <p className="text-xs text-blue-600">{role === "teacher" ? "Principal" : "Head of School"} asked for revision — edit details above and forward again once ready.</p>
