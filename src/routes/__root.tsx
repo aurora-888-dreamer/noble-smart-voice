@@ -11,7 +11,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { LanguageProvider } from "../lib/i18n";
+import { VoiceProvider } from "../lib/voice-controller";
 
 function NotFoundComponent() {
   return (
@@ -77,29 +77,42 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Magic Talk — Voice Memo Transcriber & Translator" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
+      { name: "theme-color", content: "#0A192F" },
+      { title: "Noble — Executive Voice Assistant" },
       {
         name: "description",
         content:
-          "Record voice memos, auto-transcribe, translate and share them as TXT, PDF or DOC.",
+          "A local-first, encrypted, voice-first executive assistant. Notes, tasks, meetings, trips, contacts — offline-ready, bilingual, and installable.",
       },
-      { property: "og:site_name", content: "Magic Talk" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-title", content: "Noble" },
+      { property: "og:title", content: "Noble — Executive Voice Assistant" },
+      {
+        property: "og:description",
+        content:
+          "A local-first, encrypted, voice-first executive assistant. Notes, tasks, meetings, trips, contacts — offline-ready, bilingual, and installable.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "Noble — Executive Voice Assistant" },
+      { name: "twitter:description", content: "A local-first, encrypted, voice-first executive assistant. Notes, tasks, meetings, trips, contacts — offline-ready, bilingual, and installable." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/a8c79853-0abe-4b9a-9791-94fb469e849f/id-preview-0c522fa6--3130e489-bfb7-4520-aa4c-9d1866ce32bf.lovable.app-1784222701196.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/a8c79853-0abe-4b9a-9791-94fb469e849f/id-preview-0c522fa6--3130e489-bfb7-4520-aa4c-9d1866ce32bf.lovable.app-1784222701196.png" },
     ],
     links: [
       {
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Work+Sans:wght@400;500;600&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap",
       },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "apple-touch-icon", href: "/icon-512.png" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
     ],
   }),
   shellComponent: RootShell,
@@ -127,10 +140,10 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <LanguageProvider>
+      <VoiceProvider>
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
-      </LanguageProvider>
+      </VoiceProvider>
     </QueryClientProvider>
   );
 }
