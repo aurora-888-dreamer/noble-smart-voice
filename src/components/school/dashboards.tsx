@@ -9,7 +9,7 @@ import {
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   CalendarPanel, TimetablePanel, LessonPlanPanel, ProjectPanel, AttendancePanel, AgendaPanel, StaffMessagePanel, CasePanel,
-  AssessmentSetupPanel, TeacherIndicatorAssessmentPanel, AssessmentResultsPanel, ParentAssessmentReportsPanel, IncidentalContactPanel, AssessmentReportApprovalPanel,
+  AssessmentSetupPanel, TeacherIndicatorAssessmentPanel, AssessmentResultsPanel, ParentAssessmentReportsPanel, AssessmentReportApprovalPanel, RelayPanel, ExternalLinkManagerPanel,
 } from "./SchoolAcademic";
 import {
   DIVISIONS, ROLE_LABEL, Hint, Section, StatCard, Tabs, ReadOnlyNote, useAsync, useClasses,
@@ -450,42 +450,32 @@ function SchoolProfilePanel({ pw, staffId, classes }: { pw: string; staffId: str
   );
 }
 
-/** Messages hub for HoS — merges Direct Message, Announcements, Official
- * Letter, and Incidental Contacts into one tab with sub-navigation. */
-function MessagesHubPanel({ pw, staffId, classes }: { pw: string; staffId: string; classes: { id: string; name: string }[] }) {
-  const [sub, setSub] = useState<"direct" | "announce" | "letter" | "incidental">("direct");
+/** Messages hub for HoS — merges Direct Message, Announcements, and
+ * Official Letter into one tab with sub-navigation. */
+function MessagesHubPanel({ pw, staffId, staffName, classes }: { pw: string; staffId: string; staffName: string; classes: { id: string; name: string }[] }) {
+  const [sub, setSub] = useState<"direct" | "announce" | "letter" | "relay">("direct");
   return (
     <div>
       <div className="flex gap-2 mb-3 flex-wrap">
         <button onClick={() => setSub("direct")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "direct" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Direct Message</button>
         <button onClick={() => setSub("announce")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "announce" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Announcements</button>
         <button onClick={() => setSub("letter")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "letter" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Official Letter</button>
-        <button onClick={() => setSub("incidental")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "incidental" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Incidental Link</button>
+        <button onClick={() => setSub("relay")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "relay" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Kirim ke NSV</button>
       </div>
       {sub === "direct" && <StaffMessagePanel pw={pw} staffId={staffId} />}
       {sub === "announce" && <AnnouncementPanel subrole="hos" division={null} classes={classes} />}
       {sub === "letter" && <ProjectPanel pw={pw} classes={classes} canSubmit={false} staffId={staffId} reviewerRole="hos" reviewerName="Head of School" />}
-      {sub === "incidental" && <IncidentalContactPanel pw={pw} staffId={staffId} context="message" />}
+      {sub === "relay" && <RelayPanel pw={pw} staffId={staffId} staffName={staffName} />}
     </div>
   );
 }
 
 function ReportHubPanel({ pw, staffId, classes }: { pw: string; staffId: string; classes: { id: string; name: string }[] }) {
-  const [sub, setSub] = useState<"report" | "incidental">("report");
-  return (
-    <div>
-      <div className="flex gap-2 mb-3 flex-wrap">
-        <button onClick={() => setSub("report")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "report" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Report</button>
-        <button onClick={() => setSub("incidental")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "incidental" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Incidental Link</button>
-      </div>
-      {sub === "report" && <CasePanel access={{ pw }} role="hos" staffId={staffId} staffName="Head of School" classes={classes} />}
-      {sub === "incidental" && <IncidentalContactPanel pw={pw} staffId={staffId} context="report" />}
-    </div>
-  );
+  return <CasePanel access={{ pw }} role="hos" staffId={staffId} staffName="Head of School" classes={classes} />;
 }
 
 function SettingsPanel({ pw, staffId }: { pw: string; staffId: string }) {
-  const [sub, setSub] = useState<"profile" | "pin" | "userid">("profile");
+  const [sub, setSub] = useState<"profile" | "pin" | "userid" | "externallink">("profile");
   const [editingProfile, setEditingProfile] = useState(false);
   const [reload, setReload] = useState(0);
   const [search, setSearch] = useState("");
@@ -511,6 +501,7 @@ function SettingsPanel({ pw, staffId }: { pw: string; staffId: string }) {
         <button onClick={() => setSub("profile")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "profile" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>My Profile</button>
         <button onClick={() => setSub("pin")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "pin" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Change PIN</button>
         <button onClick={() => setSub("userid")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "userid" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>UserID & Reset PIN Request</button>
+        <button onClick={() => setSub("externallink")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (sub === "externallink" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>External Link</button>
       </div>
 
       {sub === "profile" && !editingProfile && (
@@ -552,6 +543,7 @@ function SettingsPanel({ pw, staffId }: { pw: string; staffId: string }) {
           </ul>
         </div>
       )}
+      {sub === "externallink" && <ExternalLinkManagerPanel pw={pw} staffId={staffId} />}
     </div>
   );
 }
@@ -575,7 +567,7 @@ export function HosDashboard({ staffId }: { staffId: string }) {
       <Tabs tabs={tabs} tab={tab} onChange={setTab} mobileGrid>
         {tab === "sp" && <SchoolProfilePanel pw={pw} staffId={staffId} classes={classes} />}
         {tab === "agenda" && <AgendaPanel pw={pw} role="hos" staffId={staffId} staffName="Head of School" classes={classes} />}
-        {tab === "message" && <MessagesHubPanel pw={pw} staffId={staffId} classes={classes} />}
+        {tab === "message" && <MessagesHubPanel pw={pw} staffId={staffId} staffName="Head of School" classes={classes} />}
         {tab === "laporan" && <ReportHubPanel pw={pw} staffId={staffId} classes={classes} />}
         {tab === "gallery" && <GalleryPanel pw={pw} staffId={staffId} />}
         {tab === "settings" && <SettingsPanel pw={pw} staffId={staffId} />}
@@ -809,7 +801,7 @@ export function TeacherDashboard({ staffId, staffName, role, defaultClassId }: {
         {tab === "attendance" && isHomeroom && <AttendancePanel access={{ pw }} classes={classList} canEdit />}
         {tab === "message" && <StaffMessagePanel pw={pw} staffId={staffId} />}
         {tab === "agenda" && <AgendaPanel pw={pw} role="teacher" staffId={staffId} staffName={staffName} classes={classList} />}
-        {tab === "laporan" && <CasePanel access={{ pw }} role="teacher" staffId={staffId} staffName={staffName} classes={classList} />}
+        {tab === "laporan" && <CasePanel access={{ pw }} role="teacher" staffId={staffId} staffName={staffName} classes={classList} division={classList[0]?.division ?? ""} />}
         {tab === "gallery" && <GalleryPanel pw={pw} staffId={staffId} />}
         {tab === "pin" && <ChangePinPanel />}
 

@@ -26,7 +26,8 @@ import {
   listCaseParticipants, addCaseParticipant, escalateCaseToHos, closeCase, reopenCase,
 } from "@/lib/school-case.functions";
 import { listEvaluations, saveEvaluation, deleteEvaluation } from "@/lib/school-evaluation.functions";
-import { listIncidentalContacts, addIncidentalContact, removeIncidentalContact } from "@/lib/school-incidental.functions";
+import { listRelayThreads, startRelayThread, replyToRelayThread, deleteRelayThread } from "@/lib/nsv-relay.functions";
+import { listExternalLinks, saveExternalLink, deleteExternalLink } from "@/lib/school-external-links.functions";
 import {
   listAssessmentDomains, saveAssessmentDomain, deleteAssessmentDomain,
   listAssessmentIndicators, saveAssessmentIndicator, deleteAssessmentIndicator,
@@ -1682,6 +1683,7 @@ function AgendaRow({ agenda, pw, role, staffId, staffName, staffList, open, onTo
             </div>
             {addingExternal && (
               <div className="mt-2 flex gap-2 flex-wrap">
+                <ExternalLinkPicker pw={pw} onPick={(l) => { setExtName(l.name); setExtContact(l.contact_info ?? ""); }} />
                 <input value={extName} onChange={(e) => setExtName(e.target.value)} placeholder="External PIC name" className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm" />
                 <input value={extContact} onChange={(e) => setExtContact(e.target.value)} placeholder="Contact (optional)" className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm" />
                 <button onClick={addExternal} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold">Add</button>
@@ -1710,6 +1712,7 @@ function AgendaTimelinePreview({ agenda, pw, badge, classNames, picList, role, s
 }) {
   const [reload, setReload] = useState(0);
   const [note, setNote] = useState("");
+  const [reviewNotes, setReviewNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const timelineRes = useAsync(() => listAgendaTimeline({ data: { password: pw, agendaId: agenda.id } }), [pw, agenda.id, reload]);
   const timeline: Row[] = timelineRes.data && timelineRes.data.ok ? timelineRes.data.entries : [];
@@ -1727,8 +1730,17 @@ function AgendaTimelinePreview({ agenda, pw, badge, classNames, picList, role, s
     setBusy(false);
     setReload((x) => x + 1); onChanged();
   }
+  async function review(decision: "approve" | "reject" | "revise" | "forward") {
+    setBusy(true);
+    const r = await reviewAgenda({ data: { password: pw, staffId, agendaId: agenda.id, actorName: staffName, decision, notes: reviewNotes } });
+    setBusy(false);
+    if (!r.ok) return;
+    setReviewNotes(""); setReload((x) => x + 1); onChanged();
+  }
 
   const canReForward = (role === "principal" || role === "teacher") && (agenda.approval_status === "draft" || agenda.approval_status === "revision_requested");
+  const canPrincipalReview = role === "principal" && agenda.creator_role === "teacher" && agenda.approval_status === "submitted" && !agenda.forwarded_to_hos;
+  const canHosReview = role === "hos" && (agenda.creator_role === "principal" || agenda.forwarded_to_hos) && agenda.approval_status === "submitted";
 
   return (
     <div className="space-y-4">
@@ -1741,6 +1753,20 @@ function AgendaTimelinePreview({ agenda, pw, badge, classNames, picList, role, s
         </p>
         {agenda.purpose && <p className="text-sm mt-2"><span className="text-muted-foreground">Purpose: </span>{agenda.purpose}</p>}
       </div>
+      {(canPrincipalReview || canHosReview) && (
+        <div className="grid gap-2 rounded-lg bg-secondary/30 p-3">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Keputusan</p>
+          <textarea value={reviewNotes} onChange={(e) => setReviewNotes(e.target.value)} rows={2} placeholder="Catatan (opsional)" className={field} />
+          <div className="flex gap-2 flex-wrap">
+            <button onClick={() => review("approve")} disabled={busy} className="rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-xs font-semibold">🟢 Approve</button>
+            {canPrincipalReview && (
+              <button onClick={() => review("forward")} disabled={busy} className="rounded-lg bg-emerald-700 text-white px-3 py-1.5 text-xs font-semibold">🟢 Approve & Forward to HoS</button>
+            )}
+            <button onClick={() => review("revise")} disabled={busy} className="rounded-lg bg-amber-500 text-white px-3 py-1.5 text-xs font-semibold">🟡 Ask to Revise</button>
+            <button onClick={() => review("reject")} disabled={busy} className="rounded-lg bg-red-600 text-white px-3 py-1.5 text-xs font-semibold">🔴 Reject</button>
+          </div>
+        </div>
+      )}
       {picList.length > 0 && (
         <div>
           <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold mb-1">PIC</p>
@@ -2098,6 +2124,7 @@ function CaseRow({ kase, access, role, staffId, staffName, open, onToggle, onCha
                     </div>
                   ) : (
                     <div className="flex gap-2 flex-wrap">
+                      <ExternalLinkPicker pw={access.pw!} onPick={(l) => { setExtName(l.name); setExtContact(l.contact_info ?? ""); }} />
                       <input value={extName} onChange={(e) => setExtName(e.target.value)} placeholder="Nama (eksternal)" className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm" />
                       <input value={extContact} onChange={(e) => setExtContact(e.target.value)} placeholder="Kontak" className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm" />
                       <button onClick={inviteExternal} disabled={!extName.trim()} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold disabled:opacity-40">Undang</button>
@@ -2322,47 +2349,6 @@ export function CompetencyManager({ pw, staffId }: { pw: string; staffId: string
           {bySubject.size === 0 && <Hint>None yet.</Hint>}
         </div>
       </div>
-    </div>
-  );
-}
-
-/* ───────────── Incidental Contacts (shared by Messages & Report) ───────────── */
-export function IncidentalContactPanel({ pw, staffId, context }: { pw: string; staffId: string; context: "message" | "report" }) {
-  const [reload, setReload] = useState(0);
-  const [name, setName] = useState("");
-  const [contactInfo, setContactInfo] = useState("");
-  const [note, setNote] = useState("");
-  const res = useAsync(() => listIncidentalContacts({ data: { password: pw, context } }), [pw, context, reload]);
-  const contacts: Row[] = res.data && res.data.ok ? res.data.contacts : [];
-
-  async function add() {
-    if (!name.trim()) return;
-    await addIncidentalContact({ data: { password: pw, staffId, context, name, contactInfo, note } });
-    setName(""); setContactInfo(""); setNote(""); setReload((x) => x + 1);
-  }
-  async function remove(id: string) {
-    await removeIncidentalContact({ data: { password: pw, id } });
-    setReload((x) => x + 1);
-  }
-
-  return (
-    <div>
-      <div className={card + " mb-3 grid gap-2"}>
-        <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Tambah Incidental Contact</p>
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nama" className={field} />
-        <input value={contactInfo} onChange={(e) => setContactInfo(e.target.value)} placeholder="Kontak (WA/email/telp)" className={field} />
-        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Catatan (opsional, misal: keperluan apa)" className={field} />
-        <button onClick={add} className={btn + " justify-self-start"}><Plus size={13} /> Tambah</button>
-      </div>
-      <ul className="space-y-1.5">
-        {contacts.map((c) => (
-          <li key={c.id} className="rounded-lg bg-card border border-border px-3 py-2 text-sm flex items-center justify-between">
-            <span>{c.name}{c.contact_info ? " — " + c.contact_info : ""}{c.note ? <span className="block text-xs text-muted-foreground">{c.note}</span> : null}</span>
-            <button onClick={() => remove(c.id)} className="text-destructive shrink-0"><Trash2 size={13} /></button>
-          </li>
-        ))}
-        {contacts.length === 0 && <Hint>Belum ada incidental contact.</Hint>}
-      </ul>
     </div>
   );
 }
@@ -2918,5 +2904,150 @@ export function AssessmentGuideButton() {
     >
       📖 Panduan Assessment
     </button>
+  );
+}
+
+/* ───────────── NSV Relay — invite-only bridge to NSV's local Messages ───────────── */
+export function RelayPanel({ pw, staffId, staffName }: { pw: string; staffId: string; staffName: string }) {
+  const [reload, setReload] = useState(0);
+  const [phone, setPhone] = useState("");
+  const [name, setName] = useState("");
+  const [body, setBody] = useState("");
+  const [openThread, setOpenThread] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const res = useAsync(() => listRelayThreads({ data: { password: pw, staffId } }), [pw, staffId, reload]);
+  const threads: Row[] = res.data && res.data.ok ? res.data.threads : [];
+
+  async function start() {
+    if (!phone.trim() || !body.trim()) return;
+    setBusy(true);
+    await startRelayThread({ data: { password: pw, staffId, senderName: staffName, recipientPhone: phone, recipientName: name, body } });
+    setBusy(false);
+    setPhone(""); setName(""); setBody(""); setReload((x) => x + 1);
+  }
+  async function reply(threadId: string) {
+    if (!replyText.trim()) return;
+    setBusy(true);
+    await replyToRelayThread({ data: { password: pw, threadId, body: replyText } });
+    setBusy(false);
+    setReplyText(""); setReload((x) => x + 1);
+  }
+  async function remove(threadId: string) {
+    await deleteRelayThread({ data: { password: pw, threadId } });
+    setReload((x) => x + 1);
+  }
+
+  return (
+    <div>
+      <p className="text-[11px] text-muted-foreground mb-3">
+        Kirim pesan ke nomor HP siapa pun yang pakai aplikasi NSV — pesan ini nunggu di "penampungan" sampai dia buka NSV dan pilih simpan ke Messages-nya sendiri. Balasannya juga lewat sini. Hanya nomor yang kamu undang di sini yang bisa lihat/masuk — nggak ada pengecekan "punya NSV atau tidak", kalau dia nggak punya NSV ya otomatis nggak akan pernah masuk ke sana.
+      </p>
+      <div className={card + " mb-3 grid gap-2"}>
+        <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Undang / Mulai Percakapan Baru</p>
+        <ExternalLinkPicker pw={pw} onPick={(l) => { setName(l.name); setPhone(l.contact_info ?? ""); }} />
+        <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Nomor HP/WhatsApp (mis. 0812xxxxxxx)" className={field} />
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nama (opsional)" className={field} />
+        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={2} placeholder="Pesan" className={field} />
+        <button onClick={start} disabled={busy || !phone.trim() || !body.trim()} className={btn + " justify-self-start disabled:opacity-50"}><Plus size={13} /> Kirim</button>
+      </div>
+      <ul className="space-y-2">
+        {threads.map((t) => {
+          const msgs: Row[] = (t.nsv_relay_messages ?? []).slice().sort((a: Row, b: Row) => a.created_at.localeCompare(b.created_at));
+          const hasNewReply = msgs.some((m) => m.direction === "from_nsv_user");
+          return (
+            <li key={t.id} className="rounded-lg bg-card border border-border p-3 text-sm">
+              <button onClick={() => setOpenThread(openThread === t.id ? null : t.id)} className="w-full text-left flex items-center justify-between">
+                <span className="font-semibold">{t.recipient_name || t.recipient_phone}{hasNewReply ? " 🟠" : ""}</span>
+                <span className="text-xs text-muted-foreground">{t.recipient_phone}</span>
+              </button>
+              {openThread === t.id && (
+                <div className="mt-2 grid gap-2">
+                  <ul className="space-y-1.5 max-h-56 overflow-y-auto">
+                    {msgs.map((m) => (
+                      <li key={m.id} className={"text-xs rounded-lg p-2 " + (m.direction === "from_nsv_user" ? "bg-emerald-500/10" : "bg-secondary/50")}>
+                        <span className="font-semibold">{m.direction === "from_nsv_user" ? (t.recipient_name || "Dia") : "Anda"}: </span>{m.body}
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="flex gap-2">
+                    <input value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder="Balas…" className={field + " flex-1"} />
+                    <button onClick={() => reply(t.id)} disabled={busy || !replyText.trim()} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold disabled:opacity-50">Kirim</button>
+                  </div>
+                  <button onClick={() => remove(t.id)} className="text-[11px] text-destructive flex items-center gap-1 justify-self-start"><Trash2 size={11} /> Hapus percakapan ini</button>
+                </div>
+              )}
+            </li>
+          );
+        })}
+        {threads.length === 0 && <Hint>Belum ada percakapan.</Hint>}
+      </ul>
+    </div>
+  );
+}
+
+/* ───────────── External Link directory (HoS-only) + reusable picker ───────────── */
+export function ExternalLinkManagerPanel({ pw, staffId }: { pw: string; staffId: string }) {
+  const [reload, setReload] = useState(0);
+  const [name, setName] = useState("");
+  const [department, setDepartment] = useState("");
+  const [contactInfo, setContactInfo] = useState("");
+  const [note, setNote] = useState("");
+  const res = useAsync(() => listExternalLinks({ data: { password: pw } }), [pw, reload]);
+  const links: Row[] = res.data && res.data.ok ? res.data.links : [];
+
+  async function add() {
+    if (!name.trim()) return;
+    await saveExternalLink({ data: { password: pw, staffId, name, department, contactInfo, note } });
+    setName(""); setDepartment(""); setContactInfo(""); setNote(""); setReload((x) => x + 1);
+  }
+  async function remove(id: string) {
+    await deleteExternalLink({ data: { password: pw, staffId, id } });
+    setReload((x) => x + 1);
+  }
+
+  return (
+    <div>
+      <p className="text-[11px] text-muted-foreground mb-3">Directory pihak eksternal yang sering diajak bicara (mis. GA, Finance, Marketing, Admission) — sekali dibuat di sini, bisa langsung dipilih waktu invite ke Agenda, Message, atau Report, tanpa isi ulang nama/kontaknya tiap kali.</p>
+      <div className={card + " mb-3 grid gap-2"}>
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nama (mis. Ibu Sari - GA)" className={field} />
+        <input value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="Departemen (mis. GA, Finance, Marketing, Admission)" className={field} />
+        <input value={contactInfo} onChange={(e) => setContactInfo(e.target.value)} placeholder="Kontak (WA/email/telp)" className={field} />
+        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Catatan (opsional)" className={field} />
+        <button onClick={add} className={btn + " justify-self-start"}><Plus size={13} /> Tambah ke List</button>
+      </div>
+      <ul className="space-y-1.5">
+        {links.map((l) => (
+          <li key={l.id} className="rounded-lg bg-card border border-border px-3 py-2 text-sm flex items-center justify-between">
+            <span>
+              {l.name}{l.department ? <span className="text-xs text-muted-foreground ml-1.5">({l.department})</span> : null}
+              {l.contact_info ? <span className="block text-xs text-muted-foreground">{l.contact_info}</span> : null}
+            </span>
+            <button onClick={() => remove(l.id)} className="text-destructive shrink-0"><Trash2 size={13} /></button>
+          </li>
+        ))}
+        {links.length === 0 && <Hint>Belum ada External Link. Contoh: GA, Finance, Marketing, Admission.</Hint>}
+      </ul>
+    </div>
+  );
+}
+
+/** Reusable picker — dropdown of the HoS's External Link directory, used to
+ * pre-fill name+contact wherever an external party can be invited (Agenda
+ * PIC, Report participant, NSV relay). Selecting one calls onPick with the
+ * chosen entry; the calling form still owns the actual invite action. */
+export function ExternalLinkPicker({ pw, onPick }: { pw: string; onPick: (link: Row) => void }) {
+  const res = useAsync(() => listExternalLinks({ data: { password: pw } }), [pw]);
+  const links: Row[] = res.data && res.data.ok ? res.data.links : [];
+  if (links.length === 0) return null;
+  return (
+    <select
+      onChange={(e) => { const l = links.find((x) => x.id === e.target.value); if (l) onPick(l); e.target.value = ""; }}
+      defaultValue=""
+      className="rounded-lg bg-background border border-border px-2 py-1.5 text-sm"
+    >
+      <option value="">pilih dari External Link…</option>
+      {links.map((l) => <option key={l.id} value={l.id}>{l.name}{l.department ? " (" + l.department + ")" : ""}</option>)}
+    </select>
   );
 }
