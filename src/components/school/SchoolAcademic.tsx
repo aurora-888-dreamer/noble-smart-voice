@@ -21,7 +21,7 @@ import {
 } from "@/lib/school-agenda.functions";
 import { listMessagingContacts, listStaffConversation, sendStaffMessage, listUnreadStaffSenderIds } from "@/lib/school-staff-messages.functions";
 import {
-  reportCaseAsTeacher, reportCaseAsParent, reportCaseAsPrincipal, listCases, listCasesForParent,
+  reportCaseAsTeacher, reportCaseAsParent, reportCaseAsPrincipal, reportCaseAsHos, listCases, listCasesForParent,
   listCaseTimeline, listCaseTimelineForParent, addCaseComment, addCaseCommentAsParent,
   listCaseParticipants, addCaseParticipant, escalateCaseToHos, closeCase, reopenCase,
 } from "@/lib/school-case.functions";
@@ -1363,6 +1363,17 @@ export function AttendancePanel({ access, classes, canEdit, staffId }: { access:
 }
 
 /* ───────────── 7. Agenda (HoS: school-wide; Principal: division/classes w/ HoS approval; Teacher: own class) ───────────── */
+/** Robust fallback for agenda.creator_role — older rows created before this
+ * column existed (or before a backfill migration ran) have it NULL/undefined.
+ * Infer it from scope_level so review-button gating still works even
+ * without running that backfill first. */
+function creatorRoleOf(agenda: Row): "hos" | "principal" | "teacher" {
+  if (agenda.creator_role) return agenda.creator_role;
+  if (agenda.scope_level === "class") return "teacher";
+  if (agenda.scope_level === "division") return "principal";
+  return "hos";
+}
+
 const AGENDA_STATUS: Record<string, { label: string; cls: string }> = {
   draft: { label: "Draft", cls: "bg-muted text-muted-foreground" },
   submitted: { label: "Awaiting HoS Approval", cls: "bg-yellow-500/20 text-yellow-700" },
@@ -1610,7 +1621,7 @@ function AgendaRow({ agenda, pw, role, staffId, staffName, staffList, open, onTo
             <p className="text-xs text-blue-600">{role === "teacher" ? "Principal" : "Head of School"} asked for revision — edit details above and forward again once ready.</p>
           )}
 
-          {role === "principal" && agenda.creator_role === "teacher" && agenda.approval_status === "submitted" && !agenda.forwarded_to_hos && (
+          {role === "principal" && creatorRoleOf(agenda) === "teacher" && agenda.approval_status === "submitted" && !agenda.forwarded_to_hos && (
             <div className="grid gap-2">
               <p className="text-xs">Status: <span className={"rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase " + badge.cls}>{badge.label}</span></p>
               <textarea value={reviewNotes} onChange={(e) => setReviewNotes(e.target.value)} rows={2} placeholder="Notes for Teacher (optional)" className={field} />
@@ -1622,7 +1633,7 @@ function AgendaRow({ agenda, pw, role, staffId, staffName, staffList, open, onTo
               </div>
             </div>
           )}
-          {role === "hos" && (agenda.creator_role === "principal" || agenda.forwarded_to_hos) && agenda.approval_status === "submitted" && (
+          {role === "hos" && (creatorRoleOf(agenda) === "principal" || agenda.forwarded_to_hos) && agenda.approval_status === "submitted" && (
             <div className="grid gap-2">
               <p className="text-xs">Status: <span className={"rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase " + badge.cls}>{badge.label}</span></p>
               <textarea value={reviewNotes} onChange={(e) => setReviewNotes(e.target.value)} rows={2} placeholder={"Notes for " + (agenda.creator_role === "teacher" ? "Principal" : "Principal") + " (optional)"} className={field} />
@@ -1739,8 +1750,8 @@ function AgendaTimelinePreview({ agenda, pw, badge, classNames, picList, role, s
   }
 
   const canReForward = (role === "principal" || role === "teacher") && (agenda.approval_status === "draft" || agenda.approval_status === "revision_requested");
-  const canPrincipalReview = role === "principal" && agenda.creator_role === "teacher" && agenda.approval_status === "submitted" && !agenda.forwarded_to_hos;
-  const canHosReview = role === "hos" && (agenda.creator_role === "principal" || agenda.forwarded_to_hos) && agenda.approval_status === "submitted";
+  const canPrincipalReview = role === "principal" && creatorRoleOf(agenda) === "teacher" && agenda.approval_status === "submitted" && !agenda.forwarded_to_hos;
+  const canHosReview = role === "hos" && (creatorRoleOf(agenda) === "principal" || agenda.forwarded_to_hos) && agenda.approval_status === "submitted";
 
   return (
     <div className="space-y-4">
@@ -1929,10 +1940,52 @@ export function CasePanel({
       ? await reportCaseAsParent({ data: { code: access.code, title, description } })
       : role === "principal"
         ? await reportCaseAsPrincipal({ data: { password: access.pw!, staffId: staffId ?? "", staffName: staffName ?? "", classId: classId || undefined, division, title, description } })
-        : await reportCaseAsTeacher({ data: { password: access.pw!, staffId: staffId ?? "", staffName: staffName ?? "", classId: classId || undefined, division, title, description } });
+        : role === "hos"
+          ? await reportCaseAsHos({ data: { password: access.pw!, staffId: staffId ?? "", staffName: staffName ?? "", classId: classId || undefined, division, title, description } })
+          : await reportCaseAsTeacher({ data: { password: access.pw!, staffId: staffId ?? "", staffName: staffName ?? "", classId: classId || undefined, division, title, description } });
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     setTitle(""); setDescription(""); setReload((x) => x + 1);
+  }
+
+  const [hosView, setHosView] = useState<"approval" | "list" | "create">("approval");
+  const pendingForHos = cases.filter((c) => c.status === "hos");
+
+  if (role === "hos") {
+    return (
+      <div>
+        <div className="flex gap-2 mb-3 flex-wrap">
+          <button onClick={() => setHosView("approval")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (hosView === "approval" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>
+            Approval List{pendingForHos.length > 0 ? ` (${pendingForHos.length})` : ""}
+          </button>
+          <button onClick={() => setHosView("list")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (hosView === "list" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Report List</button>
+          <button onClick={() => setHosView("create")} className={"rounded-full px-3 py-1 text-xs font-semibold border " + (hosView === "create" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>Create Report</button>
+        </div>
+
+        {hosView === "create" && (
+          <div className={card + " mb-3 grid gap-2"}>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Buat Report Baru</p>
+            <select value={classId} onChange={(e) => setClassId(e.target.value)} className={field}>
+              <option value="">kelas terkait (opsional)</option>
+              {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Judul kasus" className={field} />
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Detail kasus" className={field} />
+            <button onClick={report} disabled={busy || !title.trim()} className={btn + " justify-self-start disabled:opacity-50"}>Buat Report</button>
+            <Err msg={err} />
+          </div>
+        )}
+
+        <ul className="space-y-2">
+          {(hosView === "approval" ? pendingForHos : cases).map((c) => (
+            <CaseRow key={c.id} kase={c} access={access} role={role} staffId={staffId} staffName={staffName} open={openId === c.id} onToggle={() => setOpenId(openId === c.id ? null : c.id)} onChanged={() => setReload((x) => x + 1)} />
+          ))}
+          {(hosView === "approval" ? pendingForHos : cases).length === 0 && (
+            <Hint>{hosView === "approval" ? "Tidak ada yang menunggu tindakan." : "Belum ada kasus."}</Hint>
+          )}
+        </ul>
+      </div>
+    );
   }
 
   return (
