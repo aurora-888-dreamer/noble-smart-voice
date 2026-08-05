@@ -10,6 +10,7 @@ import {
   Share2,
   Mail,
   Printer,
+  Send,
 } from "lucide-react";
 import type { ItemType } from "@/lib/db";
 import { useLang } from "@/lib/settings-store";
@@ -30,6 +31,7 @@ export function SelectionBar({
   onShareEmail,
   onPrint,
   onBluetooth,
+  onRelay,
   moveTargets,
 }: {
   count: number;
@@ -44,6 +46,7 @@ export function SelectionBar({
   onShareEmail?: () => void;
   onPrint?: () => void;
   onBluetooth?: () => void;
+  onRelay?: () => void;
   moveTargets?: MoveTarget[];
 }) {
   const [lang] = useLang();
@@ -142,6 +145,16 @@ export function SelectionBar({
             title="Send via Bluetooth / Nearby Share"
           >
             <Bluetooth size={16} />
+          </button>
+        )}
+        {onRelay && count > 0 && (
+          <button
+            onClick={onRelay}
+            className="p-2 rounded-full hover:bg-secondary text-primary"
+            aria-label="NSV Relay"
+            title="Send via NSV Relay"
+          >
+            <Send size={16} />
           </button>
         )}
         {count > 0 && (
