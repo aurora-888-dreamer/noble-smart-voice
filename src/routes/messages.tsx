@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { AppShell } from "@/components/AppShell";
 import { DateRangeFilter, inRange } from "@/components/DateRangeFilter";
@@ -14,6 +14,8 @@ import { t } from "@/lib/i18n";
 import { sendViaBluetooth } from "@/lib/bluetooth-share";
 import { shareManyEmail, shareManyWA, printMany } from "@/lib/bulk-share";
 import { ItemActions } from "@/components/ItemActions";
+import { getProfile } from "@/lib/auth-store";
+import { listMyRelayThreads, replyAsNsvUser, markRelayImported } from "@/lib/nsv-relay.functions";
 
 export const Route = createFileRoute("/messages")({
   head: () => ({ meta: [{ title: "Messages — Noble" }] }),
@@ -26,6 +28,89 @@ function statusLabel(lang: "en" | "id", status: Message["status"]) {
   if (status === "draft") return t(lang, "statusDraft");
   if (status === "sent-later") return t(lang, "statusSentLater");
   return t(lang, "statusSaved");
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type RelayRow = Record<string, any>;
+
+/** Shows any relay threads waiting for this device's own registered phone
+ * number (invite-only — a thread only exists if someone on the School
+ * side typed this exact number in). Each incoming item can be saved into
+ * this device's own local Messages, and replies go back through the same
+ * shared holding area. */
+function RelayInboxSection({ lang }: { lang: "en" | "id" }) {
+  const [threads, setThreads] = useState<RelayRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [openThread, setOpenThread] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const phone = getProfile()?.whatsapp;
+
+  async function load() {
+    if (!phone) return;
+    setLoading(true);
+    const r = await listMyRelayThreads({ data: { phone } });
+    setLoading(false);
+    if (r.ok) setThreads(r.threads);
+  }
+  useEffect(() => { load(); }, [phone]);
+
+  async function saveToMyMessages(msg: RelayRow) {
+    await getDb().messages.add({ content: msg.body, status: "saved", createdAt: Date.now() });
+    await markRelayImported({ data: { messageId: msg.id } });
+    load();
+  }
+  async function reply(threadId: string) {
+    if (!replyText.trim()) return;
+    setBusy(true);
+    await replyAsNsvUser({ data: { threadId, body: replyText } });
+    setBusy(false);
+    setReplyText(""); load();
+  }
+
+  if (!phone || (threads.length === 0 && !loading)) return null;
+  const hasUnimported = threads.some((th) => (th.nsv_relay_messages ?? []).some((m: RelayRow) => m.direction === "to_nsv_user" && !m.imported));
+
+  return (
+    <div className="rounded-2xl border border-primary/40 bg-primary/5 p-3 mb-3">
+      <p className="text-xs font-semibold mb-2">
+        {lang === "id" ? "Pesan dari School Dashboard" : "Messages from School Dashboard"}
+        {hasUnimported ? " 🟠" : ""}
+      </p>
+      <div className="space-y-2">
+        {threads.map((th) => {
+          const msgs: RelayRow[] = (th.nsv_relay_messages ?? []).slice().sort((a: RelayRow, b: RelayRow) => a.created_at.localeCompare(b.created_at));
+          return (
+            <div key={th.id} className="rounded-xl bg-card border border-border p-2">
+              <button onClick={() => setOpenThread(openThread === th.id ? null : th.id)} className="w-full text-left text-sm font-semibold">
+                {th.sender_name || "Sekolah"}
+              </button>
+              {openThread === th.id && (
+                <div className="mt-2 space-y-1.5">
+                  {msgs.map((m) => (
+                    <div key={m.id} className={"text-xs rounded-lg p-2 flex items-start justify-between gap-2 " + (m.direction === "to_nsv_user" ? "bg-secondary/50" : "bg-emerald-500/10")}>
+                      <span>{m.body}</span>
+                      {m.direction === "to_nsv_user" && !m.imported && (
+                        <button onClick={() => saveToMyMessages(m)} className="shrink-0 rounded-full bg-primary text-primary-foreground px-2 py-0.5 text-[10px] font-semibold">
+                          {lang === "id" ? "Simpan" : "Save"}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <div className="flex gap-2 mt-1">
+                    <input value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder={lang === "id" ? "Balas…" : "Reply…"} className="flex-1 rounded-lg border border-border bg-background px-2 py-1 text-xs" />
+                    <button onClick={() => reply(th.id)} disabled={busy || !replyText.trim()} className="rounded-lg bg-primary text-primary-foreground px-3 py-1 text-xs font-semibold disabled:opacity-50">
+                      {lang === "id" ? "Kirim" : "Send"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 function MessagesPage() {
@@ -59,6 +144,25 @@ function MessagesPage() {
   const visibleIds = filtered.map((m) => m.id!).filter(Boolean);
   const selectedMessages = filtered.filter((m) => m.id && sel.isSelected(m.id));
   const payload = selectedMessages.map((m) => ({ title: statusLabel(lang, m.status), body: m.content }));
+  const [showRelayPicker, setShowRelayPicker] = useState(false);
+  const [relayThreads, setRelayThreads] = useState<RelayRow[]>([]);
+  const [relaySending, setRelaySending] = useState(false);
+
+  async function openRelayPicker() {
+    const phone = getProfile()?.whatsapp;
+    if (!phone) return;
+    const r = await listMyRelayThreads({ data: { phone } });
+    if (r.ok) setRelayThreads(r.threads);
+    setShowRelayPicker(true);
+  }
+  async function sendSelectedViaRelay(threadId: string) {
+    setRelaySending(true);
+    const combined = selectedMessages.map((m) => m.content).join("\n\n");
+    await replyAsNsvUser({ data: { threadId, body: combined } });
+    setRelaySending(false);
+    setShowRelayPicker(false);
+    sel.exit();
+  }
 
   async function bulkDelete() {
     await getDb().messages.bulkDelete([...sel.selected]);
@@ -104,6 +208,7 @@ function MessagesPage() {
 
   return (
     <AppShell title={t(lang, "messages")}>
+      <RelayInboxSection lang={lang} />
       <input
         value={q}
         onChange={(e) => setQ(e.target.value)}
@@ -163,7 +268,36 @@ function MessagesPage() {
           onShareEmail={() => shareManyEmail(payload)}
           onPrint={() => printMany(payload)}
           onBluetooth={() => void sendViaBluetooth("note", selectedMessages)}
+          onRelay={openRelayPicker}
         />
+      )}
+
+      {showRelayPicker && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50" onClick={() => setShowRelayPicker(false)}>
+          <div className="w-full sm:max-w-sm bg-card rounded-t-2xl sm:rounded-2xl border border-border p-4" onClick={(e) => e.stopPropagation()}>
+            <p className="text-sm font-semibold mb-3">{lang === "id" ? "Kirim ke percakapan mana?" : "Send to which conversation?"}</p>
+            <div className="space-y-1.5 max-h-64 overflow-y-auto">
+              {relayThreads.map((th) => (
+                <button
+                  key={th.id}
+                  onClick={() => sendSelectedViaRelay(th.id)}
+                  disabled={relaySending}
+                  className="w-full text-left rounded-xl bg-secondary/50 hover:bg-secondary px-3 py-2 text-sm disabled:opacity-50"
+                >
+                  {th.sender_name || "Sekolah"}
+                </button>
+              ))}
+              {relayThreads.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {lang === "id" ? "Belum ada percakapan yang mengundangmu — sekolah perlu mulai duluan." : "No conversation has invited you yet — the school needs to start it first."}
+                </p>
+              )}
+            </div>
+            <button onClick={() => setShowRelayPicker(false)} className="mt-3 text-xs text-muted-foreground underline">
+              {lang === "id" ? "Batal" : "Cancel"}
+            </button>
+          </div>
+        </div>
       )}
 
       {editing && (
