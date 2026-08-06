@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, Link, useRouterState } from "@tanstack/react-router";
-import { Crown, ShoppingBag, Shield, FileText, LayoutDashboard, Home } from "lucide-react";
+import { Crown, ShoppingBag, Shield, FileText, Home } from "lucide-react";
 
 export const Route = createFileRoute("/store")({
   head: () => ({
@@ -30,7 +30,7 @@ function StoreLayout() {
 
       <header className="sticky top-0 z-30 backdrop-blur-xl bg-background/70 border-b border-border">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link to="/store" className="flex items-center gap-2">
+          <Link to="/store/admin" className="flex items-center gap-2" aria-label="Admin">
             <Crown className="text-primary" size={22} />
             <div className="leading-tight">
               <div
@@ -56,9 +56,6 @@ function StoreLayout() {
             </NavLink>
             <NavLink to="/store/terms" active={path === "/store/terms"}>
               <FileText size={14} /> Terms
-            </NavLink>
-            <NavLink to="/store/admin" active={path.startsWith("/store/admin")}>
-              <LayoutDashboard size={14} /> Admin
             </NavLink>
           </nav>
           <Link

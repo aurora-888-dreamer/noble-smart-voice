@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { QrCode, Copy, Check, Crown, Loader2, Tag } from "lucide-react";
 import qrisAsset from "@/assets/qris.png.asset.json";
 import {
-  PLANS, formatIDR, createOrder, type PlanId, type OrderRecord,
+  PLANS, formatIDR, createOrder, useEffectivePlans, getSiteFeature, type PlanId, type OrderRecord,
 } from "@/lib/aurora-store";
 import { getDiscount, isDiscountValid, discountAppliesToPlan, discountAppliesToGroup, applyDiscount, setUserGroupId, useDiscounts } from "@/lib/discounts-store";
 
@@ -28,7 +28,8 @@ function OrderPage() {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const plan = useMemo(() => PLANS.find((p) => p.id === planId)!, [planId]);
+  const plans = useEffectivePlans();
+  const plan = useMemo(() => plans.find((p) => p.id === planId)!, [planId, plans]);
   const discounts = useDiscounts();
 
   // Validate the discount against the current plan/group. If the user swaps
@@ -87,7 +88,7 @@ function OrderPage() {
         <div className="md:col-span-2 rounded-2xl bg-card border border-border p-4">
           <label className="text-xs uppercase tracking-widest text-muted-foreground">Plan</label>
           <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2">
-            {PLANS.map((p) => (
+            {plans.map((p) => (
               <button
                 type="button"
                 key={p.id}
@@ -253,6 +254,11 @@ function OrderReceipt({
   order, copied, setCopied,
 }: { order: OrderRecord; copied: boolean; setCopied: (v: boolean) => void }) {
   const plan = PLANS.find((p) => p.id === order.planId)!;
+  const [manualPaymentEnabled, setManualPaymentEnabled] = useState(true);
+
+  useEffect(() => {
+    getSiteFeature({ data: { key: "manual_payment_enabled" } }).then((r) => { if (r.ok) setManualPaymentEnabled(r.enabled); });
+  }, []);
 
   function copySerial() {
     navigator.clipboard.writeText(order.serial);
@@ -261,7 +267,7 @@ function OrderReceipt({
   }
 
   const waText = encodeURIComponent(
-    `Halo Aurora Master 👋\n\nSaya sudah order Noble Smart Voice:\n• Order: ${order.id.slice(0, 8)}\n• Serial: ${order.serial}\n• Plan: ${plan.name} — ${formatIDR(order.priceIDR)}\n\nBerikut bukti transfer QRIS saya. Mohon aktifkan serial saya. Terima kasih!`,
+    `Halo Aurora Master 👋\n\nSaya sudah order Noble Smart Voice:\n• Order: ${order.id.slice(0, 8)}\n• Plan: ${plan.name} — ${formatIDR(order.priceIDR)}\n\nBerikut bukti transfer QRIS saya. Mohon aktifkan serial saya. Terima kasih!`,
   );
 
   return (
@@ -272,46 +278,58 @@ function OrderReceipt({
           Order Created
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Pay automatically below, or scan the QRIS manually and we'll confirm within a few hours.
+          {manualPaymentEnabled
+            ? "Pay automatically below, or scan the QRIS manually and we'll confirm within a few hours."
+            : "Pay automatically below — your serial activates instantly once confirmed."}
         </p>
       </div>
 
       <KomerceCheckout order={order} />
 
-      <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="rounded-2xl bg-card border border-border p-5">
-          <div className="text-xs uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
-            <QrCode size={14} /> QRIS Payment (manual)
+      <div className={"mt-6 grid grid-cols-1 gap-4 " + (manualPaymentEnabled ? "md:grid-cols-2" : "")}>
+        {manualPaymentEnabled && (
+          <div className="rounded-2xl bg-card border border-border p-5">
+            <div className="text-xs uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
+              <QrCode size={14} /> QRIS Payment (manual)
+            </div>
+            <img
+              src={qrisAsset.url}
+              alt="QRIS AURORA MASTER, DIGITAL & KREATIF"
+              className="w-full rounded-xl bg-white p-2"
+            />
+            <p className="text-[11px] text-muted-foreground mt-3 text-center">
+              Merchant: <b>AURORA MASTER, DIGITAL & KREATIF</b><br />
+              NMID: ID1026535963593
+            </p>
           </div>
-          <img
-            src={qrisAsset.url}
-            alt="QRIS AURORA MASTER, DIGITAL & KREATIF"
-            className="w-full rounded-xl bg-white p-2"
-          />
-          <p className="text-[11px] text-muted-foreground mt-3 text-center">
-            Merchant: <b>AURORA MASTER, DIGITAL & KREATIF</b><br />
-            NMID: ID1026535963593
-          </p>
-        </div>
+        )}
 
         <div className="rounded-2xl bg-card border border-border p-5 space-y-4">
           <div>
             <div className="text-xs uppercase tracking-widest text-muted-foreground">Your Serial Number</div>
-            <div className="mt-2 flex items-center gap-2">
-              <code className="flex-1 rounded-xl bg-secondary px-3 py-3 text-sm font-mono tracking-wider break-all">
-                {order.serial}
-              </code>
-              <button
-                onClick={copySerial}
-                className="rounded-xl border border-border p-3 hover:bg-secondary"
-                aria-label="Copy serial"
-              >
-                {copied ? <Check size={16} className="text-primary" /> : <Copy size={16} />}
-              </button>
-            </div>
-            <p className="text-[11px] text-muted-foreground mt-2">
-              Keep this serial safe. It becomes active after our admin confirms your payment.
-            </p>
+            {order.status === "pending" ? (
+              <div className="mt-2 rounded-xl bg-secondary/50 px-3 py-4 text-center text-xs text-muted-foreground">
+                Serial number akan muncul di sini otomatis setelah pembayaran kami terima. Nggak perlu dicatat manual sekarang.
+              </div>
+            ) : (
+              <>
+                <div className="mt-2 flex items-center gap-2">
+                  <code className="flex-1 rounded-xl bg-secondary px-3 py-3 text-sm font-mono tracking-wider break-all">
+                    {order.serial}
+                  </code>
+                  <button
+                    onClick={copySerial}
+                    className="rounded-xl border border-border p-3 hover:bg-secondary"
+                    aria-label="Copy serial"
+                  >
+                    {copied ? <Check size={16} className="text-primary" /> : <Copy size={16} />}
+                  </button>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-2">
+                  Pembayaran dikonfirmasi — serial ini sudah aktif dan siap dipakai.
+                </p>
+              </>
+            )}
           </div>
 
           <div className="rounded-xl bg-secondary/50 p-3 text-xs space-y-1">
@@ -324,14 +342,16 @@ function OrderReceipt({
             {order.buyer.email && <Row label="Email" value={order.buyer.email} />}
           </div>
 
-          <a
-            href={`https://wa.me/?text=${waText}`}
-            target="_blank"
-            rel="noreferrer"
-            className="block text-center rounded-full bg-primary text-primary-foreground py-3 text-sm font-semibold"
-          >
-            Send Proof via WhatsApp
-          </a>
+          {manualPaymentEnabled && (
+            <a
+              href={`https://wa.me/?text=${waText}`}
+              target="_blank"
+              rel="noreferrer"
+              className="block text-center rounded-full bg-primary text-primary-foreground py-3 text-sm font-semibold"
+            >
+              Send Proof via WhatsApp
+            </a>
+          )}
           <Link
             to="/"
             className="block text-center rounded-full border border-border py-3 text-sm font-semibold hover:bg-secondary"
@@ -342,9 +362,9 @@ function OrderReceipt({
       </div>
 
       <div className="mt-6 rounded-2xl bg-card border border-border p-4 text-xs text-muted-foreground">
-        Next steps: after we confirm your QRIS payment, your serial is marked <b>Delivered</b>.
-        Open Noble → <b>Activate Premium</b> → paste your serial. If you have questions,
-        contact us via WhatsApp.
+        {manualPaymentEnabled
+          ? <>Next steps: after we confirm your QRIS payment, your serial is marked <b>Delivered</b>. Open Noble → <b>Activate Premium</b> → paste your serial. If you have questions, contact us via WhatsApp.</>
+          : <>Next steps: your serial activates automatically the instant your Komerce payment is confirmed — no need to contact us. Open Noble → <b>Activate Premium</b> → paste your serial.</>}
       </div>
     </div>
   );

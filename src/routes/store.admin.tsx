@@ -4,11 +4,15 @@ import {
   Lock, LogOut, ShieldCheck, Search, Trash2, CheckCircle2, Send,
   Download, Copy, Check, RefreshCw, TrendingUp, Users, Megaphone,
   AlertTriangle, Mail, Tag, Percent, Plus, Pencil, X, KeyRound,
+  ToggleLeft, ToggleRight,
 } from "lucide-react";
+import { useLicenseInfo, setPremiumTestOverride } from "@/lib/auth-store";
+import { usePluginState, setPluginEnabled } from "@/lib/plugins-store";
 import {
   useOrders, useAdmin, adminLogin, adminLogout, getAdminSessionPassword,
   markPaid, markDelivered, cancelOrder, deleteOrder, generateSerialPreview, verifySerial,
-  wipeAllOrders, formatIDR, statusLabel, type OrderRecord, type OrderStatus, PLANS, type PlanId,
+  wipeAllOrders, formatIDR, statusLabel, type OrderRecord, type OrderStatus, PLANS, type PlanId, type Plan,
+  getPlanPrices, setPlanPrice, getSiteFeature, setSiteFeature,
 } from "@/lib/aurora-store";
 import {
   useAdminDiscounts, useAdminGroups, upsertDiscount, deleteDiscount, upsertGroup, deleteGroup,
@@ -205,7 +209,7 @@ function AdminDashboard({ adminPassword }: { adminPassword: string }) {
   const orders = useOrders(adminPassword);
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | OrderStatus>("all");
-  const [tab, setTab] = useState<"orders" | "analytics" | "customers" | "discounts" | "tools" | "settings">("orders");
+  const [tab, setTab] = useState<"orders" | "analytics" | "customers" | "discounts" | "premium" | "tools" | "settings">("orders");
 
   const filtered = useMemo(() => {
     const qs = q.trim().toLowerCase();
@@ -259,7 +263,7 @@ function AdminDashboard({ adminPassword }: { adminPassword: string }) {
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-border mb-4 overflow-x-auto">
-        {(["orders", "analytics", "customers", "discounts", "tools", "settings"] as const).map((tKey) => (
+        {(["orders", "analytics", "customers", "discounts", "premium", "tools", "settings"] as const).map((tKey) => (
           <button
             key={tKey}
             onClick={() => setTab(tKey)}
@@ -316,6 +320,7 @@ function AdminDashboard({ adminPassword }: { adminPassword: string }) {
       {tab === "analytics" && <AnalyticsTab orders={orders} />}
       {tab === "customers" && <CustomersTab orders={orders} />}
       {tab === "discounts" && <DiscountsTab adminPassword={adminPassword} />}
+      {tab === "premium" && <PremiumTab />}
       {tab === "tools" && <ToolsTab orders={orders} adminPassword={adminPassword} />}
       {tab === "settings" && <SettingsTab orders={orders} adminPassword={adminPassword} />}
     </div>
@@ -338,6 +343,7 @@ function OrderRow({ order, adminPassword }: { order: OrderRecord; adminPassword:
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [showInvoice, setShowInvoice] = useState(false);
 
   function copySerial() {
     navigator.clipboard.writeText(order.serial);
@@ -456,6 +462,14 @@ function OrderRow({ order, adminPassword }: { order: OrderRecord; adminPassword:
             >
               <Send size={14} /> Send Serial via WA
             </a>
+            {order.status !== "pending" && (
+              <button
+                onClick={() => setShowInvoice(true)}
+                className="inline-flex items-center gap-1 rounded-full bg-secondary px-3 py-1.5 text-xs font-semibold hover:bg-secondary/80"
+              >
+                <Download size={14} /> Invoice
+              </button>
+            )}
             {order.status !== "cancelled" && order.status !== "delivered" && (
               <button
                 disabled={busy}
@@ -479,6 +493,84 @@ function OrderRow({ order, adminPassword }: { order: OrderRecord; adminPassword:
           {actionError && <p className="text-xs text-destructive">{actionError}</p>}
         </div>
       )}
+      {showInvoice && (
+        <InvoiceModal
+          order={order}
+          plan={plan}
+          busy={busy}
+          onClose={() => setShowInvoice(false)}
+          onCancel={() => run(() => cancelOrder(order.id, adminPassword)).then(() => setShowInvoice(false))}
+        />
+      )}
+    </div>
+  );
+}
+
+function InvoiceModal({
+  order, plan, busy, onClose, onCancel,
+}: { order: OrderRecord; plan: Plan | undefined; busy: boolean; onClose: () => void; onCancel: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 print:bg-white print:p-0" onClick={onClose}>
+      <div
+        className="w-full max-w-md bg-card border border-border rounded-2xl p-6 print:border-0 print:shadow-none print:max-w-full"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-4 print:hidden">
+          <h3 className="font-semibold">Invoice</h3>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X size={18} /></button>
+        </div>
+        <div style={{ fontFamily: "var(--font-serif, serif)" }} className="text-lg mb-1">AURORA MASTER</div>
+        <p className="text-xs text-muted-foreground mb-4">Digital & Kreatif</p>
+        <div className="text-xs space-y-1 mb-4">
+          <p><span className="text-muted-foreground">Invoice No: </span>{order.invoiceNo ?? `INV-${order.serial}`}</p>
+          <p><span className="text-muted-foreground">Tanggal: </span>{new Date(order.paidAt ?? order.createdAt).toLocaleDateString()}</p>
+          <p><span className="text-muted-foreground">Order ID: </span>{order.id.slice(0, 8).toUpperCase()}</p>
+          <p><span className="text-muted-foreground">Status: </span>{statusLabel(order.status)}</p>
+        </div>
+        <div className="text-xs space-y-1 mb-4 border-t border-border pt-3">
+          <p className="font-semibold text-sm mb-1">{order.buyer.name}</p>
+          <p className="text-muted-foreground">{order.buyer.email}</p>
+          <p className="text-muted-foreground">{order.buyer.whatsapp}</p>
+        </div>
+        <table className="w-full text-xs mb-4 border-t border-border pt-3">
+          <tbody>
+            <tr>
+              <td className="py-2">{plan?.name ?? order.planId}</td>
+              <td className="py-2 text-right">{formatIDR(order.originalPriceIDR ?? order.priceIDR)}</td>
+            </tr>
+            {order.discountLabel && (
+              <tr className="text-primary">
+                <td className="py-1">Diskon — {order.discountLabel}</td>
+                <td className="py-1 text-right">- {formatIDR((order.originalPriceIDR ?? order.priceIDR) - order.priceIDR)}</td>
+              </tr>
+            )}
+            <tr className="border-t border-border font-bold">
+              <td className="py-2">Total</td>
+              <td className="py-2 text-right">{formatIDR(order.priceIDR)}</td>
+            </tr>
+          </tbody>
+        </table>
+        <p className="text-[10px] text-muted-foreground mb-4">Serial: {order.serial}</p>
+        <div className="flex gap-2 print:hidden">
+          <button
+            onClick={() => window.print()}
+            className="flex-1 rounded-xl bg-primary text-primary-foreground py-2.5 text-sm font-semibold"
+          >
+            Print / Save as PDF
+          </button>
+          {order.status !== "cancelled" && order.status !== "delivered" && (
+            <button
+              disabled={busy}
+              onClick={() => {
+                if (confirm("Batalkan order ini?")) onCancel();
+              }}
+              className="rounded-xl border border-destructive/40 text-destructive px-4 py-2.5 text-sm font-semibold disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -835,6 +927,8 @@ function SettingsTab({ orders, adminPassword }: { orders: OrderRecord[]; adminPa
         </p>
       </div>
 
+      <PricingCard adminPassword={adminPassword} />
+
       <BroadcastCard orders={orders} />
 
       <DangerZone orders={orders} adminPassword={adminPassword} />
@@ -998,6 +1092,162 @@ function DangerZone({ orders, adminPassword }: { orders: OrderRecord[]; adminPas
 }
 
 // ————————— Discounts & Groups (still local-only — flagged separately) —————————
+/** Was its own separate page (/admin) — folded in here so there's one
+ * unified admin dashboard instead of two. Note this only affects THIS
+ * device's own license/plugin test state (client-side test toggles), not
+ * any customer's account — it's a dev/test tool, not customer management. */
+function PremiumTab() {
+  const license = useLicenseInfo();
+  const plugins = usePluginState();
+  return (
+    <div className="space-y-4">
+      <section className="rounded-2xl bg-card border border-border p-4">
+        <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">License status (this device)</p>
+        <p className="text-sm">
+          {license.hasLicense
+            ? `${license.source} · ${license.tier} · ${license.daysLeft == null ? "unlimited" : `${license.daysLeft} days left`}`
+            : "No active license"}
+          {license.manuallyOff && " (temporarily off)"}
+        </p>
+        <button
+          onClick={() => setPremiumTestOverride(!license.manuallyOff)}
+          className="mt-3 rounded-xl border border-border px-4 py-2 text-xs font-semibold"
+        >
+          {license.manuallyOff ? "Turn Premium back on" : "Switch off (test Standard)"}
+        </button>
+      </section>
+      <section className="rounded-2xl bg-card border border-border p-4">
+        <p className="text-xs uppercase tracking-wide text-muted-foreground mb-3">Plugins (test toggle, this device)</p>
+        <ul className="space-y-3">
+          {PLUGIN_REGISTRY.map((p) => {
+            const enabled = !!plugins[p.id];
+            return (
+              <li key={p.id} className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium">{p.name}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{p.description}</p>
+                </div>
+                <button onClick={() => setPluginEnabled(p.id, !enabled)} className="shrink-0 mt-0.5" aria-label={`Toggle ${p.id}`}>
+                  {enabled ? <ToggleRight size={28} className="text-primary" /> : <ToggleLeft size={28} className="text-muted-foreground" />}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+    </div>
+  );
+}
+
+/** Lets admin set a custom price per plan, overriding the code default
+ * (PLANS array) without needing a code deploy. Clearing the field back to
+ * empty removes the override so it falls back to the code default again.
+ * Also hosts the "Manual Payment" and "Komerce Production Mode" switches —
+ * grouped here since all three are checkout-affecting toggles. */
+function PricingCard({ adminPassword }: { adminPassword: string }) {
+  const [overrides, setOverrides] = useState<Record<string, number>>({});
+  const [draft, setDraft] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState<string | null>(null);
+  const [manualPaymentEnabled, setManualPaymentEnabledState] = useState(true);
+  const [komerceProdMode, setKomerceProdMode] = useState(false);
+  const [toggleBusy, setToggleBusy] = useState<string | null>(null);
+
+  useEffect(() => {
+    getPlanPrices().then((r) => { if (r.ok) setOverrides(r.overrides); });
+    getSiteFeature({ data: { key: "manual_payment_enabled" } }).then((r) => { if (r.ok) setManualPaymentEnabledState(r.enabled); });
+    getSiteFeature({ data: { key: "komerce_production_mode" } }).then((r) => { if (r.ok) setKomerceProdMode(r.enabled); });
+  }, []);
+
+  async function save(planId: PlanId) {
+    const raw = draft[planId];
+    const val = raw === undefined || raw.trim() === "" ? null : Number(raw.replace(/\D/g, ""));
+    setBusy(planId);
+    const r = await setPlanPrice({ data: { adminPassword, planId, priceIDR: val } });
+    setBusy(null);
+    if (r.ok) {
+      const fresh = await getPlanPrices();
+      if (fresh.ok) setOverrides(fresh.overrides);
+      setDraft((d) => ({ ...d, [planId]: "" }));
+    }
+  }
+
+  async function toggleManualPayment() {
+    setToggleBusy("manual");
+    const next = !manualPaymentEnabled;
+    const r = await setSiteFeature({ data: { adminPassword, key: "manual_payment_enabled", enabled: next } });
+    setToggleBusy(null);
+    if (r.ok) setManualPaymentEnabledState(next);
+  }
+  async function toggleKomerceProd() {
+    setToggleBusy("komerce");
+    const next = !komerceProdMode;
+    const r = await setSiteFeature({ data: { adminPassword, key: "komerce_production_mode", enabled: next } });
+    setToggleBusy(null);
+    if (r.ok) setKomerceProdMode(next);
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-2xl bg-card border border-border p-4">
+        <h3 className="font-semibold mb-2">Checkout Mode</h3>
+        <p className="text-xs text-muted-foreground mb-3">
+          Matikan Manual Payment kalau Komerce sudah stabil, biar buyer cuma lihat opsi otomatis (nggak perlu approve manual lagi). Nyalain lagi kapan pun kalau Komerce lagi gangguan.
+        </p>
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <p className="text-sm font-medium">Manual Payment (QRIS transfer + konfirmasi admin)</p>
+            <p className="text-xs text-muted-foreground">{manualPaymentEnabled ? "Ditampilkan ke buyer" : "Disembunyikan — Komerce-only"}</p>
+          </div>
+          <button onClick={toggleManualPayment} disabled={toggleBusy === "manual"} aria-label="Toggle manual payment">
+            {manualPaymentEnabled ? <ToggleRight size={28} className="text-primary" /> : <ToggleLeft size={28} className="text-muted-foreground" />}
+          </button>
+        </div>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium">Komerce Production Mode</p>
+            <p className="text-xs text-muted-foreground">{komerceProdMode ? "Live — transaksi sungguhan" : "Sandbox — mode uji coba"}</p>
+          </div>
+          <button onClick={toggleKomerceProd} disabled={toggleBusy === "komerce"} aria-label="Toggle Komerce production mode">
+            {komerceProdMode ? <ToggleRight size={28} className="text-primary" /> : <ToggleLeft size={28} className="text-muted-foreground" />}
+          </button>
+        </div>
+      </div>
+
+      <div className="rounded-2xl bg-card border border-border p-4">
+        <h3 className="font-semibold mb-2">Pricing</h3>
+        <p className="text-xs text-muted-foreground mb-3">
+          Kosongkan lalu simpan untuk kembali ke harga default kode. Perubahan harga tidak mempengaruhi order yang sudah dibuat.
+        </p>
+        <div className="space-y-2">
+          {PLANS.map((p) => {
+            const effective = overrides[p.id] ?? p.priceIDR;
+            return (
+              <div key={p.id} className="flex items-center gap-2">
+                <span className="text-sm flex-1">{p.nameId}</span>
+                <span className="text-xs text-muted-foreground">{formatIDR(effective)}</span>
+                <input
+                  value={draft[p.id] ?? ""}
+                  onChange={(e) => setDraft((d) => ({ ...d, [p.id]: e.target.value }))}
+                  placeholder="harga baru"
+                  inputMode="numeric"
+                  className="w-28 rounded-lg bg-background border border-border px-2 py-1 text-xs"
+                />
+                <button
+                  onClick={() => save(p.id)}
+                  disabled={busy === p.id}
+                  className="rounded-lg bg-primary text-primary-foreground px-2.5 py-1 text-xs font-semibold disabled:opacity-50"
+                >
+                  Simpan
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DiscountsTab({ adminPassword }: { adminPassword: string }) {
   const discounts = useAdminDiscounts(adminPassword);
   const groups = useAdminGroups(adminPassword);
