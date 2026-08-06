@@ -16,9 +16,14 @@ import { createClient } from "@supabase/supabase-js";
 // IMPORTANT: the service_role key bypasses Row Level Security and must
 // NEVER be used in client code or committed anywhere — only read here,
 // inside a *.server.ts file that TanStack Start keeps off the client bundle.
+// UPDATE: the separate NOBLE_SUPABASE_* project became unreachable (its
+// origin returns Cloudflare "error code: 1016"), which broke checkout with
+// that exact message. Store/voucher tables now live in this project's own
+// managed database (same one School Dashboard uses); the NOBLE_SUPABASE_*
+// pair is only used as a fallback if it is ever set again.
 export function createNobleSupabase() {
-  const url = process.env.NOBLE_SUPABASE_URL;
-  const key = process.env.NOBLE_SUPABASE_SERVICE_ROLE_KEY;
+  const url = process.env.SUPABASE_URL || process.env.NOBLE_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NOBLE_SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return null;
   return createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
