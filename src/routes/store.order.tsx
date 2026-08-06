@@ -17,7 +17,7 @@ export const Route = createFileRoute("/store/order")({
 });
 
 function OrderPage() {
-  const { plan: initial, discount: discountId, group: groupId } = Route.useSearch();
+  const { plan: initial, discount: discountFromUrl, group: groupId } = Route.useSearch();
   const [planId, setPlanId] = useState<PlanId>(initial ?? "quarterly");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -32,17 +32,21 @@ function OrderPage() {
   const plan = useMemo(() => plans.find((p) => p.id === planId)!, [planId, plans]);
   const discounts = useDiscounts();
 
-  // Validate the discount against the current plan/group. If the user swaps
-  // to a plan the discount doesn't cover, we quietly drop it.
+  // Auto-detect: if the buyer didn't arrive via a special promo link
+  // (?discount=xyz), find any currently-active, general (no specific
+  // Group required) discount that covers this plan and apply it
+  // automatically — that's the whole point of an "active site-wide
+  // discount," it shouldn't require a secret link to ever be seen.
   const activeDiscount = useMemo(() => {
-    if (!discountId) return null;
-    const d = getDiscount(discountId, discounts);
-    if (!d) return null;
-    if (!isDiscountValid(d)) return null;
-    if (!discountAppliesToPlan(d, planId)) return null;
-    if (!discountAppliesToGroup(d, groupId ?? null)) return null;
-    return d;
-  }, [discountId, planId, groupId, discounts]);
+    if (discountFromUrl) {
+      const d = getDiscount(discountFromUrl, discounts);
+      if (d && isDiscountValid(d) && discountAppliesToPlan(d, planId) && discountAppliesToGroup(d, groupId ?? null)) return d;
+    }
+    const candidates = discounts.filter(
+      (d) => isDiscountValid(d) && discountAppliesToPlan(d, planId) && d.groupIds.length === 0,
+    );
+    return candidates[0] ?? null;
+  }, [discountFromUrl, planId, groupId, discounts]);
 
   const finalPrice = activeDiscount ? applyDiscount(plan, activeDiscount) : plan.priceIDR;
 
@@ -83,6 +87,19 @@ function OrderPage() {
         </p>
       </div>
 
+      {activeDiscount && (
+        <div className="mb-6 flex items-center gap-3 rounded-2xl bg-red-500/10 border border-red-500/40 p-4">
+          <div className="shrink-0 w-14 h-14 rounded-full bg-red-600 text-white flex flex-col items-center justify-center text-center leading-none font-bold">
+            <span className="text-sm">{activeDiscount.kind === "percent" ? `${activeDiscount.value}%` : "PROMO"}</span>
+            <span className="text-[8px] uppercase">off</span>
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-red-600">Diskon aktif: {activeDiscount.name}</p>
+            <p className="text-xs text-muted-foreground">Otomatis diterapkan ke harga paket kamu.</p>
+          </div>
+        </div>
+      )}
+
       <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Plan picker */}
         <div className="md:col-span-2 rounded-2xl bg-card border border-border p-4">
@@ -121,7 +138,7 @@ function OrderPage() {
             )}
             <div className="text-2xl font-bold text-primary">{formatIDR(finalPrice)}</div>
             {activeDiscount && (
-              <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-primary/15 text-primary text-[10px] font-semibold uppercase tracking-widest px-2 py-0.5">
+              <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-red-500/15 text-red-600 text-[10px] font-semibold uppercase tracking-widest px-2 py-0.5">
                 <Tag size={10} /> {activeDiscount.name}
               </div>
             )}
@@ -177,17 +194,19 @@ function Field({
 /** Automated payment via Komerce — creates a QRIS transaction, shows the
  * live QR (via Komerce's own qr_string, rendered through a public QR-image
  * endpoint since that string isn't secret, it's literally what gets
- * scanned), and polls status every few seconds. Falls back silently to
- * just the manual QRIS card below if Komerce isn't configured/reachable. */
+ * scanned), and polls status every few seconds. Shows the actual error if
+ * it fails (used to hide itself silently — dangerous if Manual Payment is
+ * toggled off, since the buyer would be left with literally no way to pay
+ * and no explanation why). */
 function KomerceCheckout({ order }: { order: OrderRecord }) {
   const [qr, setQr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [paid, setPaid] = useState(order.status === "paid" || order.status === "delivered");
 
   async function start() {
     setLoading(true);
-    setFailed(false);
+    setErrorMsg(null);
     try {
       const res = await fetch("/api/komerce-create-transaction", {
         method: "POST",
@@ -201,10 +220,16 @@ function KomerceCheckout({ order }: { order: OrderRecord }) {
         }),
       });
       const data = await res.json();
-      if (!res.ok || !data?.data?.qr_string) { setFailed(true); setLoading(false); return; }
+      if (!res.ok || !data?.data?.qr_string) {
+        console.error("[komerce-create-transaction] failed:", data);
+        setErrorMsg(data?.error || "Gagal membuat transaksi pembayaran.");
+        setLoading(false);
+        return;
+      }
       setQr(data.data.qr_string);
-    } catch {
-      setFailed(true);
+    } catch (e) {
+      console.error("[komerce-create-transaction] network error:", e);
+      setErrorMsg("Gagal terhubung ke server pembayaran.");
     }
     setLoading(false);
   }
@@ -228,14 +253,21 @@ function KomerceCheckout({ order }: { order: OrderRecord }) {
       </div>
     );
   }
-  if (failed) return null; // silently fall back to the manual QRIS card below
 
   return (
     <div className="mt-4 rounded-2xl bg-card border border-border p-5 text-center">
       {!qr ? (
-        <button onClick={start} disabled={loading} className="rounded-xl bg-primary text-primary-foreground px-5 py-2.5 text-sm font-semibold disabled:opacity-50">
-          {loading ? "Menyiapkan…" : "Bayar Otomatis via Komerce (QRIS)"}
-        </button>
+        <>
+          <button onClick={start} disabled={loading} className="rounded-xl bg-primary text-primary-foreground px-5 py-2.5 text-sm font-semibold disabled:opacity-50">
+            {loading ? "Menyiapkan…" : "Payment Processing Here"}
+          </button>
+          {errorMsg && (
+            <div className="mt-3 rounded-xl bg-destructive/10 border border-destructive/30 p-3 text-xs text-destructive text-left">
+              {errorMsg}
+              <button onClick={start} className="block mt-2 underline font-semibold">Coba lagi</button>
+            </div>
+          )}
+        </>
       ) : (
         <>
           <img

@@ -3,7 +3,8 @@ import {
   Mic, Calendar, CheckSquare, Users, MapPin, Bell, Camera, Calculator,
   Languages, Fingerprint, ShieldCheck, WifiOff, Cloud, Sparkles, Check, Crown,
 } from "lucide-react";
-import { PLANS, formatIDR } from "@/lib/aurora-store";
+import { formatIDR, useEffectivePlans } from "@/lib/aurora-store";
+import { useDiscounts, isDiscountValid, discountAppliesToPlan, applyDiscount } from "@/lib/discounts-store";
 
 export const Route = createFileRoute("/store/")({
   component: StoreLanding,
@@ -27,6 +28,8 @@ const FEATURES = [
 ];
 
 function StoreLanding() {
+  const plans = useEffectivePlans();
+  const discounts = useDiscounts();
   return (
     <div className="space-y-16">
       {/* Hero */}
@@ -94,15 +97,24 @@ function StoreLanding() {
           Every plan unlocks Premium features and all built-in plugins.
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {PLANS.map((p) => (
+          {plans.map((p) => {
+            const discount = discounts.find((d) => isDiscountValid(d) && discountAppliesToPlan(d, p.id) && d.groupIds.length === 0);
+            const finalPrice = discount ? applyDiscount(p, discount) : p.priceIDR;
+            return (
             <div
               key={p.id}
-              className={`rounded-2xl border p-5 flex flex-col ${
+              className={`relative rounded-2xl border p-5 flex flex-col ${
                 p.highlight
                   ? "border-primary/60 bg-gradient-to-br from-primary/15 to-primary/5"
                   : "border-border bg-card"
               }`}
             >
+              {discount && (
+                <div className="absolute -top-3 -right-3 w-12 h-12 rounded-full bg-red-600 text-white flex flex-col items-center justify-center text-center leading-none font-bold shadow-lg">
+                  <span className="text-xs">{discount.kind === "percent" ? `${discount.value}%` : "PROMO"}</span>
+                  <span className="text-[7px] uppercase">off</span>
+                </div>
+              )}
               {p.highlight && (
                 <div className="self-start rounded-full bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 mb-2">
                   Best Value
@@ -110,7 +122,8 @@ function StoreLanding() {
               )}
               <div className="text-sm text-muted-foreground uppercase tracking-widest">{p.tier}</div>
               <div className="text-lg font-semibold mt-1">{p.name}</div>
-              <div className="mt-3 text-3xl font-bold">{formatIDR(p.priceIDR)}</div>
+              {discount && <div className="text-xs text-muted-foreground line-through mt-3">{formatIDR(p.priceIDR)}</div>}
+              <div className={"font-bold " + (discount ? "text-2xl text-red-600" : "mt-3 text-3xl")}>{formatIDR(finalPrice)}</div>
               <div className="text-xs text-muted-foreground mt-1">
                 {p.durationDays == null ? "One-time · lifetime" : `${p.durationDays} days access`}
               </div>
@@ -130,7 +143,8 @@ function StoreLanding() {
                 Choose {p.name}
               </Link>
             </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
