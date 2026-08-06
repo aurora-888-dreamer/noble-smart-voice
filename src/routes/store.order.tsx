@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { QrCode, Copy, Check, Crown, Loader2, Tag } from "lucide-react";
 import qrisAsset from "@/assets/qris.png.asset.json";
 import {
@@ -173,6 +173,82 @@ function Field({
   );
 }
 
+/** Automated payment via Komerce — creates a QRIS transaction, shows the
+ * live QR (via Komerce's own qr_string, rendered through a public QR-image
+ * endpoint since that string isn't secret, it's literally what gets
+ * scanned), and polls status every few seconds. Falls back silently to
+ * just the manual QRIS card below if Komerce isn't configured/reachable. */
+function KomerceCheckout({ order }: { order: OrderRecord }) {
+  const [qr, setQr] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const [paid, setPaid] = useState(order.status === "paid" || order.status === "delivered");
+
+  async function start() {
+    setLoading(true);
+    setFailed(false);
+    try {
+      const res = await fetch("/api/komerce-create-transaction", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          invoiceNo: `INV-${order.serial}`,
+          amount: order.priceIDR,
+          paymentType: "qris",
+          customer: { name: order.buyer.name, email: order.buyer.email, phone: order.buyer.whatsapp },
+          items: [{ id: order.planId, name: order.planId, price: order.priceIDR, quantity: 1 }],
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.data?.qr_string) { setFailed(true); setLoading(false); return; }
+      setQr(data.data.qr_string);
+    } catch {
+      setFailed(true);
+    }
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    if (!qr || paid) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/komerce-check-status?invoiceNo=INV-${order.serial}`);
+        const data = await res.json();
+        if (data?.data?.status === "PAID") { setPaid(true); clearInterval(interval); }
+      } catch { /* keep polling */ }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [qr, paid, order.serial]);
+
+  if (paid) {
+    return (
+      <div className="mt-4 rounded-2xl bg-primary/10 border border-primary/40 p-4 text-center text-sm text-primary font-semibold">
+        ✓ Pembayaran diterima — serial kamu sudah aktif, tinggal redeem di NSV.
+      </div>
+    );
+  }
+  if (failed) return null; // silently fall back to the manual QRIS card below
+
+  return (
+    <div className="mt-4 rounded-2xl bg-card border border-border p-5 text-center">
+      {!qr ? (
+        <button onClick={start} disabled={loading} className="rounded-xl bg-primary text-primary-foreground px-5 py-2.5 text-sm font-semibold disabled:opacity-50">
+          {loading ? "Menyiapkan…" : "Bayar Otomatis via Komerce (QRIS)"}
+        </button>
+      ) : (
+        <>
+          <img
+            src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qr)}`}
+            alt="QRIS Komerce"
+            className="mx-auto rounded-xl bg-white p-2"
+          />
+          <p className="text-xs text-muted-foreground mt-3">Menunggu pembayaran… halaman ini update otomatis.</p>
+        </>
+      )}
+    </div>
+  );
+}
+
 function OrderReceipt({
   order, copied, setCopied,
 }: { order: OrderRecord; copied: boolean; setCopied: (v: boolean) => void }) {
@@ -196,14 +272,16 @@ function OrderReceipt({
           Order Created
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Scan the QRIS below and complete the transfer of <b className="text-primary">{formatIDR(order.priceIDR)}</b>.
+          Pay automatically below, or scan the QRIS manually and we'll confirm within a few hours.
         </p>
       </div>
+
+      <KomerceCheckout order={order} />
 
       <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="rounded-2xl bg-card border border-border p-5">
           <div className="text-xs uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
-            <QrCode size={14} /> QRIS Payment
+            <QrCode size={14} /> QRIS Payment (manual)
           </div>
           <img
             src={qrisAsset.url}
