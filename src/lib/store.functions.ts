@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { verifyAdminPassword } from "./store-admin.server";
+import { verifyAdminPassword, sendSerialEmail } from "./store-admin.server";
 import { createNobleSupabase, normalizeContact } from "./supabase.server";
 import type { PluginId } from "./plugins";
 
@@ -177,6 +177,11 @@ export const markOrderPaid = createServerFn({ method: "POST" })
       { onConflict: "code" },
     );
     if (voucherError) return { ok: false, error: `Order marked paid, but issuing the voucher failed: ${voucherError.message}` };
+
+    if (order.buyer_email) {
+      const planLabel = PLANS.find((p) => p.id === order.plan_id)?.nameId ?? order.plan_id;
+      await sendSerialEmail(order.buyer_email, order.buyer_name, planLabel, order.serial);
+    }
 
     return { ok: true };
   });

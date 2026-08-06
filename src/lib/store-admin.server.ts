@@ -98,3 +98,42 @@ export async function sendResetCodeEmail(to: string, code: string): Promise<stri
     return e instanceof Error ? e.message : "Gagal mengirim email reset.";
   }
 }
+
+// ————— Auto-delivery: sent the moment an order is confirmed paid (either
+// the admin's manual "Mark Paid", or an automatic Komerce webhook) — the
+// buyer doesn't have to stay on the order page or wait for an admin to
+// click "Send Serial via WA" to get their serial. —————
+export async function sendSerialEmail(to: string, buyerName: string, planName: string, serial: string): Promise<string | null> {
+  const apiKey = process.env.LOVABLE_API_KEY;
+  const senderDomain = process.env.STORE_EMAIL_SENDER_DOMAIN;
+  if (!apiKey || !senderDomain || !to) return "Email pengirim belum dikonfigurasi atau buyer tidak punya email.";
+
+  const html = `
+    <div style="font-family:Arial,Helvetica,sans-serif;background:#ffffff;padding:24px">
+      <h2 style="margin:0 0 8px">AURORA MASTER — Pembayaran Diterima</h2>
+      <p style="color:#444;margin:0 0 4px">Halo ${buyerName},</p>
+      <p style="color:#444;margin:0 0 16px">Terima kasih! Pesanan <b>${planName}</b> kamu sudah dibayar dan siap dipakai.</p>
+      <p style="color:#777;font-size:12px;margin:0 0 4px">Serial Number kamu:</p>
+      <p style="font-size:22px;letter-spacing:2px;font-weight:700;margin:0 0 16px;font-family:monospace">${serial}</p>
+      <p style="color:#444;margin:0 0 8px">Cara aktivasi: buka aplikasi Noble → Activate Premium → tempel serial di atas.</p>
+      <p style="color:#777;font-size:12px;margin:0">Simpan email ini sebagai bukti pembelian.</p>
+    </div>`;
+
+  try {
+    await sendLovableEmail(
+      {
+        to,
+        from: `AURORA MASTER <admin@${senderDomain}>`,
+        sender_domain: senderDomain,
+        subject: `Serial Number kamu — ${planName}`,
+        html,
+        text: `Halo ${buyerName}, pesanan ${planName} kamu sudah dibayar. Serial Number: ${serial}. Aktivasi di Noble -> Activate Premium.`,
+        purpose: "transactional",
+      },
+      { apiKey },
+    );
+    return null;
+  } catch (e) {
+    return e instanceof Error ? e.message : "Gagal mengirim email serial.";
+  }
+}
