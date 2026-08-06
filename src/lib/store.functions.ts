@@ -25,6 +25,7 @@ export interface StoreOrder {
   buyer: { name: string; email: string; whatsapp: string; note?: string };
   plugins: PluginId[];
   paymentRef?: string | null;
+  invoiceNo?: string | null;
 }
 
 async function checkAdmin(password: string): Promise<boolean> {
@@ -68,6 +69,7 @@ function rowToOrder(row: Record<string, unknown>): StoreOrder {
     discountId: row.discount_id as string | null,
     discountLabel: row.discount_label as string | null,
     groupId: row.group_id as string | null,
+    invoiceNo: row.invoice_no as string | null,
     buyer: {
       name: row.buyer_name as string,
       email: (row.buyer_email as string) ?? "",
@@ -158,9 +160,10 @@ export const markOrderPaid = createServerFn({ method: "POST" })
     if (fetchError) return { ok: false, error: fetchError.message };
     if (!order) return { ok: false, error: "Order not found." };
 
+    const invoiceNo = (order.invoice_no as string | null) ?? `INV-${order.serial}`;
     const { error: updateError } = await supabase
       .from("store_orders")
-      .update({ status: "paid", paid_at: new Date().toISOString(), payment_ref: data.paymentRef ?? null })
+      .update({ status: "paid", paid_at: new Date().toISOString(), payment_ref: data.paymentRef ?? null, invoice_no: invoiceNo })
       .eq("id", data.orderId);
     if (updateError) return { ok: false, error: updateError.message };
 
@@ -255,6 +258,59 @@ export interface Plan {
   tier: PlanTier;
   highlight?: boolean;
 }
+
+// ————— Editable pricing (layered on top of PLANS below — PLANS stays the
+// fallback/default; a row here overrides just the price for that plan) —————
+export const getPlanPrices = createServerFn({ method: "POST" })
+  .handler(async (): Promise<{ ok: true; overrides: Record<string, number> } | { ok: false; error: string }> => {
+    const supabase = createNobleSupabase();
+    if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
+    const { data: rows, error } = await supabase.from("store_plan_overrides").select("*");
+    if (error) return { ok: false, error: error.message };
+    const overrides: Record<string, number> = {};
+    for (const r of rows ?? []) overrides[r.plan_id as string] = r.price_idr as number;
+    return { ok: true, overrides };
+  });
+
+export const setPlanPrice = createServerFn({ method: "POST" })
+  .inputValidator((input: { adminPassword: string; planId: PlanId; priceIDR: number | null }) => input)
+  .handler(async ({ data }): Promise<{ ok: true } | { ok: false; error: string }> => {
+    if (!(await checkAdmin(data.adminPassword))) return { ok: false, error: "Wrong password." };
+    const supabase = createNobleSupabase();
+    if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
+    if (data.priceIDR == null) {
+      const { error } = await supabase.from("store_plan_overrides").delete().eq("plan_id", data.planId);
+      if (error) return { ok: false, error: error.message };
+      return { ok: true };
+    }
+    const { error } = await supabase.from("store_plan_overrides").upsert({ plan_id: data.planId, price_idr: data.priceIDR, updated_at: new Date().toISOString() });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  });
+
+// ————— Generic site feature toggles (site_features table) — Komerce
+// sandbox/production switch and the manual-payment on/off switch, so admin
+// can flip either without a code deploy. —————
+export const getSiteFeature = createServerFn({ method: "POST" })
+  .inputValidator((input: { key: string }) => input)
+  .handler(async ({ data }): Promise<{ ok: true; enabled: boolean } | { ok: false; error: string }> => {
+    const supabase = createNobleSupabase();
+    if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
+    const { data: row, error } = await supabase.from("site_features").select("enabled").eq("key", data.key).maybeSingle();
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, enabled: row?.enabled ?? false };
+  });
+
+export const setSiteFeature = createServerFn({ method: "POST" })
+  .inputValidator((input: { adminPassword: string; key: string; enabled: boolean }) => input)
+  .handler(async ({ data }): Promise<{ ok: true } | { ok: false; error: string }> => {
+    if (!(await checkAdmin(data.adminPassword))) return { ok: false, error: "Wrong password." };
+    const supabase = createNobleSupabase();
+    if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
+    const { error } = await supabase.from("site_features").upsert({ key: data.key, enabled: data.enabled });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  });
 
 export const PLANS: Plan[] = [
   { id: "monthly", name: "Monthly Premium", nameId: "Bulanan Premium", priceIDR: 49_000, durationDays: 30, tier: "premium" },

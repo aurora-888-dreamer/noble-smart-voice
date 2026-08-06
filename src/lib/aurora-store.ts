@@ -18,6 +18,10 @@ import {
   deleteStoreOrder as deleteStoreOrderFn,
   verifyStoreSerial as verifyStoreSerialFn,
   wipeAllStoreOrders as wipeAllStoreOrdersFn,
+  getPlanPrices,
+  setPlanPrice,
+  getSiteFeature,
+  setSiteFeature,
   PLANS,
   formatIDR,
   statusLabel,
@@ -29,11 +33,21 @@ import {
 } from "./store.functions";
 import type { PluginId } from "./plugins";
 
-export { PLANS, formatIDR, statusLabel };
+export { PLANS, formatIDR, statusLabel, getPlanPrices, setPlanPrice, getSiteFeature, setSiteFeature };
 export type { PlanId, PlanTier, OrderStatus, Plan };
 // Same shape as before, new name upstream — kept as an alias so existing
 // `type OrderRecord` imports elsewhere don't need to change.
 export type OrderRecord = StoreOrder;
+
+// PLANS with any admin-set price overrides applied — use this instead of
+// raw PLANS wherever a price is actually shown/charged to a buyer.
+export function useEffectivePlans(): Plan[] {
+  const [overrides, setOverrides] = useState<Record<string, number>>({});
+  useEffect(() => {
+    getPlanPrices().then((r) => { if (r.ok) setOverrides(r.overrides); });
+  }, []);
+  return PLANS.map((p) => (overrides[p.id] != null ? { ...p, priceIDR: overrides[p.id] } : p));
+}
 
 const SESSION_KEY = "aurora.adminSession"; // holds the password itself now, not just a "1" flag —
                                             // needed so every admin action can be verified server-side.
