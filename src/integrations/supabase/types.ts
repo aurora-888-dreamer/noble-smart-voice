@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      noble_vouchers: {
+        Row: {
+          bound_contact: string
+          code: string
+          created_at: string
+          duration_days: number | null
+          id: string
+          note: string | null
+          status: string
+          tier: string
+          used_at: string | null
+          used_by_contact: string | null
+        }
+        Insert: {
+          bound_contact: string
+          code: string
+          created_at?: string
+          duration_days?: number | null
+          id?: string
+          note?: string | null
+          status?: string
+          tier: string
+          used_at?: string | null
+          used_by_contact?: string | null
+        }
+        Update: {
+          bound_contact?: string
+          code?: string
+          created_at?: string
+          duration_days?: number | null
+          id?: string
+          note?: string | null
+          status?: string
+          tier?: string
+          used_at?: string | null
+          used_by_contact?: string | null
+        }
+        Relationships: []
+      }
       nsv_relay_messages: {
         Row: {
           body: string
@@ -2356,6 +2395,149 @@ export type Database = {
           expires_at?: string
           id?: string
           used_at?: string | null
+        }
+        Relationships: []
+      }
+      store_discounts: {
+        Row: {
+          active: boolean
+          created_at: string
+          group_ids: string[] | null
+          id: string
+          kind: string
+          name: string
+          plan_ids: string[] | null
+          upgrade_group_id: string | null
+          valid_from: string | null
+          valid_until: string | null
+          value: number
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          group_ids?: string[] | null
+          id?: string
+          kind: string
+          name: string
+          plan_ids?: string[] | null
+          upgrade_group_id?: string | null
+          valid_from?: string | null
+          valid_until?: string | null
+          value: number
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          group_ids?: string[] | null
+          id?: string
+          kind?: string
+          name?: string
+          plan_ids?: string[] | null
+          upgrade_group_id?: string | null
+          valid_from?: string | null
+          valid_until?: string | null
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_discounts_upgrade_group_id_fkey"
+            columns: ["upgrade_group_id"]
+            isOneToOne: false
+            referencedRelation: "store_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      store_groups: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          name: string
+          note: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          name: string
+          note?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          name?: string
+          note?: string | null
+        }
+        Relationships: []
+      }
+      store_orders: {
+        Row: {
+          buyer_email: string | null
+          buyer_name: string
+          buyer_note: string | null
+          buyer_whatsapp: string
+          created_at: string
+          delivered_at: string | null
+          discount_id: string | null
+          discount_label: string | null
+          duration_days: number | null
+          group_id: string | null
+          id: string
+          original_price_idr: number | null
+          paid_at: string | null
+          payment_ref: string | null
+          plan_id: string
+          plugins: string[] | null
+          price_idr: number
+          serial: string
+          status: string
+          tier: string
+        }
+        Insert: {
+          buyer_email?: string | null
+          buyer_name: string
+          buyer_note?: string | null
+          buyer_whatsapp: string
+          created_at?: string
+          delivered_at?: string | null
+          discount_id?: string | null
+          discount_label?: string | null
+          duration_days?: number | null
+          group_id?: string | null
+          id?: string
+          original_price_idr?: number | null
+          paid_at?: string | null
+          payment_ref?: string | null
+          plan_id: string
+          plugins?: string[] | null
+          price_idr: number
+          serial: string
+          status?: string
+          tier: string
+        }
+        Update: {
+          buyer_email?: string | null
+          buyer_name?: string
+          buyer_note?: string | null
+          buyer_whatsapp?: string
+          created_at?: string
+          delivered_at?: string | null
+          discount_id?: string | null
+          discount_label?: string | null
+          duration_days?: number | null
+          group_id?: string | null
+          id?: string
+          original_price_idr?: number | null
+          paid_at?: string | null
+          payment_ref?: string | null
+          plan_id?: string
+          plugins?: string[] | null
+          price_idr?: number
+          serial?: string
+          status?: string
+          tier?: string
         }
         Relationships: []
       }
