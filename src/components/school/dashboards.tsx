@@ -159,7 +159,7 @@ function StaffProfileForm({ pw, staffId, onSaved }: { pw: string; staffId: strin
   async function save() {
     if (!f.fullName?.trim()) { setErr("Nama lengkap wajib diisi."); return; }
     setBusy(true); setErr(null);
-    const r = await saveMyStaffProfile({ data: { password: pw, staffId, ...f } });
+    const r = await saveMyStaffProfile({ data: { password: pw, staffId, ...f, fullName: f.fullName ?? "" } });
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     onSaved();
@@ -200,7 +200,7 @@ function StudentProfileForm({ code, onSaved }: { code: string; onSaved: () => vo
   async function save() {
     if (!f.fullName?.trim()) { setErr("Nama lengkap wajib diisi."); return; }
     setBusy(true); setErr(null);
-    const r = await saveMyStudentProfile({ data: { code, ...f } });
+    const r = await saveMyStudentProfile({ data: { code, ...f, fullName: f.fullName ?? "" } });
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     onSaved();
@@ -733,7 +733,7 @@ export function PrincipalDashboard({ division, staffId, staffName }: { division:
 
 
 /* ───────────── Teacher ───────────── */
-export function TeacherDashboard({ staffId, staffName, role, defaultClassId }: { staffId: string; staffName: string; role: string | null; defaultClassId: string | null }) {
+export function TeacherDashboard({ staffId, staffName, role, defaultClassId, division }: { staffId: string; staffName: string; role: string | null; defaultClassId: string | null; division?: string | null }) {
   const pw = getStoredPassword();
   const [reload, setReload] = useState(0);
   const allClasses = useClasses();

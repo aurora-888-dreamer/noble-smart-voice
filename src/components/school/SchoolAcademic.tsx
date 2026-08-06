@@ -1556,7 +1556,7 @@ function AgendaRow({ agenda, pw, role, staffId, staffName, staffList, open, onTo
     if (!r.ok) { setErr(r.error); return; }
     setLocalReload((x) => x + 1); onChanged();
   }
-  async function review(decision: "approve" | "reject" | "revise") {
+  async function review(decision: "approve" | "reject" | "revise" | "forward") {
     setBusy(true); setErr(null);
     const r = await reviewAgenda({ data: { password: pw, staffId, agendaId: agenda.id, actorName: staffName, decision, notes: reviewNotes } });
     setBusy(false);
@@ -2204,7 +2204,7 @@ function CaseRow({ kase, access, role, staffId, staffName, open, onToggle, onCha
 /** Self-contained preview body for a Report/Case — fetches its own timeline. */
 function CaseTimelinePreview({ kase, access, badge, role, staffId, staffName, onChanged }: {
   kase: Row; access: Access; badge: { label: string; cls: string };
-  role: "hos" | "principal" | "teacher"; staffId?: string | null; staffName?: string | null; onChanged: () => void;
+  role: "hos" | "principal" | "teacher" | "parent"; staffId?: string | null; staffName?: string | null; onChanged: () => void;
 }) {
   const [reload, setReload] = useState(0);
   const [note, setNote] = useState("");
