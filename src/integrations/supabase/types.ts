@@ -14,6 +14,79 @@ export type Database = {
   }
   public: {
     Tables: {
+      nsv_relay_messages: {
+        Row: {
+          body: string
+          created_at: string
+          direction: string
+          id: string
+          imported: boolean
+          thread_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          direction: string
+          id?: string
+          imported?: boolean
+          thread_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          direction?: string
+          id?: string
+          imported?: boolean
+          thread_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nsv_relay_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "nsv_relay_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nsv_relay_threads: {
+        Row: {
+          created_at: string
+          id: string
+          recipient_name: string | null
+          recipient_phone: string
+          sender_context: string
+          sender_name: string | null
+          sender_staff_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          recipient_name?: string | null
+          recipient_phone: string
+          sender_context?: string
+          sender_name?: string | null
+          sender_staff_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          recipient_name?: string | null
+          recipient_phone?: string
+          sender_context?: string
+          sender_name?: string | null
+          sender_staff_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nsv_relay_threads_sender_staff_id_fkey"
+            columns: ["sender_staff_id"]
+            isOneToOne: false
+            referencedRelation: "school_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       school_access: {
         Row: {
           class_id: string | null
@@ -285,6 +358,7 @@ export type Database = {
           end_date: string | null
           execution_status: string
           final_report: string | null
+          forwarded_to_hos: boolean
           id: string
           last_review_notes: string | null
           purpose: string | null
@@ -306,6 +380,7 @@ export type Database = {
           end_date?: string | null
           execution_status?: string
           final_report?: string | null
+          forwarded_to_hos?: boolean
           id?: string
           last_review_notes?: string | null
           purpose?: string | null
@@ -327,6 +402,7 @@ export type Database = {
           end_date?: string | null
           execution_status?: string
           final_report?: string | null
+          forwarded_to_hos?: boolean
           id?: string
           last_review_notes?: string | null
           purpose?: string | null
@@ -398,6 +474,216 @@ export type Database = {
           },
         ]
       }
+      school_assessment_character_records: {
+        Row: {
+          assessed_at: string
+          character_id: string
+          id: string
+          narration: string | null
+          narration_mode: string
+          period_label: string
+          period_type: string
+          school_id: string
+          score: number | null
+          student_id: string
+          teacher_id: string | null
+        }
+        Insert: {
+          assessed_at?: string
+          character_id: string
+          id?: string
+          narration?: string | null
+          narration_mode?: string
+          period_label: string
+          period_type?: string
+          school_id: string
+          score?: number | null
+          student_id: string
+          teacher_id?: string | null
+        }
+        Update: {
+          assessed_at?: string
+          character_id?: string
+          id?: string
+          narration?: string | null
+          narration_mode?: string
+          period_label?: string
+          period_type?: string
+          school_id?: string
+          score?: number | null
+          student_id?: string
+          teacher_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_assessment_character_records_character_id_fkey"
+            columns: ["character_id"]
+            isOneToOne: false
+            referencedRelation: "school_assessment_characters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_assessment_character_records_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "school_students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_assessment_character_records_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "school_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      school_assessment_characters: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          school_id: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          school_id: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          school_id?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_assessment_characters_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "school_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      school_assessment_daily_domain: {
+        Row: {
+          activity_note: string | null
+          assessed_date: string
+          class_id: string | null
+          created_at: string
+          division: string
+          domain_code: string
+          evidence_note: string | null
+          id: string
+          position: number
+          school_id: string
+          student_id: string
+          teacher_id: string | null
+        }
+        Insert: {
+          activity_note?: string | null
+          assessed_date: string
+          class_id?: string | null
+          created_at?: string
+          division: string
+          domain_code: string
+          evidence_note?: string | null
+          id?: string
+          position: number
+          school_id: string
+          student_id: string
+          teacher_id?: string | null
+        }
+        Update: {
+          activity_note?: string | null
+          assessed_date?: string
+          class_id?: string | null
+          created_at?: string
+          division?: string
+          domain_code?: string
+          evidence_note?: string | null
+          id?: string
+          position?: number
+          school_id?: string
+          student_id?: string
+          teacher_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_assessment_daily_domain_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "school_classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_assessment_daily_domain_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "school_students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_assessment_daily_domain_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "school_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      school_assessment_domains: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          division: string
+          id: string
+          name: string
+          school_id: string
+          sort_order: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          division: string
+          id?: string
+          name: string
+          school_id: string
+          sort_order?: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          division?: string
+          id?: string
+          name?: string
+          school_id?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_assessment_domains_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "school_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       school_assessment_forms: {
         Row: {
           achieved: boolean
@@ -439,6 +725,62 @@ export type Database = {
           },
         ]
       }
+      school_assessment_indicators: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string
+          division: string
+          domain_code: string
+          evidence_example: string | null
+          id: string
+          indicator_code: string
+          level: string
+          related_activity: string | null
+          school_id: string
+          sort_order: number
+          subject: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description: string
+          division: string
+          domain_code: string
+          evidence_example?: string | null
+          id?: string
+          indicator_code: string
+          level: string
+          related_activity?: string | null
+          school_id: string
+          sort_order?: number
+          subject?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          division?: string
+          domain_code?: string
+          evidence_example?: string | null
+          id?: string
+          indicator_code?: string
+          level?: string
+          related_activity?: string | null
+          school_id?: string
+          sort_order?: number
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_assessment_indicators_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "school_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       school_assessment_notes: {
         Row: {
           assessment_id: string
@@ -470,6 +812,165 @@ export type Database = {
             columns: ["assessment_id"]
             isOneToOne: true
             referencedRelation: "school_subject_assessments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      school_assessment_records: {
+        Row: {
+          assessed_at: string
+          class_id: string | null
+          evidence_note: string | null
+          evidence_url: string | null
+          id: string
+          indicator_id: string
+          period_label: string
+          period_type: string
+          rubric: string
+          school_id: string
+          student_id: string
+          teacher_comment: string | null
+          teacher_id: string | null
+        }
+        Insert: {
+          assessed_at?: string
+          class_id?: string | null
+          evidence_note?: string | null
+          evidence_url?: string | null
+          id?: string
+          indicator_id: string
+          period_label: string
+          period_type?: string
+          rubric: string
+          school_id: string
+          student_id: string
+          teacher_comment?: string | null
+          teacher_id?: string | null
+        }
+        Update: {
+          assessed_at?: string
+          class_id?: string | null
+          evidence_note?: string | null
+          evidence_url?: string | null
+          id?: string
+          indicator_id?: string
+          period_label?: string
+          period_type?: string
+          rubric?: string
+          school_id?: string
+          student_id?: string
+          teacher_comment?: string | null
+          teacher_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_assessment_records_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "school_classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_assessment_records_indicator_id_fkey"
+            columns: ["indicator_id"]
+            isOneToOne: false
+            referencedRelation: "school_assessment_indicators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_assessment_records_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "school_students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_assessment_records_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "school_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      school_assessment_reports: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          division: string
+          generated_by: string | null
+          id: string
+          next_target: string | null
+          period_label: string
+          period_type: string
+          principal_notes: string | null
+          published_at: string | null
+          recommendations: string | null
+          school_id: string
+          status: string
+          student_id: string
+          summary: string | null
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          division: string
+          generated_by?: string | null
+          id?: string
+          next_target?: string | null
+          period_label: string
+          period_type: string
+          principal_notes?: string | null
+          published_at?: string | null
+          recommendations?: string | null
+          school_id: string
+          status?: string
+          student_id: string
+          summary?: string | null
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          division?: string
+          generated_by?: string | null
+          id?: string
+          next_target?: string | null
+          period_label?: string
+          period_type?: string
+          principal_notes?: string | null
+          published_at?: string | null
+          recommendations?: string | null
+          school_id?: string
+          status?: string
+          student_id?: string
+          summary?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_assessment_reports_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "school_staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_assessment_reports_generated_by_fkey"
+            columns: ["generated_by"]
+            isOneToOne: false
+            referencedRelation: "school_staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_assessment_reports_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "school_students"
             referencedColumns: ["id"]
           },
         ]
@@ -941,6 +1442,83 @@ export type Database = {
           },
         ]
       }
+      school_external_links: {
+        Row: {
+          contact_info: string | null
+          created_at: string
+          created_by: string | null
+          department: string | null
+          id: string
+          name: string
+          note: string | null
+          school_id: string
+        }
+        Insert: {
+          contact_info?: string | null
+          created_at?: string
+          created_by?: string | null
+          department?: string | null
+          id?: string
+          name: string
+          note?: string | null
+          school_id: string
+        }
+        Update: {
+          contact_info?: string | null
+          created_at?: string
+          created_by?: string | null
+          department?: string | null
+          id?: string
+          name?: string
+          note?: string | null
+          school_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_incidental_contacts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "school_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      school_gallery_files: {
+        Row: {
+          created_at: string
+          data_url: string
+          file_name: string
+          file_type: string
+          id: string
+          owner_id: string
+          owner_type: string
+          school_id: string
+          source: string
+        }
+        Insert: {
+          created_at?: string
+          data_url: string
+          file_name: string
+          file_type: string
+          id?: string
+          owner_id: string
+          owner_type: string
+          school_id: string
+          source?: string
+        }
+        Update: {
+          created_at?: string
+          data_url?: string
+          file_name?: string
+          file_type?: string
+          id?: string
+          owner_id?: string
+          owner_type?: string
+          school_id?: string
+          source?: string
+        }
+        Relationships: []
+      }
       school_guardians: {
         Row: {
           announcements_last_seen_at: string | null
@@ -999,47 +1577,6 @@ export type Database = {
             columns: ["student_id"]
             isOneToOne: false
             referencedRelation: "school_students"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      school_incidental_contacts: {
-        Row: {
-          contact_info: string | null
-          context: string
-          created_at: string
-          created_by: string | null
-          id: string
-          name: string
-          note: string | null
-          school_id: string
-        }
-        Insert: {
-          contact_info?: string | null
-          context: string
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          name: string
-          note?: string | null
-          school_id: string
-        }
-        Update: {
-          contact_info?: string | null
-          context?: string
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          name?: string
-          note?: string | null
-          school_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "school_incidental_contacts_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "school_staff"
             referencedColumns: ["id"]
           },
         ]
