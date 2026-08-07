@@ -342,3 +342,21 @@ export function useLicenseInfo() {
   }, []);
   return info;
 }
+
+// ————— Homepage "Redeem Voucher" box: visible whenever the user has a
+// pending order to redeem (or has never redeemed anything yet), hides
+// itself right after a successful redeem, and only reappears once they
+// place a NEW order — Store (store.order.tsx) and NSV are the same
+// origin, so this flag in localStorage is naturally shared between them. —————
+const REDEEM_PROMPT_KEY = "noble.redeemPromptPending";
+
+export function markOrderPlaced(): void {
+  localStorage.setItem(REDEEM_PROMPT_KEY, "1");
+}
+export function markVoucherRedeemed(): void {
+  localStorage.setItem(REDEEM_PROMPT_KEY, "0");
+}
+export function shouldShowRedeemPrompt(): boolean {
+  const v = localStorage.getItem(REDEEM_PROMPT_KEY);
+  return v === null || v === "1"; // null = first-time visitor, never set yet
+}
