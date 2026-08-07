@@ -115,9 +115,6 @@ const dict = {
     removeStop: "Remove stop",
     removeItem: "Remove item",
     removeMilestone: "Remove milestone",
-    wakeWord: "Wake phrase",
-    wakeWordHint:
-      "Say this to Google Assistant (e.g. \"Hey Google, open Noble\"). You can customise the phrase used in the on-screen hint.",
     autoSaveRaw: "Auto-save raw transcript",
     autoSaveRawHint:
       "Skip the review step and save exactly what you said as a Note — perfect for mixed English/Indonesian.",
@@ -299,9 +296,6 @@ const dict = {
     removeStop: "Hapus perhentian",
     removeItem: "Hapus item",
     removeMilestone: "Hapus tonggak",
-    wakeWord: "Frasa bangun",
-    wakeWordHint:
-      "Ucapkan ke Google Assistant (mis. \"Hey Google, buka Noble\"). Anda bisa mengubah frasa yang muncul di petunjuk.",
     autoSaveRaw: "Simpan transkrip apa adanya",
     autoSaveRawHint:
       "Lewati langkah tinjau — langsung simpan sebagai Catatan persis seperti yang diucapkan. Cocok untuk campuran Indonesia/Inggris.",

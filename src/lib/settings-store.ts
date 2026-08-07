@@ -3,7 +3,6 @@ import type { Lang } from "./i18n";
 
 const LANG_KEY = "voicetag.lang";
 const ONBOARDED_KEY = "voicetag.onboarded";
-const WAKE_KEY = "voicetag.wake";
 const AUTOSAVE_KEY = "voicetag.autosaveRaw";
 const RECORD_TIMEOUT_KEY = "voicetag.recordTimeoutMin";
 
@@ -28,27 +27,6 @@ export function isOnboarded(): boolean {
 
 export function markOnboarded() {
   localStorage.setItem(ONBOARDED_KEY, "1");
-}
-
-// Wake-word phrase (default: "Aurora Start")
-const DEFAULT_WAKE = "Aurora Start";
-export function getWakePhrase(): string {
-  if (typeof window === "undefined") return DEFAULT_WAKE;
-  return localStorage.getItem(WAKE_KEY) || DEFAULT_WAKE;
-}
-export function setWakePhrase(v: string) {
-  localStorage.setItem(WAKE_KEY, v);
-  window.dispatchEvent(new Event("voicetag:wake"));
-}
-export function useWakePhrase(): [string, (v: string) => void] {
-  const [w, setW] = useState<string>(DEFAULT_WAKE);
-  useEffect(() => {
-    setW(getWakePhrase());
-    const h = () => setW(getWakePhrase());
-    window.addEventListener("voicetag:wake", h);
-    return () => window.removeEventListener("voicetag:wake", h);
-  }, []);
-  return [w, (v: string) => { setWakePhrase(v); setW(v); }];
 }
 
 // Auto-save raw transcript (skip parse/review, keep bilingual mix as-is)
