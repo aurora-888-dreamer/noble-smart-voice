@@ -90,8 +90,11 @@ export function Sidebar() {
 
   return (
     <nav className="hidden lg:flex flex-col w-72 shrink-0 h-dvh sticky top-0 border-r border-border bg-card/40 px-3 py-5">
-      <div className="px-2 mb-6">
-        <span className="text-xs font-semibold uppercase tracking-widest text-primary">Noble</span>
+      <div className="px-2 mb-6 flex items-baseline gap-2">
+        <span className="text-lg font-semibold uppercase tracking-widest text-primary">Noble</span>
+        <Link to="/store" className="text-[11px] text-muted-foreground hover:text-primary transition-colors">
+          → Store
+        </Link>
       </div>
 
       <Link
