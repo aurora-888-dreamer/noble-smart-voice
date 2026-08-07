@@ -1,10 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { createNobleSupabase } from "@/lib/supabase.server";
+import { createNobleSupabase, normalizeContact } from "@/lib/supabase.server";
+import { sendSerialEmail } from "@/lib/store-admin.server";
+import { PLANS } from "@/lib/store.functions";
 
 /**
  * GET /api/komerce-check-status?invoiceNo=xxx
  * Polled from the order/receipt page every few seconds while waiting for
  * payment. Adapted from pulsaapps' proven pattern.
+ *
+ * Also acts as a SAFETY NET: if the webhook never fires for some reason
+ * (e.g. Komerce couldn't reach it, or a field-name mismatch meant the
+ * callback was never registered on their side — a real bug we hit and
+ * fixed once already), this route independently confirms PAID directly
+ * from Komerce and does the same mark-paid + issue-voucher + send-email
+ * work the webhook does, so the order doesn't stay stuck forever as long
+ * as the buyer's tab is open and polling.
  */
 
 const KOMERCE_SANDBOX_URL = "https://api-sandbox.collaborator.komerce.id";
@@ -29,18 +39,46 @@ export const Route = createFileRoute("/api/komerce-check-status")({
           const supabase = createNobleSupabase();
           if (!supabase) return json({ error: "Server belum dikonfigurasi" }, 500);
 
-          const { data: order, error } = await supabase.from("store_orders").select("komerce_merchant_ref, status").eq("invoice_no", invoiceNo).maybeSingle();
+          const orderSerial = invoiceNo.replace(/^INV-/, "");
+          const { data: order, error } = await supabase.from("store_orders").select("*").eq("serial", orderSerial).maybeSingle();
           if (error || !order) return json({ error: "Order tidak ditemukan" }, 404);
-          // Already confirmed via webhook — no need to hit Komerce again.
+          // Already confirmed (by the webhook, or an earlier poll) — no need to hit Komerce again.
           if (order.status === "paid" || order.status === "delivered") return json({ data: { status: "PAID" } }, 200);
           if (!order.komerce_merchant_ref) return json({ data: { status: "PENDING" } }, 200);
 
           const komerceBaseUrl = await getKomerceBaseUrl(supabase);
-          const res = await fetch(`${komerceBaseUrl}/user/api/v1/user/payment/${order.komerce_merchant_ref}/status`, {
+          const res = await fetch(`${komerceBaseUrl}/user/api/v1/user/payment/status/${order.komerce_merchant_ref}`, {
             headers: { "x-api-key": process.env.KOMERCE_API_KEY },
           });
           const data = await res.json();
           if (!res.ok) return json({ error: data?.meta?.message ?? "Gagal cek status" }, 502);
+
+          const status = String(data?.data?.status || "").toUpperCase();
+          if (status === "PAID") {
+            const invoiceNoFinal = order.invoice_no ?? `INV-${order.serial}`;
+            const { error: updateError } = await supabase
+              .from("store_orders")
+              .update({ status: "paid", paid_at: new Date().toISOString(), invoice_no: invoiceNoFinal, komerce_raw_response: data, komerce_status: status })
+              .eq("id", order.id);
+            if (!updateError) {
+              const contact = normalizeContact(order.buyer_email || order.buyer_whatsapp);
+              const { error: voucherError } = await supabase.from("noble_vouchers").upsert(
+                {
+                  code: order.serial,
+                  bound_contact: contact,
+                  tier: order.tier,
+                  duration_days: order.duration_days,
+                  status: "unused",
+                  note: `Store order ${order.id} (${order.plan_id}) — paid via Komerce (confirmed via status poll)`,
+                },
+                { onConflict: "code" },
+              );
+              if (!voucherError && order.buyer_email) {
+                const planLabel = PLANS.find((p) => p.id === order.plan_id)?.nameId ?? order.plan_id;
+                await sendSerialEmail(order.buyer_email, order.buyer_name, planLabel, order.serial);
+              }
+            }
+          }
           return json(data, 200);
         } catch (e) {
           return json({ error: e instanceof Error ? e.message : String(e) }, 500);

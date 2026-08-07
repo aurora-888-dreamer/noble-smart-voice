@@ -62,7 +62,7 @@ export const Route = createFileRoute("/api/komerce-create-transaction")({
             customer,
             items,
             callback_url: CALLBACK_URL,
-            callback_API_KEY: callbackApiKey,
+            callback_api_key: callbackApiKey,
           };
           if (paymentType === "bank_transfer") komercePayload.channel_code = channelCode;
 
