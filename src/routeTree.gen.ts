@@ -24,6 +24,7 @@ import { Route as RecordRouteImport } from './routes/record'
 import { Route as ReceiveRouteImport } from './routes/receive'
 import { Route as ProjectsRouteImport } from './routes/projects'
 import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as PmdRouteImport } from './routes/pmd'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as NotesRouteImport } from './routes/notes'
 import { Route as MessagesRouteImport } from './routes/messages'
@@ -136,6 +137,11 @@ const ProjectsRoute = ProjectsRouteImport.update({
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PmdRoute = PmdRouteImport.update({
+  id: '/pmd',
+  path: '/pmd',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OnboardingRoute = OnboardingRouteImport.update({
@@ -353,6 +359,7 @@ export interface FileRoutesByFullPath {
   '/messages': typeof MessagesRoute
   '/notes': typeof NotesRoute
   '/onboarding': typeof OnboardingRoute
+  '/pmd': typeof PmdRoute
   '/privacy': typeof PrivacyRoute
   '/projects': typeof ProjectsRouteWithChildren
   '/receive': typeof ReceiveRoute
@@ -408,6 +415,7 @@ export interface FileRoutesByTo {
   '/messages': typeof MessagesRoute
   '/notes': typeof NotesRoute
   '/onboarding': typeof OnboardingRoute
+  '/pmd': typeof PmdRoute
   '/privacy': typeof PrivacyRoute
   '/projects': typeof ProjectsRouteWithChildren
   '/receive': typeof ReceiveRoute
@@ -462,6 +470,7 @@ export interface FileRoutesById {
   '/messages': typeof MessagesRoute
   '/notes': typeof NotesRoute
   '/onboarding': typeof OnboardingRoute
+  '/pmd': typeof PmdRoute
   '/privacy': typeof PrivacyRoute
   '/projects': typeof ProjectsRouteWithChildren
   '/receive': typeof ReceiveRoute
@@ -519,6 +528,7 @@ export interface FileRouteTypes {
     | '/messages'
     | '/notes'
     | '/onboarding'
+    | '/pmd'
     | '/privacy'
     | '/projects'
     | '/receive'
@@ -574,6 +584,7 @@ export interface FileRouteTypes {
     | '/messages'
     | '/notes'
     | '/onboarding'
+    | '/pmd'
     | '/privacy'
     | '/projects'
     | '/receive'
@@ -627,6 +638,7 @@ export interface FileRouteTypes {
     | '/messages'
     | '/notes'
     | '/onboarding'
+    | '/pmd'
     | '/privacy'
     | '/projects'
     | '/receive'
@@ -683,6 +695,7 @@ export interface RootRouteChildren {
   MessagesRoute: typeof MessagesRoute
   NotesRoute: typeof NotesRoute
   OnboardingRoute: typeof OnboardingRoute
+  PmdRoute: typeof PmdRoute
   PrivacyRoute: typeof PrivacyRoute
   ProjectsRoute: typeof ProjectsRouteWithChildren
   ReceiveRoute: typeof ReceiveRoute
@@ -812,6 +825,13 @@ declare module '@tanstack/react-router' {
       path: '/privacy'
       fullPath: '/privacy'
       preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pmd': {
+      id: '/pmd'
+      path: '/pmd'
+      fullPath: '/pmd'
+      preLoaderRoute: typeof PmdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/onboarding': {
@@ -1154,6 +1174,7 @@ const rootRouteChildren: RootRouteChildren = {
   MessagesRoute: MessagesRoute,
   NotesRoute: NotesRoute,
   OnboardingRoute: OnboardingRoute,
+  PmdRoute: PmdRoute,
   PrivacyRoute: PrivacyRoute,
   ProjectsRoute: ProjectsRouteWithChildren,
   ReceiveRoute: ReceiveRoute,
