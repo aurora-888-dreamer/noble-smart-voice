@@ -101,7 +101,6 @@ export function AppShell({
 
   const wrap = fullWidth ? "mx-auto max-w-md lg:max-w-none" : "mx-auto max-w-md lg:max-w-3xl";
 
-  const micWake = mode === "wake";
   const micActive = mode === "active";
 
   function handleMicTap() {
@@ -180,8 +179,6 @@ export function AppShell({
               className={`relative grid place-items-center w-10 h-10 rounded-full active:scale-95 transition-transform disabled:opacity-40 ${
                 micActive
                   ? "bg-destructive text-destructive-foreground shadow-lg shadow-destructive/30"
-                  : micWake
-                  ? "bg-accent text-accent-foreground"
                   : "bg-primary text-primary-foreground shadow-md shadow-primary/30"
               }`}
             >
@@ -200,13 +197,6 @@ export function AppShell({
               >
                 Buka Record manual / Open Record manually
               </button>
-            </div>
-          )}
-          {micWake && !micActive && (
-            <div className={`${wrap} px-4 lg:px-8 pb-2`}>
-              <p className="text-[10px] text-muted-foreground text-center">
-                Wake listener on — say the wake phrase to activate
-              </p>
             </div>
           )}
         </header>
