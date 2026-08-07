@@ -8,6 +8,23 @@ export interface RedeemVoucherResult {
   durationDays?: number;
 }
 
+// Used by the homepage Redeem box: shows only if there's a REAL unused
+// voucher waiting for this contact — not a local flag, which used to drift
+// out of sync with the actual database (e.g. still "pending" after an
+// admin deleted the underlying order server-side).
+export const hasUnredeemedVoucher = createServerFn({ method: "POST" })
+  .inputValidator((input: { contact: string }) => input)
+  .handler(async ({ data }): Promise<{ ok: true; has: boolean } | { ok: false; error: string }> => {
+    const supabase = createNobleSupabase();
+    if (!supabase) return { ok: false, error: "Backend belum dikonfigurasi." };
+    const contact = normalizeContact(data.contact);
+    if (!contact) return { ok: true, has: false };
+    const { data: rows, error } = await supabase
+      .from("noble_vouchers").select("id").eq("bound_contact", contact).eq("status", "unused").limit(1);
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, has: (rows ?? []).length > 0 };
+  });
+
 export const redeemVoucher = createServerFn({ method: "POST" })
   .inputValidator((input: { code: string; contact: string }) => input)
   .handler(async ({ data }): Promise<RedeemVoucherResult> => {
