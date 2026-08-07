@@ -41,8 +41,12 @@ export const Route = createFileRoute("/api/komerce-create-transaction")({
           const supabase = createNobleSupabase();
           if (!supabase) return json({ error: "Server belum dikonfigurasi" }, 500);
 
-          const { data: order, error: findError } = await supabase.from("store_orders").select("id, invoice_no").eq("invoice_no", invoiceNo).maybeSingle();
-          if (findError || !order) return json({ error: "Order tidak ditemukan" }, 404);
+          const orderSerial = invoiceNo.replace(/^INV-/, "");
+          const { data: order, error: findError } = await supabase.from("store_orders").select("id, serial").eq("serial", orderSerial).maybeSingle();
+          if (findError || !order) {
+            console.error("[komerce-create-transaction] order not found for serial:", orderSerial, "invoiceNo received:", invoiceNo, "db error:", findError?.message);
+            return json({ error: "Order tidak ditemukan" }, 404);
+          }
 
           const callbackApiKey = randomBytes(32).toString("hex");
           const { error: updateError } = await supabase
