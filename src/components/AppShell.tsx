@@ -119,7 +119,7 @@ export function AppShell({
           <div className={`${wrap} px-4 lg:px-8 py-3 flex items-center gap-2`}>
             <Link
               to={fullWidth ? "/school" : pathname === "/" ? "/store" : "/"}
-              className={"text-xs font-semibold uppercase tracking-widest text-primary" + (fullWidth ? "" : " lg:hidden")}
+              className={"text-xs font-semibold uppercase tracking-widest text-primary" + (fullWidth ? "" : " md:hidden")}
               aria-label={fullWidth ? "Home" : pathname === "/" ? "Store" : "Home"}
             >
               Noble
@@ -136,7 +136,7 @@ export function AppShell({
               </button>
             )}
             {headerExtra}
-            {!hideAppTools && <div className="flex items-center gap-1.5 lg:hidden">
+            {!hideAppTools && <div className="flex items-center gap-1.5 md:hidden">
               {hasCamera && (
                 <Link
                   to="/camera"
