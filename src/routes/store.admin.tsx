@@ -525,7 +525,7 @@ function InvoiceModal({
           <p><span className="text-muted-foreground">Invoice No: </span>{order.invoiceNo ?? `INV-${order.serial}`}</p>
           <p><span className="text-muted-foreground">Tanggal: </span>{new Date(order.paidAt ?? order.createdAt).toLocaleDateString()}</p>
           <p><span className="text-muted-foreground">Order ID: </span>{order.id.slice(0, 8).toUpperCase()}</p>
-          <p><span className="text-muted-foreground">Status: </span>{statusLabel(order.status)}</p>
+          <p><span className="text-muted-foreground">Status: </span>{statusLabel(order.status, "en")}</p>
         </div>
         <div className="text-xs space-y-1 mb-4 border-t border-border pt-3">
           <p className="font-semibold text-sm mb-1">{order.buyer.name}</p>

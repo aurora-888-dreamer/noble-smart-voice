@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Plane, GanttChart, NotebookPen, MessageSquare, Calculator, Languages, Camera, MessageCircle, Mail, Music2, Instagram, Facebook, Globe, ExternalLink, StickyNote, CheckSquare, Calendar as CalendarIcon, Video, CalendarClock, Users, BellRing, Crown, GraduationCap } from "lucide-react";
+import { Plane, GanttChart, NotebookPen, MessageSquare, Calculator, Languages, Camera, MessageCircle, Mail, Music2, Instagram, Facebook, Globe, ExternalLink, StickyNote, CheckSquare, Calendar as CalendarIcon, Video, CalendarClock, Users, BellRing, Crown, GraduationCap, FolderKanban } from "lucide-react";
 import { useEnabledShortcuts } from "@/lib/app-shortcuts-store";
 import { AppShell } from "@/components/AppShell";
 import { getDb } from "@/lib/db";
@@ -10,6 +10,7 @@ import { t } from "@/lib/i18n";
 import { isOnboarded } from "@/lib/settings-store";
 import { isRegistered, isSignedIn, ensureTrialStarted, useLicenseInfo, shouldShowRedeemPrompt, markVoucherRedeemed, applyRedeemedLicense, getProfile } from "@/lib/auth-store";
 import { usePlugin } from "@/lib/plugins-store";
+import { PLUGIN_REGISTRY } from "@/lib/plugins";
 import { rehydrateReminders } from "@/lib/reminders";
 import { redeemVoucher, hasUnredeemedVoucher } from "@/lib/vouchers.functions";
 
@@ -101,6 +102,7 @@ function Home() {
   const license = useLicenseInfo();
   const shortcuts = useEnabledShortcuts();
   const hasSchool = usePlugin("school");
+  const hasPmd = usePlugin("pmd");
   const isAdmin = license.code === "NOBLE440077";
 
   useEffect(() => {
@@ -172,6 +174,14 @@ function Home() {
     { to: "/projects", label: t(lang, "projects"), Icon: GanttChart },
   ] as const;
 
+  const activePlugins = [
+    { id: "school" as const, to: "/school" as const, Icon: GraduationCap, on: hasSchool || isAdmin },
+    { id: "pmd" as const, to: "/pmd" as const, Icon: FolderKanban, on: hasPmd || isAdmin },
+  ]
+    .filter((p) => p.on)
+    .map((p) => ({ ...p, meta: PLUGIN_REGISTRY.find((m) => m.id === p.id)! }))
+    .filter((p) => !!p.meta);
+
   return (
     <AppShell title={t(lang, "home")}>
       <RedeemBox lang={lang} />
@@ -197,22 +207,29 @@ function Home() {
         </Link>
       )}
 
-      {(hasSchool || isAdmin) && (
-        <Link
-          to="/school"
-          className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 hover:opacity-90"
-        >
-          <div className="flex items-center gap-3 min-w-0">
-            <GraduationCap size={20} className="text-primary shrink-0" />
-            <div className="min-w-0">
-              <div className="text-sm font-semibold truncate">School Dashboard</div>
-              <div className="text-xs text-muted-foreground truncate">
-                Kindergarten · Teacher / Parent / Principal
+      {activePlugins.length > 0 && (
+        <section className="mb-6 grid gap-3 sm:grid-cols-2">
+          {activePlugins.map(({ to, Icon, meta }) => (
+            <Link
+              key={meta.id}
+              to={to}
+              className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 hover:opacity-90"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <Icon size={20} className="text-primary shrink-0" />
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold truncate">{lang === "id" ? meta.nameId : meta.name}</div>
+                  <div className="text-xs text-muted-foreground line-clamp-2">
+                    {lang === "id" ? meta.descriptionId : meta.description}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-          <span className="text-xs text-primary font-semibold shrink-0">Open →</span>
-        </Link>
+              <span className="text-xs text-primary font-semibold shrink-0">
+                {lang === "id" ? "Buka →" : "Open →"}
+              </span>
+            </Link>
+          ))}
+        </section>
       )}
 
       <h2 className="mb-4 text-xl font-semibold">{t(lang, "dailyActivities")}</h2>
