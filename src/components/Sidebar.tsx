@@ -21,7 +21,9 @@ import {
   Camera,
   Download,
   FileText,
-  ShieldCheck,, FolderKanban } from "lucide-react";
+  ShieldCheck,
+  FolderKanban,
+} from "lucide-react";
 import { useLang } from "@/lib/settings-store";
 import { usePlugin } from "@/lib/plugins-store";
 import { t } from "@/lib/i18n";
