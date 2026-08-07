@@ -1,7 +1,7 @@
 // Central plugin registry. Add a new entry here whenever a new plugin is
 // built — it automatically shows up in the hidden admin toggle page, and
 // is the same id future plugin voucher codes will unlock.
-export type PluginId = "translator" | "calculator" | "camera" | "school";
+export type PluginId = "translator" | "calculator" | "camera" | "school" | "pmd";
 
 export interface PluginMeta {
   id: PluginId;
