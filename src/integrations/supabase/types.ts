@@ -2353,6 +2353,21 @@ export type Database = {
           },
         ]
       }
+      site_features: {
+        Row: {
+          enabled: boolean
+          key: string
+        }
+        Insert: {
+          enabled?: boolean
+          key: string
+        }
+        Update: {
+          enabled?: boolean
+          key?: string
+        }
+        Relationships: []
+      }
       store_admin_auth: {
         Row: {
           id: number
@@ -2485,6 +2500,12 @@ export type Database = {
           duration_days: number | null
           group_id: string | null
           id: string
+          invoice_no: string | null
+          komerce_callback_key: string | null
+          komerce_channel_code: string | null
+          komerce_merchant_ref: string | null
+          komerce_raw_response: Json | null
+          komerce_status: string | null
           original_price_idr: number | null
           paid_at: string | null
           payment_ref: string | null
@@ -2507,6 +2528,12 @@ export type Database = {
           duration_days?: number | null
           group_id?: string | null
           id?: string
+          invoice_no?: string | null
+          komerce_callback_key?: string | null
+          komerce_channel_code?: string | null
+          komerce_merchant_ref?: string | null
+          komerce_raw_response?: Json | null
+          komerce_status?: string | null
           original_price_idr?: number | null
           paid_at?: string | null
           payment_ref?: string | null
@@ -2529,6 +2556,12 @@ export type Database = {
           duration_days?: number | null
           group_id?: string | null
           id?: string
+          invoice_no?: string | null
+          komerce_callback_key?: string | null
+          komerce_channel_code?: string | null
+          komerce_merchant_ref?: string | null
+          komerce_raw_response?: Json | null
+          komerce_status?: string | null
           original_price_idr?: number | null
           paid_at?: string | null
           payment_ref?: string | null

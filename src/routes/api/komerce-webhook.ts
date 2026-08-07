@@ -19,7 +19,7 @@ import { PLANS } from "@/lib/store.functions";
  * (same upsert markOrderPaid does for the manual "Mark Paid" button), so
  * automated Komerce payments activate a serial exactly like manual ones.
  */
-export const Route = createFileRoute("/api/public/komerce-webhook")({
+export const Route = createFileRoute("/api/komerce-webhook")({
   server: {
     handlers: {
       POST: async ({ request }) => {

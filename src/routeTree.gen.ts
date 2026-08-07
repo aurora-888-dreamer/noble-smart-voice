@@ -55,6 +55,9 @@ import { Route as SchoolParentRouteImport } from './routes/school.parent'
 import { Route as SchoolHosRouteImport } from './routes/school.hos'
 import { Route as SchoolAdminHosRouteImport } from './routes/school.admin-hos'
 import { Route as ProjectsIdRouteImport } from './routes/projects.$id'
+import { Route as ApiKomerceWebhookRouteImport } from './routes/api/komerce-webhook'
+import { Route as ApiKomerceCreateTransactionRouteImport } from './routes/api/komerce-create-transaction'
+import { Route as ApiKomerceCheckStatusRouteImport } from './routes/api/komerce-check-status'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
@@ -290,6 +293,22 @@ const ProjectsIdRoute = ProjectsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => ProjectsRoute,
 } as any)
+const ApiKomerceWebhookRoute = ApiKomerceWebhookRouteImport.update({
+  id: '/api/komerce-webhook',
+  path: '/api/komerce-webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiKomerceCreateTransactionRoute =
+  ApiKomerceCreateTransactionRouteImport.update({
+    id: '/api/komerce-create-transaction',
+    path: '/api/komerce-create-transaction',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiKomerceCheckStatusRoute = ApiKomerceCheckStatusRouteImport.update({
+  id: '/api/komerce-check-status',
+  path: '/api/komerce-check-status',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const Char91DotwellKnownChar93OauthProtectedResourceRoute =
   Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
     id: '/.well-known/oauth-protected-resource',
@@ -351,6 +370,9 @@ export interface FileRoutesByFullPath {
   '/upgrade': typeof UpgradeRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/api/komerce-check-status': typeof ApiKomerceCheckStatusRoute
+  '/api/komerce-create-transaction': typeof ApiKomerceCreateTransactionRoute
+  '/api/komerce-webhook': typeof ApiKomerceWebhookRoute
   '/projects/$id': typeof ProjectsIdRoute
   '/school/admin-hos': typeof SchoolAdminHosRoute
   '/school/hos': typeof SchoolHosRoute
@@ -401,6 +423,9 @@ export interface FileRoutesByTo {
   '/upgrade': typeof UpgradeRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/api/komerce-check-status': typeof ApiKomerceCheckStatusRoute
+  '/api/komerce-create-transaction': typeof ApiKomerceCreateTransactionRoute
+  '/api/komerce-webhook': typeof ApiKomerceWebhookRoute
   '/projects/$id': typeof ProjectsIdRoute
   '/school/admin-hos': typeof SchoolAdminHosRoute
   '/school/hos': typeof SchoolHosRoute
@@ -454,6 +479,9 @@ export interface FileRoutesById {
   '/upgrade': typeof UpgradeRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/api/komerce-check-status': typeof ApiKomerceCheckStatusRoute
+  '/api/komerce-create-transaction': typeof ApiKomerceCreateTransactionRoute
+  '/api/komerce-webhook': typeof ApiKomerceWebhookRoute
   '/projects/$id': typeof ProjectsIdRoute
   '/school/admin-hos': typeof SchoolAdminHosRoute
   '/school/hos': typeof SchoolHosRoute
@@ -508,6 +536,9 @@ export interface FileRouteTypes {
     | '/upgrade'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/api/komerce-check-status'
+    | '/api/komerce-create-transaction'
+    | '/api/komerce-webhook'
     | '/projects/$id'
     | '/school/admin-hos'
     | '/school/hos'
@@ -558,6 +589,9 @@ export interface FileRouteTypes {
     | '/upgrade'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/api/komerce-check-status'
+    | '/api/komerce-create-transaction'
+    | '/api/komerce-webhook'
     | '/projects/$id'
     | '/school/admin-hos'
     | '/school/hos'
@@ -610,6 +644,9 @@ export interface FileRouteTypes {
     | '/upgrade'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/api/komerce-check-status'
+    | '/api/komerce-create-transaction'
+    | '/api/komerce-webhook'
     | '/projects/$id'
     | '/school/admin-hos'
     | '/school/hos'
@@ -663,6 +700,9 @@ export interface RootRouteChildren {
   UpgradeRoute: typeof UpgradeRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  ApiKomerceCheckStatusRoute: typeof ApiKomerceCheckStatusRoute
+  ApiKomerceCreateTransactionRoute: typeof ApiKomerceCreateTransactionRoute
+  ApiKomerceWebhookRoute: typeof ApiKomerceWebhookRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
 }
@@ -991,6 +1031,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsIdRouteImport
       parentRoute: typeof ProjectsRoute
     }
+    '/api/komerce-webhook': {
+      id: '/api/komerce-webhook'
+      path: '/api/komerce-webhook'
+      fullPath: '/api/komerce-webhook'
+      preLoaderRoute: typeof ApiKomerceWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/komerce-create-transaction': {
+      id: '/api/komerce-create-transaction'
+      path: '/api/komerce-create-transaction'
+      fullPath: '/api/komerce-create-transaction'
+      preLoaderRoute: typeof ApiKomerceCreateTransactionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/komerce-check-status': {
+      id: '/api/komerce-check-status'
+      path: '/api/komerce-check-status'
+      fullPath: '/api/komerce-check-status'
+      preLoaderRoute: typeof ApiKomerceCheckStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/.well-known/oauth-protected-resource': {
       id: '/.well-known/oauth-protected-resource'
       path: '/.well-known/oauth-protected-resource'
@@ -1111,6 +1172,9 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  ApiKomerceCheckStatusRoute: ApiKomerceCheckStatusRoute,
+  ApiKomerceCreateTransactionRoute: ApiKomerceCreateTransactionRoute,
+  ApiKomerceWebhookRoute: ApiKomerceWebhookRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
 }
