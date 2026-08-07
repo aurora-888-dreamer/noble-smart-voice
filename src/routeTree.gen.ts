@@ -57,6 +57,7 @@ import { Route as SchoolParentRouteImport } from './routes/school.parent'
 import { Route as SchoolHosRouteImport } from './routes/school.hos'
 import { Route as SchoolAdminHosRouteImport } from './routes/school.admin-hos'
 import { Route as ProjectsIdRouteImport } from './routes/projects.$id'
+import { Route as PmdIdRouteImport } from './routes/pmd.$id'
 import { Route as ApiKomerceWebhookRouteImport } from './routes/api/komerce-webhook'
 import { Route as ApiKomerceCreateTransactionRouteImport } from './routes/api/komerce-create-transaction'
 import { Route as ApiKomerceCheckStatusRouteImport } from './routes/api/komerce-check-status'
@@ -305,6 +306,11 @@ const ProjectsIdRoute = ProjectsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => ProjectsRoute,
 } as any)
+const PmdIdRoute = PmdIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => PmdRoute,
+} as any)
 const ApiKomerceWebhookRoute = ApiKomerceWebhookRouteImport.update({
   id: '/api/komerce-webhook',
   path: '/api/komerce-webhook',
@@ -386,6 +392,7 @@ export interface FileRoutesByFullPath {
   '/api/komerce-check-status': typeof ApiKomerceCheckStatusRoute
   '/api/komerce-create-transaction': typeof ApiKomerceCreateTransactionRoute
   '/api/komerce-webhook': typeof ApiKomerceWebhookRoute
+  '/pmd/$id': typeof PmdIdRoute
   '/projects/$id': typeof ProjectsIdRoute
   '/school/admin-hos': typeof SchoolAdminHosRoute
   '/school/hos': typeof SchoolHosRoute
@@ -440,6 +447,7 @@ export interface FileRoutesByTo {
   '/api/komerce-check-status': typeof ApiKomerceCheckStatusRoute
   '/api/komerce-create-transaction': typeof ApiKomerceCreateTransactionRoute
   '/api/komerce-webhook': typeof ApiKomerceWebhookRoute
+  '/pmd/$id': typeof PmdIdRoute
   '/projects/$id': typeof ProjectsIdRoute
   '/school/admin-hos': typeof SchoolAdminHosRoute
   '/school/hos': typeof SchoolHosRoute
@@ -498,6 +506,7 @@ export interface FileRoutesById {
   '/api/komerce-check-status': typeof ApiKomerceCheckStatusRoute
   '/api/komerce-create-transaction': typeof ApiKomerceCreateTransactionRoute
   '/api/komerce-webhook': typeof ApiKomerceWebhookRoute
+  '/pmd/$id': typeof PmdIdRoute
   '/projects/$id': typeof ProjectsIdRoute
   '/school/admin-hos': typeof SchoolAdminHosRoute
   '/school/hos': typeof SchoolHosRoute
@@ -557,6 +566,7 @@ export interface FileRouteTypes {
     | '/api/komerce-check-status'
     | '/api/komerce-create-transaction'
     | '/api/komerce-webhook'
+    | '/pmd/$id'
     | '/projects/$id'
     | '/school/admin-hos'
     | '/school/hos'
@@ -611,6 +621,7 @@ export interface FileRouteTypes {
     | '/api/komerce-check-status'
     | '/api/komerce-create-transaction'
     | '/api/komerce-webhook'
+    | '/pmd/$id'
     | '/projects/$id'
     | '/school/admin-hos'
     | '/school/hos'
@@ -668,6 +679,7 @@ export interface FileRouteTypes {
     | '/api/komerce-check-status'
     | '/api/komerce-create-transaction'
     | '/api/komerce-webhook'
+    | '/pmd/$id'
     | '/projects/$id'
     | '/school/admin-hos'
     | '/school/hos'
@@ -1068,6 +1080,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsIdRouteImport
       parentRoute: typeof ProjectsRoute
     }
+    '/pmd/$id': {
+      id: '/pmd/$id'
+      path: '/$id'
+      fullPath: '/pmd/$id'
+      preLoaderRoute: typeof PmdIdRouteImport
+      parentRoute: typeof PmdRoute
+    }
     '/api/komerce-webhook': {
       id: '/api/komerce-webhook'
       path: '/api/komerce-webhook'
@@ -1121,10 +1140,12 @@ declare module '@tanstack/react-router' {
 }
 
 interface PmdRouteChildren {
+  PmdIdRoute: typeof PmdIdRoute
   PmdIndexRoute: typeof PmdIndexRoute
 }
 
 const PmdRouteChildren: PmdRouteChildren = {
+  PmdIdRoute: PmdIdRoute,
   PmdIndexRoute: PmdIndexRoute,
 }
 
