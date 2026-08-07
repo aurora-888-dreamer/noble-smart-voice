@@ -6,7 +6,6 @@ import {
   Cloud,
   Shield,
   Mic,
-  Zap,
   Smartphone,
   Fingerprint,
   LogOut,
@@ -21,9 +20,8 @@ import {
   Pencil,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
-import { useLang, useWakePhrase, useAutoSaveRaw, useRecordTimeoutMin } from "@/lib/settings-store";
+import { useLang, useAutoSaveRaw, useRecordTimeoutMin } from "@/lib/settings-store";
 import { t, type Lang } from "@/lib/i18n";
-import { useVoice } from "@/lib/voice-controller";
 import { exportAll, importAll } from "@/lib/db";
 import {
   useShortcutEnabledMap,
@@ -61,7 +59,6 @@ export const Route = createFileRoute("/settings")({
 
 function SettingsPage() {
   const [lang] = useLang();
-  const [wake, setWake] = useWakePhrase();
   const [autoRaw, setAutoRaw] = useAutoSaveRaw();
   const [recordTimeout, setRecordTimeout] = useRecordTimeoutMin();
   const [bio, setBio] = useState(false);
@@ -322,28 +319,6 @@ function SettingsPage() {
           {lang === "id" ? "Buka panduan" : "Open guide"}
         </Link>
       </Card>
-
-      <Card>
-        <Label icon={<Zap size={14} />}>{t(lang, "wakeWord")}</Label>
-        <p className="text-xs text-muted-foreground mt-2">
-          {lang === "id"
-            ? "Saat aktif, aplikasi mendengarkan frasa ini selama layar terbuka. Setelah terdengar, mic terbuka terus-menerus sampai Anda katakan \"close mic\" atau \"standby\"."
-            : "When enabled, the app listens for this phrase while the screen is open. Once heard, the mic stays on until you say \"close mic\" or \"standby\"."}
-        </p>
-        <input
-          value={wake}
-          onChange={(e) => setWake(e.target.value)}
-          placeholder="Aurora Start"
-          className="mt-2 w-full rounded-xl bg-secondary text-secondary-foreground px-3 py-2 text-sm"
-        />
-        <WakeToggle lang={lang} />
-        <p className="text-[11px] text-muted-foreground mt-3 leading-relaxed">
-          {lang === "id"
-            ? "Untuk membuka aplikasi ini dari layar terkunci HP: buka Google Assistant → Routines → tambah Personal shortcut dengan pemicu \"Aurora Start\" dan aksi \"Buka Noble\". Browser web tidak bisa mendengarkan saat aplikasi ditutup."
-            : "To trigger this from a locked phone: open Google Assistant → Routines → add a Personal shortcut with trigger \"Aurora Start\" and action \"Open Noble\". Web browsers cannot listen while the app is closed."}
-        </p>
-      </Card>
-
 
       <Card>
         <Label icon={<Mic size={14} />}>{t(lang, "recTimeoutSetting")}</Label>
@@ -640,31 +615,6 @@ function BluetoothCard({ lang }: { lang: Lang }) {
 }
 
 
-
-function WakeToggle({ lang }: { lang: Lang }) {
-  const { wakeEnabled, setWakeEnabled } = useVoice();
-  return (
-    <div className="mt-3 flex items-center justify-between">
-      <p className="text-xs font-medium">
-        {lang === "id" ? "Dengarkan frasa bangun" : "Listen for wake phrase"}
-      </p>
-      <button
-        onClick={() => setWakeEnabled(!wakeEnabled)}
-        role="switch"
-        aria-checked={wakeEnabled}
-        className={`shrink-0 w-11 h-6 rounded-full relative transition-colors ${
-          wakeEnabled ? "bg-primary" : "bg-muted"
-        }`}
-      >
-        <span
-          className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all ${
-            wakeEnabled ? "left-[22px]" : "left-0.5"
-          }`}
-        />
-      </button>
-    </div>
-  );
-}
 
 function Label({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
   return (

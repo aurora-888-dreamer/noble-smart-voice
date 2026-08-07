@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
-import { useLang, useWakePhrase } from "@/lib/settings-store";
+import { useLang } from "@/lib/settings-store";
 
 export const Route = createFileRoute("/guide")({
   head: () => ({ meta: [{ title: "User Guide — Noble" }] }),
@@ -9,7 +9,6 @@ export const Route = createFileRoute("/guide")({
 
 function GuidePage() {
   const [lang] = useLang();
-  const [wake] = useWakePhrase();
   return (
     <AppShell title={lang === "id" ? "Panduan" : "User Guide"}>
       <article className="prose prose-invert max-w-none space-y-6 pb-8">
@@ -29,11 +28,11 @@ function GuidePage() {
 
         <Step
           n={1}
-          title={lang === "id" ? "Bangunkan Noble" : "Wake Noble"}
+          title={lang === "id" ? "Mulai bicara" : "Start talking"}
           body={
             lang === "id"
-              ? `Ucapkan "${wake}" (default: Aurora Start) atau ketuk tombol mikrofon.`
-              : `Say "${wake}" (default: Aurora Start) or tap the mic button.`
+              ? "Ketuk tombol mikrofon untuk mulai memberi perintah suara."
+              : "Tap the mic button to start giving a voice command."
           }
         />
         <Step
