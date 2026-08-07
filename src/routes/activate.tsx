@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { ShieldCheck, QrCode } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
-import { activatePremium, isPremium, getProfile, applyRedeemedLicense } from "@/lib/auth-store";
+import { activatePremium, isPremium, getProfile, applyRedeemedLicense, markVoucherRedeemed } from "@/lib/auth-store";
 import { redeemVoucher } from "@/lib/vouchers.functions";
 import { useLang } from "@/lib/settings-store";
 
@@ -43,6 +43,7 @@ function ActivatePage() {
       const res = await redeemVoucher({ data: { code, contact } });
       if (res.ok && res.tier && res.durationDays != null) {
         applyRedeemedLicense({ code: code.trim().toUpperCase(), tier: res.tier, durationDays: res.durationDays });
+        markVoucherRedeemed();
         setStatus("ok");
         setTimeout(() => nav({ to: "/settings" }), 800);
       } else {
