@@ -21,8 +21,7 @@ import {
   Camera,
   Download,
   FileText,
-  ShieldCheck,
-} from "lucide-react";
+  ShieldCheck,, FolderKanban } from "lucide-react";
 import { useLang } from "@/lib/settings-store";
 import { usePlugin } from "@/lib/plugins-store";
 import { t } from "@/lib/i18n";
@@ -33,6 +32,7 @@ export function Sidebar() {
   const hasCalculator = usePlugin("calculator");
   const hasTranslator = usePlugin("translator");
   const hasCamera = usePlugin("camera");
+  const hasPmd = usePlugin("pmd");
 
   // Primary categories — same set/order on every page (Home included), two columns.
   const items = [
@@ -54,6 +54,7 @@ export function Sidebar() {
   // (no special inline cards on Home anymore; Sidebar is the one consistent
   // entry point everywhere).
   const toolItems = [
+    ...(hasPmd ? [{ to: "/pmd", label: lang === "id" ? "Manajemen Proyek" : "Project Management", Icon: FolderKanban }] : []),
     ...(hasCamera ? [{ to: "/camera", label: lang === "id" ? "Kamera & Foto" : "Camera & Photos", Icon: Camera }] : []),
     ...(hasCalculator ? [{ to: "/calculator", label: lang === "id" ? "Kalkulator" : "Calculator", Icon: Calculator }] : []),
     ...(hasTranslator ? [{ to: "/translate", label: lang === "id" ? "Penerjemah" : "Translator", Icon: Languages }] : []),
@@ -61,8 +62,8 @@ export function Sidebar() {
     { to: "/backup", label: lang === "id" ? "Cadangan Data" : "Backup", Icon: Download },
     { to: "/guide", label: t(lang, "guide"), Icon: BookOpen },
     { to: "/settings", label: t(lang, "settings"), Icon: SettingsIcon },
-    { to: "/terms", label: "Terms & Conditions", Icon: FileText },
-    { to: "/privacy", label: "Privacy Policy", Icon: ShieldCheck },
+    { to: "/terms", label: lang === "id" ? "Syarat & Ketentuan" : "Terms & Conditions", Icon: FileText },
+    { to: "/privacy", label: lang === "id" ? "Kebijakan Privasi" : "Privacy Policy", Icon: ShieldCheck },
   ] as const;
 
   function NavGrid({ list }: { list: readonly { to: string; label: string; Icon: typeof Home }[] }) {
