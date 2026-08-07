@@ -197,22 +197,29 @@ function Home() {
         </Link>
       )}
 
-      {(hasSchool || isAdmin) && (
-        <Link
-          to="/school"
-          className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 hover:opacity-90"
-        >
-          <div className="flex items-center gap-3 min-w-0">
-            <GraduationCap size={20} className="text-primary shrink-0" />
-            <div className="min-w-0">
-              <div className="text-sm font-semibold truncate">School Dashboard</div>
-              <div className="text-xs text-muted-foreground truncate">
-                Kindergarten · Teacher / Parent / Principal
+      {activePlugins.length > 0 && (
+        <section className="mb-6 grid gap-3 sm:grid-cols-2">
+          {activePlugins.map(({ to, Icon, meta }) => (
+            <Link
+              key={meta.id}
+              to={to}
+              className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 hover:opacity-90"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <Icon size={20} className="text-primary shrink-0" />
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold truncate">{lang === "id" ? meta.nameId : meta.name}</div>
+                  <div className="text-xs text-muted-foreground line-clamp-2">
+                    {lang === "id" ? meta.descriptionId : meta.description}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-          <span className="text-xs text-primary font-semibold shrink-0">Open →</span>
-        </Link>
+              <span className="text-xs text-primary font-semibold shrink-0">
+                {lang === "id" ? "Buka →" : "Open →"}
+              </span>
+            </Link>
+          ))}
+        </section>
       )}
 
       <h2 className="mb-4 text-xl font-semibold">{t(lang, "dailyActivities")}</h2>
