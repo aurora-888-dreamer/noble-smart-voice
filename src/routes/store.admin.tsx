@@ -1158,16 +1158,21 @@ function PricingCard({ adminPassword }: { adminPassword: string }) {
     getSiteFeature({ data: { key: "komerce_production_mode" } }).then((r) => { if (r.ok) setKomerceProdMode(r.enabled); });
   }, []);
 
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   async function save(planId: PlanId) {
     const raw = draft[planId];
     const val = raw === undefined || raw.trim() === "" ? null : Number(raw.replace(/\D/g, ""));
     setBusy(planId);
+    setSaveError(null);
     const r = await setPlanPrice({ data: { adminPassword, planId, priceIDR: val } });
     setBusy(null);
     if (r.ok) {
       const fresh = await getPlanPrices();
       if (fresh.ok) setOverrides(fresh.overrides);
       setDraft((d) => ({ ...d, [planId]: "" }));
+    } else {
+      setSaveError(r.error);
     }
   }
 
@@ -1218,6 +1223,11 @@ function PricingCard({ adminPassword }: { adminPassword: string }) {
         <p className="text-xs text-muted-foreground mb-3">
           Kosongkan lalu simpan untuk kembali ke harga default kode. Perubahan harga tidak mempengaruhi order yang sudah dibuat.
         </p>
+        {saveError && (
+          <p className="text-xs text-destructive bg-destructive/10 rounded-lg px-3 py-2 mb-3">
+            Gagal menyimpan: {saveError}
+          </p>
+        )}
         <div className="space-y-2">
           {PLANS.map((p) => {
             const effective = overrides[p.id] ?? p.priceIDR;

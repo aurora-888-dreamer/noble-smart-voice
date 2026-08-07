@@ -8,13 +8,79 @@ import { getDb } from "@/lib/db";
 import { useLang } from "@/lib/settings-store";
 import { t } from "@/lib/i18n";
 import { isOnboarded } from "@/lib/settings-store";
-import { isRegistered, isSignedIn, ensureTrialStarted, useLicenseInfo } from "@/lib/auth-store";
+import { isRegistered, isSignedIn, ensureTrialStarted, useLicenseInfo, shouldShowRedeemPrompt, markVoucherRedeemed, applyRedeemedLicense, getProfile } from "@/lib/auth-store";
 import { usePlugin } from "@/lib/plugins-store";
 import { rehydrateReminders } from "@/lib/reminders";
+import { redeemVoucher } from "@/lib/vouchers.functions";
 
 export const Route = createFileRoute("/")({
   component: Home,
 });
+
+/** Shows only when there's a pending voucher to redeem — after a fresh
+ * Store order, or for a first-time visitor who's never redeemed anything.
+ * Hides itself the instant a redeem succeeds, and only reappears once
+ * store.order.tsx marks a new order as placed (same-origin localStorage,
+ * shared between Store and NSV). */
+function RedeemBox({ lang }: { lang: "en" | "id" }) {
+  const [visible, setVisible] = useState(false);
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => { setVisible(shouldShowRedeemPrompt()); }, []);
+
+  async function redeem() {
+    if (!code.trim()) return;
+    const profile = getProfile();
+    const contact = profile?.email || profile?.whatsapp || "";
+    if (!contact) {
+      setError(lang === "id" ? "Akun kamu belum punya email/WhatsApp terdaftar." : "Your account has no email/WhatsApp on file.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await redeemVoucher({ data: { code, contact } });
+      if (res.ok && res.tier && res.durationDays != null) {
+        applyRedeemedLicense({ code: code.trim().toUpperCase(), tier: res.tier, durationDays: res.durationDays });
+        markVoucherRedeemed();
+        setVisible(false);
+      } else {
+        setError(res.error ?? (lang === "id" ? "Kode tidak valid." : "Invalid code."));
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+    setBusy(false);
+  }
+
+  if (!visible) return null;
+  return (
+    <div className="mb-4 rounded-2xl border border-primary/40 bg-gradient-to-br from-primary/15 to-primary/5 p-4">
+      <p className="text-sm font-semibold flex items-center gap-1.5"><Crown size={16} className="text-primary" /> Redeem Voucher</p>
+      <p className="text-xs text-muted-foreground mt-0.5 mb-3">
+        {lang === "id" ? "Punya serial dari pembelian? Masukkan di sini untuk aktivasi." : "Have a serial from a purchase? Enter it here to activate."}
+      </p>
+      <div className="flex gap-2">
+        <input
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          placeholder="NBL-XXXXXX-XXXX-XX"
+          className="flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm font-mono"
+        />
+        <button
+          onClick={redeem}
+          disabled={busy || !code.trim()}
+          className="rounded-xl bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold disabled:opacity-50"
+        >
+          {busy ? "…" : lang === "id" ? "Aktivasi" : "Redeem"}
+        </button>
+      </div>
+      {error && <p className="text-xs text-destructive mt-2">{error}</p>}
+    </div>
+  );
+}
 
 function Home() {
   const [lang] = useLang();
@@ -96,6 +162,7 @@ function Home() {
 
   return (
     <AppShell title={t(lang, "home")}>
+      <RedeemBox lang={lang} />
       {license.tier !== "premium" && (
         <Link
           to="/upgrade"

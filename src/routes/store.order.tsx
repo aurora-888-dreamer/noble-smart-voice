@@ -6,6 +6,7 @@ import {
   PLANS, formatIDR, createOrder, useEffectivePlans, getSiteFeature, type PlanId, type OrderRecord,
 } from "@/lib/aurora-store";
 import { getDiscount, isDiscountValid, discountAppliesToPlan, discountAppliesToGroup, applyDiscount, setUserGroupId, useDiscounts } from "@/lib/discounts-store";
+import { markOrderPlaced } from "@/lib/auth-store";
 
 export const Route = createFileRoute("/store/order")({
   validateSearch: (s: Record<string, unknown>): { plan?: PlanId; discount?: string; group?: string } => ({
@@ -71,6 +72,7 @@ function OrderPage() {
     }
     // If the discount promotes to an upgrade group, remember it locally.
     if (activeDiscount?.upgradeGroupId) setUserGroupId(activeDiscount.upgradeGroupId);
+    markOrderPlaced();
     setOrder(res.order);
   }
 
