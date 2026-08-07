@@ -46,6 +46,7 @@ import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as StoreIndexRouteImport } from './routes/store.index'
 import { Route as SchoolIndexRouteImport } from './routes/school.index'
+import { Route as PmdIndexRouteImport } from './routes/pmd.index'
 import { Route as StoreTermsRouteImport } from './routes/store.terms'
 import { Route as StorePrivacyRouteImport } from './routes/store.privacy'
 import { Route as StoreOrderRouteImport } from './routes/store.order'
@@ -249,6 +250,11 @@ const SchoolIndexRoute = SchoolIndexRouteImport.update({
   path: '/',
   getParentRoute: () => SchoolRoute,
 } as any)
+const PmdIndexRoute = PmdIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PmdRoute,
+} as any)
 const StoreTermsRoute = StoreTermsRouteImport.update({
   id: '/terms',
   path: '/terms',
@@ -359,7 +365,7 @@ export interface FileRoutesByFullPath {
   '/messages': typeof MessagesRoute
   '/notes': typeof NotesRoute
   '/onboarding': typeof OnboardingRoute
-  '/pmd': typeof PmdRoute
+  '/pmd': typeof PmdRouteWithChildren
   '/privacy': typeof PrivacyRoute
   '/projects': typeof ProjectsRouteWithChildren
   '/receive': typeof ReceiveRoute
@@ -390,6 +396,7 @@ export interface FileRoutesByFullPath {
   '/store/order': typeof StoreOrderRoute
   '/store/privacy': typeof StorePrivacyRoute
   '/store/terms': typeof StoreTermsRoute
+  '/pmd/': typeof PmdIndexRoute
   '/school/': typeof SchoolIndexRoute
   '/store/': typeof StoreIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -415,7 +422,6 @@ export interface FileRoutesByTo {
   '/messages': typeof MessagesRoute
   '/notes': typeof NotesRoute
   '/onboarding': typeof OnboardingRoute
-  '/pmd': typeof PmdRoute
   '/privacy': typeof PrivacyRoute
   '/projects': typeof ProjectsRouteWithChildren
   '/receive': typeof ReceiveRoute
@@ -444,6 +450,7 @@ export interface FileRoutesByTo {
   '/store/order': typeof StoreOrderRoute
   '/store/privacy': typeof StorePrivacyRoute
   '/store/terms': typeof StoreTermsRoute
+  '/pmd': typeof PmdIndexRoute
   '/school': typeof SchoolIndexRoute
   '/store': typeof StoreIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -470,7 +477,7 @@ export interface FileRoutesById {
   '/messages': typeof MessagesRoute
   '/notes': typeof NotesRoute
   '/onboarding': typeof OnboardingRoute
-  '/pmd': typeof PmdRoute
+  '/pmd': typeof PmdRouteWithChildren
   '/privacy': typeof PrivacyRoute
   '/projects': typeof ProjectsRouteWithChildren
   '/receive': typeof ReceiveRoute
@@ -501,6 +508,7 @@ export interface FileRoutesById {
   '/store/order': typeof StoreOrderRoute
   '/store/privacy': typeof StorePrivacyRoute
   '/store/terms': typeof StoreTermsRoute
+  '/pmd/': typeof PmdIndexRoute
   '/school/': typeof SchoolIndexRoute
   '/store/': typeof StoreIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -559,6 +567,7 @@ export interface FileRouteTypes {
     | '/store/order'
     | '/store/privacy'
     | '/store/terms'
+    | '/pmd/'
     | '/school/'
     | '/store/'
     | '/.lovable/oauth/consent'
@@ -584,7 +593,6 @@ export interface FileRouteTypes {
     | '/messages'
     | '/notes'
     | '/onboarding'
-    | '/pmd'
     | '/privacy'
     | '/projects'
     | '/receive'
@@ -613,6 +621,7 @@ export interface FileRouteTypes {
     | '/store/order'
     | '/store/privacy'
     | '/store/terms'
+    | '/pmd'
     | '/school'
     | '/store'
     | '/.lovable/oauth/consent'
@@ -669,6 +678,7 @@ export interface FileRouteTypes {
     | '/store/order'
     | '/store/privacy'
     | '/store/terms'
+    | '/pmd/'
     | '/school/'
     | '/store/'
     | '/.lovable/oauth/consent'
@@ -695,7 +705,7 @@ export interface RootRouteChildren {
   MessagesRoute: typeof MessagesRoute
   NotesRoute: typeof NotesRoute
   OnboardingRoute: typeof OnboardingRoute
-  PmdRoute: typeof PmdRoute
+  PmdRoute: typeof PmdRouteWithChildren
   PrivacyRoute: typeof PrivacyRoute
   ProjectsRoute: typeof ProjectsRouteWithChildren
   ReceiveRoute: typeof ReceiveRoute
@@ -981,6 +991,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SchoolIndexRouteImport
       parentRoute: typeof SchoolRoute
     }
+    '/pmd/': {
+      id: '/pmd/'
+      path: '/'
+      fullPath: '/pmd/'
+      preLoaderRoute: typeof PmdIndexRouteImport
+      parentRoute: typeof PmdRoute
+    }
     '/store/terms': {
       id: '/store/terms'
       path: '/terms'
@@ -1103,6 +1120,16 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface PmdRouteChildren {
+  PmdIndexRoute: typeof PmdIndexRoute
+}
+
+const PmdRouteChildren: PmdRouteChildren = {
+  PmdIndexRoute: PmdIndexRoute,
+}
+
+const PmdRouteWithChildren = PmdRoute._addFileChildren(PmdRouteChildren)
+
 interface ProjectsRouteChildren {
   ProjectsIdRoute: typeof ProjectsIdRoute
 }
@@ -1174,7 +1201,7 @@ const rootRouteChildren: RootRouteChildren = {
   MessagesRoute: MessagesRoute,
   NotesRoute: NotesRoute,
   OnboardingRoute: OnboardingRoute,
-  PmdRoute: PmdRoute,
+  PmdRoute: PmdRouteWithChildren,
   PrivacyRoute: PrivacyRoute,
   ProjectsRoute: ProjectsRouteWithChildren,
   ReceiveRoute: ReceiveRoute,
