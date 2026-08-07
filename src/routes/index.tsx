@@ -101,6 +101,7 @@ function Home() {
   const license = useLicenseInfo();
   const shortcuts = useEnabledShortcuts();
   const hasSchool = usePlugin("school");
+  const hasPmd = usePlugin("pmd");
   const isAdmin = license.code === "NOBLE440077";
 
   useEffect(() => {
