@@ -173,6 +173,14 @@ function Home() {
     { to: "/projects", label: t(lang, "projects"), Icon: GanttChart },
   ] as const;
 
+  const activePlugins = [
+    { id: "school" as const, to: "/school" as const, Icon: GraduationCap, on: hasSchool || isAdmin },
+    { id: "pmd" as const, to: "/pmd" as const, Icon: FolderKanban, on: hasPmd || isAdmin },
+  ]
+    .filter((p) => p.on)
+    .map((p) => ({ ...p, meta: PLUGIN_REGISTRY.find((m) => m.id === p.id)! }))
+    .filter((p) => !!p.meta);
+
   return (
     <AppShell title={t(lang, "home")}>
       <RedeemBox lang={lang} />
