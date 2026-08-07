@@ -11,7 +11,7 @@ import { isOnboarded } from "@/lib/settings-store";
 import { isRegistered, isSignedIn, ensureTrialStarted, useLicenseInfo, shouldShowRedeemPrompt, markVoucherRedeemed, applyRedeemedLicense, getProfile } from "@/lib/auth-store";
 import { usePlugin } from "@/lib/plugins-store";
 import { rehydrateReminders } from "@/lib/reminders";
-import { redeemVoucher } from "@/lib/vouchers.functions";
+import { redeemVoucher, hasUnredeemedVoucher } from "@/lib/vouchers.functions";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -28,7 +28,19 @@ function RedeemBox({ lang }: { lang: "en" | "id" }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => { setVisible(shouldShowRedeemPrompt()); }, []);
+  useEffect(() => {
+    const profile = getProfile();
+    const contact = profile?.email || profile?.whatsapp || "";
+    if (!contact) {
+      // No account contact yet to check against — fall back to the local
+      // "just placed an order" flag as a best-effort signal.
+      setVisible(shouldShowRedeemPrompt());
+      return;
+    }
+    hasUnredeemedVoucher({ data: { contact } }).then((r) => {
+      if (r.ok) setVisible(r.has);
+    });
+  }, []);
 
   async function redeem() {
     if (!code.trim()) return;
