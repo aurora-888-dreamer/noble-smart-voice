@@ -40,6 +40,13 @@ export const PLUGIN_REGISTRY: PluginMeta[] = [
     description: "Kindergarten management: teacher/parent/principal dashboards, attendance, lesson plans, timetable, projects, assessments and announcements. Sample: Stella Maris International School.",
     descriptionId: "Manajemen kindergarten: dashboard guru/orang tua/principal, absensi, RPP, jadwal, proyek, asesmen, dan pengumuman. Contoh: Stella Maris International School.",
   },
+  {
+    id: "pmd",
+    name: "Project Management Dashboard",
+    nameId: "Dashboard Manajemen Proyek",
+    description: "Run projects end to end: contacts, vendors, documents, properties, budget and an approval timeline.",
+    descriptionId: "Kelola proyek dari awal sampai selesai: kontak, vendor, dokumen, properti, anggaran, dan lini masa persetujuan.",
+  },
   // Next plugin ideas go here, e.g.:
   // { id: "ocr", name: "Photo to Text (OCR)", ... }
 ];
