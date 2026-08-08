@@ -12,17 +12,30 @@ export interface RedeemVoucherResult {
 // voucher waiting for this contact — not a local flag, which used to drift
 // out of sync with the actual database (e.g. still "pending" after an
 // admin deleted the underlying order server-side).
-export const hasUnredeemedVoucher = createServerFn({ method: "POST" })
-  .inputValidator((input: { contact: string }) => input)
-  .handler(async ({ data }): Promise<{ ok: true; has: boolean } | { ok: false; error: string }> => {
+export interface MyVoucher {
+  code: string;
+  tier: "standard" | "premium";
+  durationDays: number | null;
+}
+
+// Checks BOTH email and whatsapp (not just whichever the profile happens to
+// have filled in first) — a voucher bought by someone else, granted by an
+// admin, or issued from a different device/app can be bound to either
+// contact, so both must be checked for the box to reliably find it.
+export const getMyVouchers = createServerFn({ method: "POST" })
+  .inputValidator((input: { email?: string; whatsapp?: string }) => input)
+  .handler(async ({ data }): Promise<{ ok: true; vouchers: MyVoucher[] } | { ok: false; error: string }> => {
     const supabase = createNobleSupabase();
     if (!supabase) return { ok: false, error: "Backend belum dikonfigurasi." };
-    const contact = normalizeContact(data.contact);
-    if (!contact) return { ok: true, has: false };
+    const contacts = [data.email, data.whatsapp].filter(Boolean).map((c) => normalizeContact(c as string));
+    if (contacts.length === 0) return { ok: true, vouchers: [] };
     const { data: rows, error } = await supabase
-      .from("noble_vouchers").select("id").eq("bound_contact", contact).eq("status", "unused").limit(1);
+      .from("noble_vouchers").select("code, tier, duration_days").in("bound_contact", contacts).eq("status", "unused");
     if (error) return { ok: false, error: error.message };
-    return { ok: true, has: (rows ?? []).length > 0 };
+    return {
+      ok: true,
+      vouchers: (rows ?? []).map((r) => ({ code: r.code as string, tier: r.tier as "standard" | "premium", durationDays: r.duration_days as number | null })),
+    };
   });
 
 export const redeemVoucher = createServerFn({ method: "POST" })
