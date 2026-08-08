@@ -49,6 +49,7 @@ import { Route as SchoolIndexRouteImport } from './routes/school.index'
 import { Route as PmdIndexRouteImport } from './routes/pmd.index'
 import { Route as StoreTermsRouteImport } from './routes/store.terms'
 import { Route as StorePrivacyRouteImport } from './routes/store.privacy'
+import { Route as StorePluginOrderRouteImport } from './routes/store.plugin-order'
 import { Route as StoreOrderRouteImport } from './routes/store.order'
 import { Route as StoreAdminRouteImport } from './routes/store.admin'
 import { Route as SchoolTeacherRouteImport } from './routes/school.teacher'
@@ -266,6 +267,11 @@ const StorePrivacyRoute = StorePrivacyRouteImport.update({
   path: '/privacy',
   getParentRoute: () => StoreRoute,
 } as any)
+const StorePluginOrderRoute = StorePluginOrderRouteImport.update({
+  id: '/plugin-order',
+  path: '/plugin-order',
+  getParentRoute: () => StoreRoute,
+} as any)
 const StoreOrderRoute = StoreOrderRouteImport.update({
   id: '/order',
   path: '/order',
@@ -401,6 +407,7 @@ export interface FileRoutesByFullPath {
   '/school/teacher': typeof SchoolTeacherRoute
   '/store/admin': typeof StoreAdminRoute
   '/store/order': typeof StoreOrderRoute
+  '/store/plugin-order': typeof StorePluginOrderRoute
   '/store/privacy': typeof StorePrivacyRoute
   '/store/terms': typeof StoreTermsRoute
   '/pmd/': typeof PmdIndexRoute
@@ -456,6 +463,7 @@ export interface FileRoutesByTo {
   '/school/teacher': typeof SchoolTeacherRoute
   '/store/admin': typeof StoreAdminRoute
   '/store/order': typeof StoreOrderRoute
+  '/store/plugin-order': typeof StorePluginOrderRoute
   '/store/privacy': typeof StorePrivacyRoute
   '/store/terms': typeof StoreTermsRoute
   '/pmd': typeof PmdIndexRoute
@@ -515,6 +523,7 @@ export interface FileRoutesById {
   '/school/teacher': typeof SchoolTeacherRoute
   '/store/admin': typeof StoreAdminRoute
   '/store/order': typeof StoreOrderRoute
+  '/store/plugin-order': typeof StorePluginOrderRoute
   '/store/privacy': typeof StorePrivacyRoute
   '/store/terms': typeof StoreTermsRoute
   '/pmd/': typeof PmdIndexRoute
@@ -575,6 +584,7 @@ export interface FileRouteTypes {
     | '/school/teacher'
     | '/store/admin'
     | '/store/order'
+    | '/store/plugin-order'
     | '/store/privacy'
     | '/store/terms'
     | '/pmd/'
@@ -630,6 +640,7 @@ export interface FileRouteTypes {
     | '/school/teacher'
     | '/store/admin'
     | '/store/order'
+    | '/store/plugin-order'
     | '/store/privacy'
     | '/store/terms'
     | '/pmd'
@@ -688,6 +699,7 @@ export interface FileRouteTypes {
     | '/school/teacher'
     | '/store/admin'
     | '/store/order'
+    | '/store/plugin-order'
     | '/store/privacy'
     | '/store/terms'
     | '/pmd/'
@@ -1024,6 +1036,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StorePrivacyRouteImport
       parentRoute: typeof StoreRoute
     }
+    '/store/plugin-order': {
+      id: '/store/plugin-order'
+      path: '/plugin-order'
+      fullPath: '/store/plugin-order'
+      preLoaderRoute: typeof StorePluginOrderRouteImport
+      parentRoute: typeof StoreRoute
+    }
     '/store/order': {
       id: '/store/order'
       path: '/order'
@@ -1187,6 +1206,7 @@ const SchoolRouteWithChildren =
 interface StoreRouteChildren {
   StoreAdminRoute: typeof StoreAdminRoute
   StoreOrderRoute: typeof StoreOrderRoute
+  StorePluginOrderRoute: typeof StorePluginOrderRoute
   StorePrivacyRoute: typeof StorePrivacyRoute
   StoreTermsRoute: typeof StoreTermsRoute
   StoreIndexRoute: typeof StoreIndexRoute
@@ -1195,6 +1215,7 @@ interface StoreRouteChildren {
 const StoreRouteChildren: StoreRouteChildren = {
   StoreAdminRoute: StoreAdminRoute,
   StoreOrderRoute: StoreOrderRoute,
+  StorePluginOrderRoute: StorePluginOrderRoute,
   StorePrivacyRoute: StorePrivacyRoute,
   StoreTermsRoute: StoreTermsRoute,
   StoreIndexRoute: StoreIndexRoute,

@@ -22,6 +22,7 @@ export type Database = {
           duration_days: number | null
           id: string
           note: string | null
+          plugin_id: string | null
           status: string
           tier: string
           used_at: string | null
@@ -34,6 +35,7 @@ export type Database = {
           duration_days?: number | null
           id?: string
           note?: string | null
+          plugin_id?: string | null
           status?: string
           tier: string
           used_at?: string | null
@@ -46,6 +48,7 @@ export type Database = {
           duration_days?: number | null
           id?: string
           note?: string | null
+          plugin_id?: string | null
           status?: string
           tier?: string
           used_at?: string | null
@@ -122,6 +125,315 @@ export type Database = {
             columns: ["sender_staff_id"]
             isOneToOne: false
             referencedRelation: "school_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pmd_contacts: {
+        Row: {
+          company: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          owner_user_id: string
+          role: string | null
+          status: string
+          updated_at: string
+          whatsapp: string | null
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          owner_user_id: string
+          role?: string | null
+          status?: string
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          owner_user_id?: string
+          role?: string | null
+          status?: string
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Relationships: []
+      }
+      pmd_files: {
+        Row: {
+          created_at: string
+          data_url: string
+          id: string
+          mime_type: string
+          name: string
+          note: string | null
+          project_id: string
+          size: number
+        }
+        Insert: {
+          created_at?: string
+          data_url: string
+          id?: string
+          mime_type: string
+          name: string
+          note?: string | null
+          project_id: string
+          size: number
+        }
+        Update: {
+          created_at?: string
+          data_url?: string
+          id?: string
+          mime_type?: string
+          name?: string
+          note?: string | null
+          project_id?: string
+          size?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pmd_files_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "pmd_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pmd_pin_resets: {
+        Row: {
+          code: string
+          created_at: string
+          expires_at: string
+          id: string
+          pmd_user_id: string
+          used_at: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          pmd_user_id: string
+          used_at?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          pmd_user_id?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pmd_pin_resets_pmd_user_id_fkey"
+            columns: ["pmd_user_id"]
+            isOneToOne: false
+            referencedRelation: "pmd_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pmd_projects: {
+        Row: {
+          budget: Json
+          code: string
+          created_at: string
+          id: string
+          location: string | null
+          manager_id: string | null
+          manager_name: string | null
+          name: string
+          owner_user_id: string
+          participant_ids: string[]
+          properties: Json
+          start_at: string | null
+          status: string
+          summary: string | null
+          target_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          budget?: Json
+          code: string
+          created_at?: string
+          id?: string
+          location?: string | null
+          manager_id?: string | null
+          manager_name?: string | null
+          name: string
+          owner_user_id: string
+          participant_ids?: string[]
+          properties?: Json
+          start_at?: string | null
+          status?: string
+          summary?: string | null
+          target_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          budget?: Json
+          code?: string
+          created_at?: string
+          id?: string
+          location?: string | null
+          manager_id?: string | null
+          manager_name?: string | null
+          name?: string
+          owner_user_id?: string
+          participant_ids?: string[]
+          properties?: Json
+          start_at?: string | null
+          status?: string
+          summary?: string | null
+          target_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      pmd_timeline: {
+        Row: {
+          author: string
+          body: string | null
+          created_at: string
+          id: string
+          kind: string
+          parent_id: string | null
+          project_id: string
+          recipients: string[]
+          state: string
+          subject: string
+        }
+        Insert: {
+          author: string
+          body?: string | null
+          created_at?: string
+          id?: string
+          kind: string
+          parent_id?: string | null
+          project_id: string
+          recipients?: string[]
+          state?: string
+          subject: string
+        }
+        Update: {
+          author?: string
+          body?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          parent_id?: string | null
+          project_id?: string
+          recipients?: string[]
+          state?: string
+          subject?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pmd_timeline_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "pmd_timeline"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pmd_timeline_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "pmd_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pmd_users: {
+        Row: {
+          company: string | null
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          pin: string
+          position: string | null
+          updated_at: string
+          user_id: string
+          whatsapp: string
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          email: string
+          full_name: string
+          id?: string
+          pin: string
+          position?: string | null
+          updated_at?: string
+          user_id: string
+          whatsapp: string
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          pin?: string
+          position?: string | null
+          updated_at?: string
+          user_id?: string
+          whatsapp?: string
+        }
+        Relationships: []
+      }
+      pmd_vendors: {
+        Row: {
+          company: string
+          contact_name: string | null
+          created_at: string
+          email: string | null
+          id: string
+          project_id: string
+          status: string
+          supply_type: string | null
+          whatsapp: string | null
+        }
+        Insert: {
+          company: string
+          contact_name?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          project_id: string
+          status?: string
+          supply_type?: string | null
+          whatsapp?: string | null
+        }
+        Update: {
+          company?: string
+          contact_name?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          project_id?: string
+          status?: string
+          supply_type?: string | null
+          whatsapp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pmd_vendors_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "pmd_projects"
             referencedColumns: ["id"]
           },
         ]
@@ -2512,6 +2824,7 @@ export type Database = {
           plan_id: string
           plugins: string[] | null
           price_idr: number
+          product_type: string
           serial: string
           status: string
           tier: string
@@ -2540,6 +2853,7 @@ export type Database = {
           plan_id: string
           plugins?: string[] | null
           price_idr: number
+          product_type?: string
           serial: string
           status?: string
           tier: string
@@ -2568,9 +2882,28 @@ export type Database = {
           plan_id?: string
           plugins?: string[] | null
           price_idr?: number
+          product_type?: string
           serial?: string
           status?: string
           tier?: string
+        }
+        Relationships: []
+      }
+      store_plugin_prices: {
+        Row: {
+          plugin_id: string
+          price_idr: number
+          updated_at: string
+        }
+        Insert: {
+          plugin_id: string
+          price_idr: number
+          updated_at?: string
+        }
+        Update: {
+          plugin_id?: string
+          price_idr?: number
+          updated_at?: string
         }
         Relationships: []
       }
