@@ -129,6 +129,16 @@ export function statusTone(status: PmdStatus): string {
   }
 }
 
+export async function deleteProjectCascade(projectId: number) {
+  const db = getPmdDb();
+  await db.transaction("rw", db.projects, db.vendors, db.files, db.timeline, async () => {
+    await db.vendors.where("projectId").equals(projectId).delete();
+    await db.files.where("projectId").equals(projectId).delete();
+    await db.timeline.where("projectId").equals(projectId).delete();
+    await db.projects.delete(projectId);
+  });
+}
+
 export async function exportProject(projectId: number) {
   const db = getPmdDb();
   const project = await db.projects.get(projectId);
