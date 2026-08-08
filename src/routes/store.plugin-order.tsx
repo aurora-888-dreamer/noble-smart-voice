@@ -28,7 +28,7 @@ function PluginOrderPage() {
     getPluginPrices().then((r) => { if (r.ok) setPrices(r.prices); });
   }, []);
 
-  const sellablePlugins = PLUGIN_REGISTRY.filter((p) => prices[p.id] != null);
+  const sellablePlugins = PLUGIN_REGISTRY.filter((p) => p.category === "addon" && prices[p.id] != null);
   const selected = PLUGIN_REGISTRY.find((p) => p.id === pluginId);
   const price = pluginId ? prices[pluginId] : undefined;
 
@@ -50,7 +50,7 @@ function PluginOrderPage() {
         <div className="mb-6 text-center">
           <h1 className="text-2xl" style={{ fontFamily: "var(--font-serif, serif)" }}>Order Created</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {selected?.nameId} — {formatIDR(order.priceIDR)}
+            {selected?.name} — {formatIDR(order.priceIDR)}
           </p>
         </div>
         <KomerceCheckout order={order} />
@@ -61,8 +61,8 @@ function PluginOrderPage() {
   return (
     <div className="max-w-md mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl" style={{ fontFamily: "var(--font-serif, serif)" }}>Beli Plugin</h1>
-        <p className="text-sm text-muted-foreground mt-1">Beli satu plugin secara terpisah, tanpa perlu langganan Premium.</p>
+        <h1 className="text-2xl" style={{ fontFamily: "var(--font-serif, serif)" }}>Buy an Add-on</h1>
+        <p className="text-sm text-muted-foreground mt-1">Buy a single add-on separately — no Premium subscription needed.</p>
       </div>
 
       {!pluginId ? (
@@ -74,43 +74,43 @@ function PluginOrderPage() {
               className="w-full flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 text-left hover:opacity-90"
             >
               <div>
-                <p className="text-sm font-semibold">{p.nameId}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{p.descriptionId}</p>
+                <p className="text-sm font-semibold">{p.name}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{p.description}</p>
               </div>
               <span className="text-sm font-bold text-primary shrink-0">{formatIDR(prices[p.id])}</span>
             </button>
           ))}
           {sellablePlugins.length === 0 && (
-            <p className="text-sm text-muted-foreground">Belum ada plugin yang dijual saat ini.</p>
+            <p className="text-sm text-muted-foreground">No add-ons are for sale right now.</p>
           )}
         </div>
       ) : (
         <form onSubmit={submit} className="space-y-3">
           <div className="rounded-2xl border border-primary/40 bg-primary/5 p-4 flex items-center justify-between">
             <div>
-              <p className="text-sm font-semibold">{selected?.nameId}</p>
-              <p className="text-xs text-muted-foreground">{selected?.descriptionId}</p>
+              <p className="text-sm font-semibold">{selected?.name}</p>
+              <p className="text-xs text-muted-foreground">{selected?.description}</p>
             </div>
             <span className="text-lg font-bold text-primary shrink-0">{price != null ? formatIDR(price) : ""}</span>
           </div>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nama lengkap" required className="w-full rounded-xl bg-card border border-border px-3 py-2.5 text-sm" />
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" required className="w-full rounded-xl bg-card border border-border px-3 py-2.5 text-sm" />
           <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="Email" className="w-full rounded-xl bg-card border border-border px-3 py-2.5 text-sm" />
-          <input value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="Nomor WhatsApp" required className="w-full rounded-xl bg-card border border-border px-3 py-2.5 text-sm" />
+          <input value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="WhatsApp number" required className="w-full rounded-xl bg-card border border-border px-3 py-2.5 text-sm" />
           {error && <p className="text-xs text-destructive">{error}</p>}
           <div className="flex gap-2">
             <button type="button" onClick={() => setPluginId(undefined)} className="rounded-xl border border-border px-4 py-2.5 text-sm font-semibold">
-              ← Ganti
+              ← Change
             </button>
             <button type="submit" disabled={submitting} className="flex-1 rounded-xl bg-primary text-primary-foreground py-2.5 text-sm font-semibold disabled:opacity-50">
-              {submitting ? "…" : "Buat Order"}
+              {submitting ? "…" : "Create Order"}
             </button>
           </div>
         </form>
       )}
 
       <p className="text-xs text-muted-foreground mt-6 text-center">
-        Setelah bayar, serial aktivasi plugin dikirim otomatis ke email kamu — atau langsung kelihatan di{" "}
-        <Link to="/" className="text-primary underline">Home</Link> untuk diaktivasi 1 klik.
+        After payment, your activation serial is emailed to you automatically — or shows up ready to redeem on{" "}
+        <Link to="/" className="text-primary underline">Home</Link> for one-tap activation.
       </p>
     </div>
   );

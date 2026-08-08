@@ -52,7 +52,7 @@ function AdminLogin() {
     setChecking(true);
     const ok = await adminLogin(userId, pw);
     setChecking(false);
-    if (!ok) setErr("UserID atau PIN salah");
+    if (!ok) setErr("Wrong UserID or PIN");
   }
 
   if (forgot) return <ForgotPassword onDone={() => setForgot(false)} />;
@@ -119,7 +119,7 @@ function ForgotPassword({ onDone }: { onDone: () => void }) {
     const res = await requestStoreAdminReset({ data: { email } });
     setBusy(false);
     if (!res.ok) return setErr(res.error);
-    setNote("Jika email tersebut terdaftar sebagai admin, kode reset sudah dikirim. Berlaku 15 menit.");
+    setNote("If that email is registered as an admin, a reset code has been sent. Valid for 15 minutes.");
     setStep("code");
   }
 
@@ -132,7 +132,7 @@ function ForgotPassword({ onDone }: { onDone: () => void }) {
     if (!res.ok) return setErr(res.error);
     const ok = await adminLogin("Noble888", newPw);
     if (!ok) {
-      setNote("PIN berhasil diubah. Silakan masuk dengan PIN baru.");
+      setNote("PIN changed successfully. Please sign in with your new PIN.");
       onDone();
     }
   }
@@ -163,7 +163,7 @@ function ForgotPassword({ onDone }: { onDone: () => void }) {
             disabled={busy || !email.trim()}
             className="w-full rounded-full bg-primary text-primary-foreground py-3 text-sm font-semibold disabled:opacity-50"
           >
-            {busy ? "Mengirim…" : "Kirim kode"}
+            {busy ? "Sending…" : "Send code"}
           </button>
         </form>
       ) : (
@@ -174,7 +174,7 @@ function ForgotPassword({ onDone }: { onDone: () => void }) {
             maxLength={6}
             value={code}
             onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-            placeholder="Kode 6 digit"
+            placeholder="6-digit code"
             className="w-full rounded-xl bg-secondary px-4 py-3 text-sm tracking-[0.4em] text-center outline-none"
           />
           <input
@@ -192,7 +192,7 @@ function ForgotPassword({ onDone }: { onDone: () => void }) {
             disabled={busy || code.length !== 6 || newPw.length !== 6}
             className="w-full rounded-full bg-primary text-primary-foreground py-3 text-sm font-semibold disabled:opacity-50"
           >
-            {busy ? "Menyimpan…" : "Simpan PIN baru"}
+            {busy ? "Saving…" : "Save new PIN"}
           </button>
         </form>
       )}
@@ -563,7 +563,7 @@ function InvoiceModal({
             <button
               disabled={busy}
               onClick={() => {
-                if (confirm("Batalkan order ini?")) onCancel();
+                if (confirm("Cancel this order?")) onCancel();
               }}
               className="rounded-xl border border-destructive/40 text-destructive px-4 py-2.5 text-sm font-semibold disabled:opacity-50"
             >
@@ -950,7 +950,7 @@ function SettingsTab({ orders, adminPassword }: { orders: OrderRecord[]; adminPa
 function BroadcastCard({ orders }: { orders: OrderRecord[] }) {
   const [audience, setAudience] = useState<"all" | OrderStatus | PlanId>("all");
   const [msg, setMsg] = useState(
-    "Halo {name} 👋\n\nSalam dari AURORA MASTER — kami ingin memberi info terbaru tentang Noble Smart Voice.\n\nTerima kasih!",
+    "Hi {name} 👋\n\nGreetings from AURORA MASTER — we wanted to share the latest update about Noble Smart Voice.\n\nThank you!",
   );
 
   const recipients = useMemo(() => {
@@ -1154,22 +1154,22 @@ function PluginTab({ adminPassword }: { adminPassword: string }) {
   return (
     <div className="space-y-4">
       <section className="rounded-2xl bg-card border border-border p-4">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Plugin Pricing</p>
+        <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Add-on Pricing</p>
         <p className="text-xs text-muted-foreground mb-3">
-          Kosongkan lalu simpan untuk sembunyikan dari Store lagi (belum dijual). Ini harga jual satuan plugin, terpisah dari harga paket Standard/Premium.
+          Clear the field and save to hide it from Store again (not for sale). This is the standalone price for each add-on, separate from the Standard/Premium subscription plans.
         </p>
         {saveError && (
-          <p className="text-xs text-destructive bg-destructive/10 rounded-lg px-3 py-2 mb-3">Gagal menyimpan: {saveError}</p>
+          <p className="text-xs text-destructive bg-destructive/10 rounded-lg px-3 py-2 mb-3">Failed to save: {saveError}</p>
         )}
         <div className="space-y-2">
-          {PLUGIN_REGISTRY.map((p) => (
+          {PLUGIN_REGISTRY.filter((p) => p.category === "addon").map((p) => (
             <div key={p.id} className="flex items-center gap-2">
-              <span className="text-sm flex-1">{p.nameId}</span>
-              <span className="text-xs text-muted-foreground">{prices[p.id] != null ? formatIDR(prices[p.id]) : "belum dijual"}</span>
+              <span className="text-sm flex-1">{p.name}</span>
+              <span className="text-xs text-muted-foreground">{prices[p.id] != null ? formatIDR(prices[p.id]) : "not for sale"}</span>
               <input
                 value={draft[p.id] ?? ""}
                 onChange={(e) => setDraft((d) => ({ ...d, [p.id]: e.target.value }))}
-                placeholder="harga"
+                placeholder="price"
                 inputMode="numeric"
                 className="w-28 rounded-lg bg-background border border-border px-2 py-1 text-xs"
               />
@@ -1178,16 +1178,16 @@ function PluginTab({ adminPassword }: { adminPassword: string }) {
                 disabled={busy === p.id}
                 className="rounded-lg bg-primary text-primary-foreground px-2.5 py-1 text-xs font-semibold disabled:opacity-50"
               >
-                Simpan
+                Save
               </button>
             </div>
           ))}
         </div>
       </section>
       <section className="rounded-2xl bg-card border border-border p-4">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground mb-3">Plugins (test toggle, this device)</p>
+        <p className="text-xs uppercase tracking-wide text-muted-foreground mb-3">Add-ons (test toggle, this device)</p>
         <ul className="space-y-3">
-          {PLUGIN_REGISTRY.map((p) => {
+          {PLUGIN_REGISTRY.filter((p) => p.category === "addon").map((p) => {
             const enabled = !!plugins[p.id];
             return (
               <li key={p.id} className="flex items-start justify-between gap-3">
@@ -1202,6 +1202,12 @@ function PluginTab({ adminPassword }: { adminPassword: string }) {
             );
           })}
         </ul>
+      </section>
+      <section className="rounded-2xl bg-card border border-border p-4">
+        <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Bundled Tools</p>
+        <p className="text-xs text-muted-foreground">
+          {PLUGIN_REGISTRY.filter((p) => p.category === "tool").map((p) => p.name).join(", ")} are included automatically with any active Premium subscription — not sold separately, no pricing or toggle needed here.
+        </p>
       </section>
     </div>
   );
@@ -1269,7 +1275,7 @@ function PricingCard({ adminPassword }: { adminPassword: string }) {
         <div className="flex items-center justify-between mb-3">
           <div>
             <p className="text-sm font-medium">Manual Payment (QRIS transfer + konfirmasi admin)</p>
-            <p className="text-xs text-muted-foreground">{manualPaymentEnabled ? "Ditampilkan ke buyer" : "Disembunyikan — Komerce-only"}</p>
+            <p className="text-xs text-muted-foreground">{manualPaymentEnabled ? "Shown to buyers" : "Hidden — Komerce-only"}</p>
           </div>
           <button onClick={toggleManualPayment} disabled={toggleBusy === "manual"} aria-label="Toggle manual payment">
             {manualPaymentEnabled ? <ToggleRight size={28} className="text-primary" /> : <ToggleLeft size={28} className="text-muted-foreground" />}
@@ -1289,7 +1295,7 @@ function PricingCard({ adminPassword }: { adminPassword: string }) {
       <div className="rounded-2xl bg-card border border-border p-4">
         <h3 className="font-semibold mb-2">Pricing</h3>
         <p className="text-xs text-muted-foreground mb-3">
-          Kosongkan lalu simpan untuk kembali ke harga default kode. Perubahan harga tidak mempengaruhi order yang sudah dibuat.
+          Clear the field and save to revert to the code default. Price changes don't affect orders already created.
         </p>
         {saveError && (
           <p className="text-xs text-destructive bg-destructive/10 rounded-lg px-3 py-2 mb-3">
@@ -1301,12 +1307,12 @@ function PricingCard({ adminPassword }: { adminPassword: string }) {
             const effective = overrides[p.id] ?? p.priceIDR;
             return (
               <div key={p.id} className="flex items-center gap-2">
-                <span className="text-sm flex-1">{p.nameId}</span>
+                <span className="text-sm flex-1">{p.name}</span>
                 <span className="text-xs text-muted-foreground">{formatIDR(effective)}</span>
                 <input
                   value={draft[p.id] ?? ""}
                   onChange={(e) => setDraft((d) => ({ ...d, [p.id]: e.target.value }))}
-                  placeholder="harga baru"
+                  placeholder="new price"
                   inputMode="numeric"
                   className="w-28 rounded-lg bg-background border border-border px-2 py-1 text-xs"
                 />
@@ -1315,7 +1321,7 @@ function PricingCard({ adminPassword }: { adminPassword: string }) {
                   disabled={busy === p.id}
                   className="rounded-lg bg-primary text-primary-foreground px-2.5 py-1 text-xs font-semibold disabled:opacity-50"
                 >
-                  Simpan
+                  Save
                 </button>
               </div>
             );

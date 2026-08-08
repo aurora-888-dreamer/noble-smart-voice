@@ -224,14 +224,14 @@ export function KomerceCheckout({ order }: { order: OrderRecord }) {
       const data = await res.json();
       if (!res.ok || !data?.data?.qr_string) {
         console.error("[komerce-create-transaction] failed:", data);
-        setErrorMsg(data?.error || "Gagal membuat transaksi pembayaran.");
+        setErrorMsg(data?.error || "Failed to create payment transaction.");
         setLoading(false);
         return;
       }
       setQr(data.data.qr_string);
     } catch (e) {
       console.error("[komerce-create-transaction] network error:", e);
-      setErrorMsg("Gagal terhubung ke server pembayaran.");
+      setErrorMsg("Failed to connect to the payment server.");
     }
     setLoading(false);
   }
@@ -251,7 +251,7 @@ export function KomerceCheckout({ order }: { order: OrderRecord }) {
   if (paid) {
     return (
       <div className="mt-4 rounded-2xl bg-primary/10 border border-primary/40 p-4 text-center text-sm text-primary font-semibold">
-        ✓ Pembayaran diterima — serial kamu sudah aktif, tinggal redeem di NSV.
+        ✓ Payment received — your serial is active, ready to redeem in NSV.
       </div>
     );
   }
@@ -261,12 +261,12 @@ export function KomerceCheckout({ order }: { order: OrderRecord }) {
       {!qr ? (
         <>
           <button onClick={start} disabled={loading} className="rounded-xl bg-primary text-primary-foreground px-5 py-2.5 text-sm font-semibold disabled:opacity-50">
-            {loading ? "Menyiapkan…" : "Payment Processing Here"}
+            {loading ? "Preparing…" : "Payment Processing Here"}
           </button>
           {errorMsg && (
             <div className="mt-3 rounded-xl bg-destructive/10 border border-destructive/30 p-3 text-xs text-destructive text-left">
               {errorMsg}
-              <button onClick={start} className="block mt-2 underline font-semibold">Coba lagi</button>
+              <button onClick={start} className="block mt-2 underline font-semibold">Try again</button>
             </div>
           )}
         </>
@@ -277,7 +277,7 @@ export function KomerceCheckout({ order }: { order: OrderRecord }) {
             alt="QRIS Komerce"
             className="mx-auto rounded-xl bg-white p-2"
           />
-          <p className="text-xs text-muted-foreground mt-3">Menunggu pembayaran… halaman ini update otomatis.</p>
+          <p className="text-xs text-muted-foreground mt-3">Waiting for payment… this page updates automatically.</p>
         </>
       )}
     </div>
@@ -360,7 +360,7 @@ function OrderReceipt({
                   </button>
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-2">
-                  Pembayaran dikonfirmasi — serial ini sudah aktif dan siap dipakai.
+                  Payment confirmed — this serial is active and ready to use.
                 </p>
               </>
             )}

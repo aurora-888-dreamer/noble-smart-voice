@@ -36,7 +36,7 @@ function StoreLanding() {
   useEffect(() => {
     getPluginPrices().then((r) => { if (r.ok) setPluginPrices(r.prices); });
   }, []);
-  const sellablePlugins = PLUGIN_REGISTRY.filter((p) => pluginPrices[p.id] != null);
+  const sellablePlugins = PLUGIN_REGISTRY.filter((p) => p.category === "addon" && pluginPrices[p.id] != null);
   return (
     <div className="space-y-16">
       {/* Hero */}
