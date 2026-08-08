@@ -4,6 +4,8 @@ import { usePlugin } from "@/lib/plugins-store";
 import { useLicenseInfo } from "@/lib/auth-store";
 import { useLang } from "@/lib/settings-store";
 import { tp } from "@/lib/pmd-i18n";
+import { usePmdSession } from "@/lib/pmd-session";
+import { PmdAuthGate } from "@/components/PmdAuthGate";
 
 export const Route = createFileRoute("/pmd")({
   head: () => ({
@@ -24,6 +26,7 @@ function PmdLayout() {
   const hasPlugin = usePlugin("pmd");
   const license = useLicenseInfo();
   const isAdmin = license.code === "NOBLE440077" || license.tier === "premium";
+  const session = usePmdSession();
 
   if (!hasPlugin && !isAdmin) {
     return (
@@ -38,6 +41,14 @@ function PmdLayout() {
             </Link>
           </div>
         </div>
+      </AppShell>
+    );
+  }
+
+  if (!session) {
+    return (
+      <AppShell title={tp(lang, "title")} fullWidth>
+        <PmdAuthGate lang={lang} />
       </AppShell>
     );
   }

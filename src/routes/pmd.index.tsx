@@ -4,8 +4,9 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { Plus, FolderKanban, Users, Trash2, Pencil } from "lucide-react";
 import { useLang } from "@/lib/settings-store";
 import { tp } from "@/lib/pmd-i18n";
+import { usePmdSession, setPmdSession, clearPmdSession } from "@/lib/pmd-session";
+import { updatePmdProfile, changePmdPin } from "@/lib/pmd-auth.functions";
 import {
-  deleteProjectCascade,
   getPmdDb,
   PMD_STATUSES,
   statusTone,
@@ -24,7 +25,7 @@ const FIELD =
 
 function PmdHome() {
   const [lang] = useLang();
-  const [tab, setTab] = useState<"projects" | "contacts">("projects");
+  const [tab, setTab] = useState<"projects" | "contacts" | "settings">("projects");
 
   return (
     <div className="space-y-5">
@@ -34,7 +35,7 @@ function PmdHome() {
       </header>
 
       <div className="flex gap-2">
-        {(["projects", "contacts"] as const).map((key) => (
+        {(["projects", "contacts", "settings"] as const).map((key) => (
           <button
             key={key}
             onClick={() => setTab(key)}
@@ -42,12 +43,14 @@ function PmdHome() {
               tab === key ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"
             }`}
           >
-            {key === "projects" ? tp(lang, "projects") : tp(lang, "contacts")}
+            {key === "projects" ? tp(lang, "projects") : key === "contacts" ? tp(lang, "contacts") : (lang === "id" ? "Pengaturan" : "Settings")}
           </button>
         ))}
       </div>
 
-      {tab === "projects" ? <ProjectsTab lang={lang} /> : <ContactsTab lang={lang} />}
+      {tab === "projects" && <ProjectsTab lang={lang} />}
+      {tab === "contacts" && <ContactsTab lang={lang} />}
+      {tab === "settings" && <SettingsTab lang={lang} />}
     </div>
   );
 }
@@ -55,32 +58,18 @@ function PmdHome() {
 function ProjectsTab({ lang }: { lang: "en" | "id" }) {
   const [filter, setFilter] = useState<PmdStatus | "all">("all");
   const [creating, setCreating] = useState(false);
-  const [editing, setEditing] = useState<PmdProject | null>(null);
-  const [query, setQuery] = useState("");
   const projects = useLiveQuery(async () => {
     if (typeof window === "undefined") return [];
     return getPmdDb().projects.orderBy("createdAt").reverse().toArray();
   }, []);
 
-  const q = query.trim().toLowerCase();
-  const list = (projects ?? [])
-    .filter((p) => filter === "all" || p.status === filter)
-    .filter(
-      (p) =>
-        !q ||
-        [p.name, p.code, p.location, p.managerName, p.summary]
-          .filter(Boolean)
-          .some((v) => String(v).toLowerCase().includes(q)),
-    );
+  const list = (projects ?? []).filter((p) => filter === "all" || p.status === filter);
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <button
-          onClick={() => {
-            setEditing(null);
-            setCreating(true);
-          }}
+          onClick={() => setCreating(true)}
           className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
         >
           <Plus size={16} /> {tp(lang, "newProject")}
@@ -100,75 +89,36 @@ function ProjectsTab({ lang }: { lang: "en" | "id" }) {
         </div>
       </div>
 
-      <input
-        className={FIELD}
-        placeholder={tp(lang, "search")}
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-      />
-
-      {(creating || editing) && (
-        <ProjectForm
-          key={editing?.id ?? "new"}
-          lang={lang}
-          existing={editing}
-          onDone={() => {
-            setCreating(false);
-            setEditing(null);
-          }}
-        />
-      )}
+      {creating && <ProjectForm lang={lang} onDone={() => setCreating(false)} />}
 
       {list.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-          {(projects ?? []).length === 0 ? tp(lang, "empty") : tp(lang, "noResults")}
+          {tp(lang, "empty")}
         </p>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {list.map((p) => (
-            <div key={p.id} className="rounded-2xl border border-border bg-card p-4 hover:border-primary/50">
+            <Link
+              key={p.id}
+              to="/pmd/$id"
+              params={{ id: String(p.id) }}
+              className="rounded-2xl border border-border bg-card p-4 hover:border-primary/50"
+            >
               <div className="mb-2 flex items-start justify-between gap-2">
-                <Link
-                  to="/pmd/$id"
-                  params={{ id: String(p.id) }}
-                  className="flex min-w-0 items-center gap-2"
-                >
+                <div className="flex min-w-0 items-center gap-2">
                   <FolderKanban size={18} className="shrink-0 text-primary" />
                   <span className="truncate text-sm font-semibold">{p.name}</span>
-                </Link>
+                </div>
                 <span className={`shrink-0 rounded-lg border px-2 py-0.5 text-[10px] ${statusTone(p.status)}`}>
                   {tp(lang, p.status)}
                 </span>
               </div>
-              <Link to="/pmd/$id" params={{ id: String(p.id) }} className="block">
-                <p className="font-mono text-xs text-muted-foreground">{p.code}</p>
-                {p.location && <p className="mt-1 truncate text-xs text-muted-foreground">{p.location}</p>}
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {tp(lang, "manager")}: {p.managerName || "—"}
-                </p>
-              </Link>
-              <div className="mt-3 flex justify-end gap-3 border-t border-border pt-2">
-                <button
-                  onClick={() => {
-                    setCreating(false);
-                    setEditing(p);
-                  }}
-                  title={tp(lang, "editProject")}
-                  className="text-muted-foreground hover:text-foreground"
-                >
-                  <Pencil size={14} />
-                </button>
-                <button
-                  onClick={async () => {
-                    if (confirm(tp(lang, "confirmDeleteProject"))) await deleteProjectCascade(p.id!);
-                  }}
-                  title={tp(lang, "deleteProject")}
-                  className="text-muted-foreground hover:text-destructive"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            </div>
+              <p className="font-mono text-xs text-muted-foreground">{p.code}</p>
+              {p.location && <p className="mt-1 truncate text-xs text-muted-foreground">{p.location}</p>}
+              <p className="mt-2 text-xs text-muted-foreground">
+                {tp(lang, "manager")}: {p.managerName || "—"}
+              </p>
+            </Link>
           ))}
         </div>
       )}
@@ -176,26 +126,16 @@ function ProjectsTab({ lang }: { lang: "en" | "id" }) {
   );
 }
 
-const toDateInput = (ts?: number) => (ts ? new Date(ts).toISOString().slice(0, 10) : "");
-
-function ProjectForm({
-  lang,
-  existing,
-  onDone,
-}: {
-  lang: "en" | "id";
-  existing?: PmdProject | null;
-  onDone: () => void;
-}) {
-  const [name, setName] = useState(existing?.name ?? "");
-  const [code, setCode] = useState(existing?.code ?? "");
-  const [location, setLocation] = useState(existing?.location ?? "");
-  const [summary, setSummary] = useState(existing?.summary ?? "");
-  const [startAt, setStartAt] = useState(toDateInput(existing?.startAt));
-  const [targetAt, setTargetAt] = useState(toDateInput(existing?.targetAt));
-  const [managerId, setManagerId] = useState(existing?.managerId ?? "");
-  const [managerName, setManagerName] = useState(existing?.managerName ?? "");
-  const [participantIds, setParticipantIds] = useState<number[]>(existing?.participantIds ?? []);
+function ProjectForm({ lang, onDone }: { lang: "en" | "id"; onDone: () => void }) {
+  const [name, setName] = useState("");
+  const [code, setCode] = useState("");
+  const [location, setLocation] = useState("");
+  const [summary, setSummary] = useState("");
+  const [startAt, setStartAt] = useState("");
+  const [targetAt, setTargetAt] = useState("");
+  const [managerId, setManagerId] = useState("");
+  const [managerName, setManagerName] = useState("");
+  const [participantIds, setParticipantIds] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const contacts = useLiveQuery(async () => {
@@ -209,24 +149,21 @@ function ProjectForm({
       return;
     }
     const project: PmdProject = {
-      ...(existing ?? {}),
       name: name.trim(),
       code: code.trim().toUpperCase(),
       location: location.trim() || undefined,
       summary: summary.trim() || undefined,
-      createdAt: existing?.createdAt ?? Date.now(),
+      createdAt: Date.now(),
       startAt: startAt ? new Date(startAt).getTime() : undefined,
       targetAt: targetAt ? new Date(targetAt).getTime() : undefined,
       managerId: managerId.trim() || undefined,
       managerName: managerName.trim() || undefined,
       participantIds,
-      properties: existing?.properties ?? [],
-      budget: existing?.budget ?? [],
-      status: existing?.status ?? "active",
-      updatedAt: Date.now(),
+      properties: [],
+      budget: [],
+      status: "active",
     };
-    if (existing?.id) await getPmdDb().projects.put(project);
-    else await getPmdDb().projects.add(project);
+    await getPmdDb().projects.add(project);
     onDone();
   }
 
@@ -319,7 +256,6 @@ const EMPTY_CONTACT: PmdContact = {
 
 function ContactsTab({ lang }: { lang: "en" | "id" }) {
   const [draft, setDraft] = useState<PmdContact | null>(null);
-  const [query, setQuery] = useState("");
   const contacts = useLiveQuery(async () => {
     if (typeof window === "undefined") return [];
     return getPmdDb().contacts.orderBy("name").toArray();
@@ -333,15 +269,6 @@ function ContactsTab({ lang }: { lang: "en" | "id" }) {
     setDraft(null);
   }
 
-  const cq = query.trim().toLowerCase();
-  const shown = (contacts ?? []).filter(
-    (c) =>
-      !cq ||
-      [c.name, c.company, c.role, c.whatsapp, c.email, c.userId]
-        .filter(Boolean)
-        .some((v) => String(v).toLowerCase().includes(cq)),
-  );
-
   return (
     <div className="space-y-4">
       <button
@@ -350,13 +277,6 @@ function ContactsTab({ lang }: { lang: "en" | "id" }) {
       >
         <Plus size={16} /> {tp(lang, "addContact")}
       </button>
-
-      <input
-        className={FIELD}
-        placeholder={tp(lang, "search")}
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-      />
 
       {draft && (
         <div className="space-y-3 rounded-2xl border border-border bg-card p-4">
@@ -409,13 +329,13 @@ function ContactsTab({ lang }: { lang: "en" | "id" }) {
         </div>
       )}
 
-      {shown.length === 0 ? (
+      {(contacts ?? []).length === 0 ? (
         <p className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-          {(contacts ?? []).length === 0 ? tp(lang, "empty") : tp(lang, "noResults")}
+          {tp(lang, "empty")}
         </p>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {shown.map((c) => (
+          {(contacts ?? []).map((c) => (
             <div key={c.id} className="rounded-2xl border border-border bg-card p-4">
               <div className="mb-1 flex items-start justify-between gap-2">
                 <div className="flex min-w-0 items-center gap-2">
@@ -446,6 +366,91 @@ function ContactsTab({ lang }: { lang: "en" | "id" }) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function SettingsTab({ lang }: { lang: "en" | "id" }) {
+  const session = usePmdSession();
+  const [fullName, setFullName] = useState(session?.fullName ?? "");
+  const [company, setCompany] = useState(session?.company ?? "");
+  const [position, setPosition] = useState(session?.position ?? "");
+  const [whatsapp, setWhatsapp] = useState(session?.whatsapp ?? "");
+  const [email, setEmail] = useState(session?.email ?? "");
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const [currentPin, setCurrentPin] = useState("");
+  const [newPin, setNewPin] = useState("");
+  const [pinBusy, setPinBusy] = useState(false);
+  const [pinNote, setPinNote] = useState<string | null>(null);
+  const [pinError, setPinError] = useState<string | null>(null);
+
+  if (!session) return null;
+
+  async function saveProfile(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setNote(null);
+    setError(null);
+    const res = await updatePmdProfile({ data: { userId: session!.userId, fullName, company, position, whatsapp, email } });
+    setBusy(false);
+    if (!res.ok) { setError(res.error); return; }
+    setPmdSession(res.profile);
+    setNote(lang === "id" ? "Profil tersimpan." : "Profile saved.");
+  }
+
+  async function savePin(e: React.FormEvent) {
+    e.preventDefault();
+    setPinBusy(true);
+    setPinNote(null);
+    setPinError(null);
+    const res = await changePmdPin({ data: { userId: session!.userId, currentPin, newPin } });
+    setPinBusy(false);
+    if (!res.ok) { setPinError(res.error); return; }
+    setCurrentPin(""); setNewPin("");
+    setPinNote(lang === "id" ? "PIN berhasil diubah." : "PIN changed successfully.");
+  }
+
+  return (
+    <div className="space-y-4 max-w-md">
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">User ID</p>
+        <p className="text-lg font-mono font-bold tracking-widest">{session.userId}</p>
+      </div>
+
+      <form onSubmit={saveProfile} className="rounded-2xl border border-border bg-card p-4 space-y-2">
+        <p className="text-sm font-semibold mb-1">{lang === "id" ? "Edit Profil" : "Edit Profile"}</p>
+        <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder={lang === "id" ? "Nama" : "Full Name"} required className={FIELD} />
+        <input value={company} onChange={(e) => setCompany(e.target.value)} placeholder={lang === "id" ? "Perusahaan" : "Company"} className={FIELD} />
+        <input value={position} onChange={(e) => setPosition(e.target.value)} placeholder={lang === "id" ? "Jabatan" : "Position"} className={FIELD} />
+        <input value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder={lang === "id" ? "No. WhatsApp" : "WhatsApp Number"} required className={FIELD} />
+        <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="Email" required className={FIELD} />
+        {note && <p className="text-xs text-primary">{note}</p>}
+        {error && <p className="text-xs text-destructive">{error}</p>}
+        <button type="submit" disabled={busy} className="w-full rounded-xl bg-primary text-primary-foreground py-2.5 text-sm font-semibold disabled:opacity-50">
+          {busy ? "…" : lang === "id" ? "Simpan Profil" : "Save Profile"}
+        </button>
+      </form>
+
+      <form onSubmit={savePin} className="rounded-2xl border border-border bg-card p-4 space-y-2">
+        <p className="text-sm font-semibold mb-1">{lang === "id" ? "Ganti PIN" : "Change PIN"}</p>
+        <input value={currentPin} onChange={(e) => setCurrentPin(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder={lang === "id" ? "PIN saat ini" : "Current PIN"} inputMode="numeric" required className={FIELD + " font-mono tracking-widest"} />
+        <input value={newPin} onChange={(e) => setNewPin(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder={lang === "id" ? "PIN baru 6 digit" : "New 6-digit PIN"} inputMode="numeric" required className={FIELD + " font-mono tracking-widest"} />
+        {pinNote && <p className="text-xs text-primary">{pinNote}</p>}
+        {pinError && <p className="text-xs text-destructive">{pinError}</p>}
+        <button type="submit" disabled={pinBusy} className="w-full rounded-xl bg-primary text-primary-foreground py-2.5 text-sm font-semibold disabled:opacity-50">
+          {pinBusy ? "…" : lang === "id" ? "Simpan PIN Baru" : "Save New PIN"}
+        </button>
+      </form>
+
+      <button
+        onClick={() => clearPmdSession()}
+        className="w-full rounded-xl border border-destructive/40 text-destructive py-2.5 text-sm font-semibold"
+      >
+        {lang === "id" ? "Keluar" : "Sign Out"}
+      </button>
     </div>
   );
 }
