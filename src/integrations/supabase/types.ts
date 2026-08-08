@@ -22,6 +22,7 @@ export type Database = {
           duration_days: number | null
           id: string
           note: string | null
+          plugin_id: string | null
           status: string
           tier: string
           used_at: string | null
@@ -34,6 +35,7 @@ export type Database = {
           duration_days?: number | null
           id?: string
           note?: string | null
+          plugin_id?: string | null
           status?: string
           tier: string
           used_at?: string | null
@@ -46,6 +48,7 @@ export type Database = {
           duration_days?: number | null
           id?: string
           note?: string | null
+          plugin_id?: string | null
           status?: string
           tier?: string
           used_at?: string | null
@@ -2512,6 +2515,7 @@ export type Database = {
           plan_id: string
           plugins: string[] | null
           price_idr: number
+          product_type: string
           serial: string
           status: string
           tier: string
@@ -2540,6 +2544,7 @@ export type Database = {
           plan_id: string
           plugins?: string[] | null
           price_idr: number
+          product_type?: string
           serial: string
           status?: string
           tier: string
@@ -2568,9 +2573,28 @@ export type Database = {
           plan_id?: string
           plugins?: string[] | null
           price_idr?: number
+          product_type?: string
           serial?: string
           status?: string
           tier?: string
+        }
+        Relationships: []
+      }
+      store_plugin_prices: {
+        Row: {
+          plugin_id: string
+          price_idr: number
+          updated_at: string
+        }
+        Insert: {
+          plugin_id: string
+          price_idr: number
+          updated_at?: string
+        }
+        Update: {
+          plugin_id?: string
+          price_idr?: number
+          updated_at?: string
         }
         Relationships: []
       }
