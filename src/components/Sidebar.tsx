@@ -25,6 +25,7 @@ import {
   FolderKanban,
 } from "lucide-react";
 import { useLang } from "@/lib/settings-store";
+import { usePremium } from "@/lib/auth-store";
 import { usePlugin } from "@/lib/plugins-store";
 import { t } from "@/lib/i18n";
 
@@ -34,6 +35,7 @@ export function Sidebar() {
   const hasCalculator = usePlugin("calculator");
   const hasTranslator = usePlugin("translator");
   const hasCamera = usePlugin("camera");
+  const premium = usePremium();
   const hasPmd = usePlugin("pmd");
 
   // Primary categories — same set/order on every page (Home included), two columns.
@@ -111,6 +113,13 @@ export function Sidebar() {
         <NavGrid list={items} />
         <div className="pt-2 mt-2 border-t border-border">
           <NavGrid list={toolItems} />
+          {!premium && (
+            <div className="mt-2 rounded-lg bg-white text-red-600 text-[11px] px-2.5 py-2 border border-red-200">
+              {lang === "id"
+                ? "Aktifkan Premium untuk menggunakan tools istimewa: Camera Capture, Translator, dan Calculator."
+                : "Activate Premium to use the special tools: Camera Capture, Translator, and Calculator."}
+            </div>
+          )}
         </div>
       </div>
     </nav>
