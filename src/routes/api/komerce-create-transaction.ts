@@ -32,20 +32,20 @@ export const Route = createFileRoute("/api/komerce-create-transaction")({
           const body = await request.json();
           const { invoiceNo, amount, paymentType, channelCode, customer, items } = body ?? {};
 
-          if (!invoiceNo || !amount || !paymentType) return json({ error: "invoiceNo, amount, paymentType wajib diisi" }, 400);
-          if (paymentType === "bank_transfer" && !channelCode) return json({ error: "channelCode wajib diisi kalau bank_transfer" }, 400);
-          if (!customer?.name || !customer?.email || !customer?.phone) return json({ error: "customer.name/email/phone wajib diisi" }, 400);
-          if (!Array.isArray(items) || items.length === 0) return json({ error: "items wajib diisi" }, 400);
-          if (!process.env.KOMERCE_API_KEY) return json({ error: "Server belum dikonfigurasi (KOMERCE_API_KEY)" }, 500);
+          if (!invoiceNo || !amount || !paymentType) return json({ error: "invoiceNo, amount, paymentType are required" }, 400);
+          if (paymentType === "bank_transfer" && !channelCode) return json({ error: "channelCode is required for bank_transfer" }, 400);
+          if (!customer?.name || !customer?.email || !customer?.phone) return json({ error: "customer.name/email/phone are required" }, 400);
+          if (!Array.isArray(items) || items.length === 0) return json({ error: "items are required" }, 400);
+          if (!process.env.KOMERCE_API_KEY) return json({ error: "Server not configured (KOMERCE_API_KEY)" }, 500);
 
           const supabase = createNobleSupabase();
-          if (!supabase) return json({ error: "Server belum dikonfigurasi" }, 500);
+          if (!supabase) return json({ error: "Server not configured" }, 500);
 
           const orderSerial = invoiceNo.replace(/^INV-/, "");
           const { data: order, error: findError } = await supabase.from("store_orders").select("id, serial").eq("serial", orderSerial).maybeSingle();
           if (findError || !order) {
             console.error("[komerce-create-transaction] order not found for serial:", orderSerial, "invoiceNo received:", invoiceNo, "db error:", findError?.message);
-            return json({ error: "Order tidak ditemukan" }, 404);
+            return json({ error: "Order not found" }, 404);
           }
 
           const callbackApiKey = randomBytes(32).toString("hex");
@@ -53,7 +53,7 @@ export const Route = createFileRoute("/api/komerce-create-transaction")({
             .from("store_orders")
             .update({ komerce_callback_key: callbackApiKey, komerce_channel_code: paymentType === "qris" ? "qris" : channelCode })
             .eq("id", order.id);
-          if (updateError) return json({ error: "Gagal menyiapkan transaksi" }, 500);
+          if (updateError) return json({ error: "Failed to prepare transaction" }, 500);
 
           const komercePayload: Record<string, unknown> = {
             payment_type: paymentType,
@@ -73,7 +73,7 @@ export const Route = createFileRoute("/api/komerce-create-transaction")({
             body: JSON.stringify(komercePayload),
           });
           const data = await res.json();
-          if (!res.ok) return json({ error: data?.meta?.message ?? "Gagal membuat transaksi Komerce", detail: data }, 502);
+          if (!res.ok) return json({ error: data?.meta?.message ?? "Failed to create Komerce transaction", detail: data }, 502);
 
           const paymentId = data?.data?.payment_id ?? null;
           if (paymentId) await supabase.from("store_orders").update({ komerce_merchant_ref: paymentId }).eq("id", order.id);

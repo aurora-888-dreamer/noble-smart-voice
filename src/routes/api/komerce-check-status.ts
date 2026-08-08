@@ -34,15 +34,15 @@ export const Route = createFileRoute("/api/komerce-check-status")({
         try {
           const url = new URL(request.url);
           const invoiceNo = url.searchParams.get("invoiceNo");
-          if (!invoiceNo) return json({ error: "Parameter invoiceNo wajib diisi" }, 400);
-          if (!process.env.KOMERCE_API_KEY) return json({ error: "Server belum dikonfigurasi" }, 500);
+          if (!invoiceNo) return json({ error: "Parameter invoiceNo is required" }, 400);
+          if (!process.env.KOMERCE_API_KEY) return json({ error: "Server not configured" }, 500);
 
           const supabase = createNobleSupabase();
-          if (!supabase) return json({ error: "Server belum dikonfigurasi" }, 500);
+          if (!supabase) return json({ error: "Server not configured" }, 500);
 
           const orderSerial = invoiceNo.replace(/^INV-/, "");
           const { data: order, error } = await supabase.from("store_orders").select("*").eq("serial", orderSerial).maybeSingle();
-          if (error || !order) return json({ error: "Order tidak ditemukan" }, 404);
+          if (error || !order) return json({ error: "Order not found" }, 404);
           // Already confirmed (by the webhook, or an earlier poll) — no need to hit Komerce again.
           if (order.status === "paid" || order.status === "delivered") return json({ data: { status: "PAID" } }, 200);
           if (!order.komerce_merchant_ref) return json({ data: { status: "PENDING" } }, 200);
@@ -52,7 +52,7 @@ export const Route = createFileRoute("/api/komerce-check-status")({
             headers: { "x-api-key": process.env.KOMERCE_API_KEY },
           });
           const data = await res.json();
-          if (!res.ok) return json({ error: data?.meta?.message ?? "Gagal cek status" }, 502);
+          if (!res.ok) return json({ error: data?.meta?.message ?? "Failed to check status" }, 502);
 
           const status = String(data?.data?.status || "").toUpperCase();
           if (status === "PAID") {
