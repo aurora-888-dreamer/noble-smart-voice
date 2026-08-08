@@ -319,6 +319,7 @@ const EMPTY_CONTACT: PmdContact = {
 
 function ContactsTab({ lang }: { lang: "en" | "id" }) {
   const [draft, setDraft] = useState<PmdContact | null>(null);
+  const [query, setQuery] = useState("");
   const contacts = useLiveQuery(async () => {
     if (typeof window === "undefined") return [];
     return getPmdDb().contacts.orderBy("name").toArray();
@@ -332,6 +333,15 @@ function ContactsTab({ lang }: { lang: "en" | "id" }) {
     setDraft(null);
   }
 
+  const cq = query.trim().toLowerCase();
+  const shown = (contacts ?? []).filter(
+    (c) =>
+      !cq ||
+      [c.name, c.company, c.role, c.whatsapp, c.email, c.userId]
+        .filter(Boolean)
+        .some((v) => String(v).toLowerCase().includes(cq)),
+  );
+
   return (
     <div className="space-y-4">
       <button
@@ -340,6 +350,13 @@ function ContactsTab({ lang }: { lang: "en" | "id" }) {
       >
         <Plus size={16} /> {tp(lang, "addContact")}
       </button>
+
+      <input
+        className={FIELD}
+        placeholder={tp(lang, "search")}
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+      />
 
       {draft && (
         <div className="space-y-3 rounded-2xl border border-border bg-card p-4">
@@ -392,13 +409,13 @@ function ContactsTab({ lang }: { lang: "en" | "id" }) {
         </div>
       )}
 
-      {(contacts ?? []).length === 0 ? (
+      {shown.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-          {tp(lang, "empty")}
+          {(contacts ?? []).length === 0 ? tp(lang, "empty") : tp(lang, "noResults")}
         </p>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {(contacts ?? []).map((c) => (
+          {shown.map((c) => (
             <div key={c.id} className="rounded-2xl border border-border bg-card p-4">
               <div className="mb-1 flex items-start justify-between gap-2">
                 <div className="flex min-w-0 items-center gap-2">
