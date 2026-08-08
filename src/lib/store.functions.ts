@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { verifyAdminPassword, sendSerialEmail } from "./store-admin.server";
 import { createNobleSupabase, normalizeContact } from "./supabase.server";
 import type { PluginId } from "./plugins";
+import { PLUGIN_REGISTRY } from "./plugins";
 
 export type PlanId = "monthly" | "quarterly" | "yearly" | "lifetime";
 export type PlanTier = "standard" | "premium";
@@ -26,6 +27,7 @@ export interface StoreOrder {
   plugins: PluginId[];
   paymentRef?: string | null;
   invoiceNo?: string | null;
+  productType?: "subscription" | "plugin";
 }
 
 async function checkAdmin(password: string): Promise<boolean> {
@@ -70,6 +72,7 @@ function rowToOrder(row: Record<string, unknown>): StoreOrder {
     discountLabel: row.discount_label as string | null,
     groupId: row.group_id as string | null,
     invoiceNo: row.invoice_no as string | null,
+    productType: (row.product_type as "subscription" | "plugin" | undefined) ?? "subscription",
     buyer: {
       name: row.buyer_name as string,
       email: (row.buyer_email as string) ?? "",
@@ -168,12 +171,14 @@ export const markOrderPaid = createServerFn({ method: "POST" })
     if (updateError) return { ok: false, error: updateError.message };
 
     const contact = normalizeContact(order.buyer_email || order.buyer_whatsapp);
+    const isPlugin = order.product_type === "plugin";
     const { error: voucherError } = await supabase.from("noble_vouchers").upsert(
       {
         code: order.serial,
         bound_contact: contact,
-        tier: order.tier,
-        duration_days: order.duration_days,
+        tier: isPlugin ? null : order.tier,
+        duration_days: isPlugin ? null : order.duration_days,
+        plugin_id: isPlugin ? order.plan_id : null,
         status: "unused",
         note: `Store order ${order.id} (${order.plan_id})`,
       },
@@ -182,7 +187,9 @@ export const markOrderPaid = createServerFn({ method: "POST" })
     if (voucherError) return { ok: false, error: `Order marked paid, but issuing the voucher failed: ${voucherError.message}` };
 
     if (order.buyer_email) {
-      const planLabel = PLANS.find((p) => p.id === order.plan_id)?.nameId ?? order.plan_id;
+      const planLabel = isPlugin
+        ? (PLUGIN_REGISTRY.find((p) => p.id === order.plan_id)?.nameId ?? order.plan_id)
+        : (PLANS.find((p) => p.id === order.plan_id)?.nameId ?? order.plan_id);
       await sendSerialEmail(order.buyer_email, order.buyer_name, planLabel, order.serial);
     }
 
@@ -286,6 +293,71 @@ export const setPlanPrice = createServerFn({ method: "POST" })
     const { error } = await supabase.from("store_plan_overrides").upsert({ plan_id: data.planId, price_idr: data.priceIDR, updated_at: new Date().toISOString() });
     if (error) return { ok: false, error: error.message };
     return { ok: true };
+  });
+
+// ————— Plugin pricing (School Dashboard, PMD, etc. sold à la carte,
+// separate from the Standard/Premium subscription plans above) —————
+export const getPluginPrices = createServerFn({ method: "POST" })
+  .handler(async (): Promise<{ ok: true; prices: Record<string, number> } | { ok: false; error: string }> => {
+    const supabase = createNobleSupabase();
+    if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
+    const { data: rows, error } = await supabase.from("store_plugin_prices").select("*");
+    if (error) return { ok: false, error: error.message };
+    const prices: Record<string, number> = {};
+    for (const r of rows ?? []) prices[r.plugin_id as string] = r.price_idr as number;
+    return { ok: true, prices };
+  });
+
+export const setPluginPrice = createServerFn({ method: "POST" })
+  .inputValidator((input: { adminPassword: string; pluginId: string; priceIDR: number | null }) => input)
+  .handler(async ({ data }): Promise<{ ok: true } | { ok: false; error: string }> => {
+    if (!(await checkAdmin(data.adminPassword))) return { ok: false, error: "Wrong password." };
+    const supabase = createNobleSupabase();
+    if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
+    if (data.priceIDR == null) {
+      const { error } = await supabase.from("store_plugin_prices").delete().eq("plugin_id", data.pluginId);
+      if (error) return { ok: false, error: error.message };
+      return { ok: true };
+    }
+    const { error } = await supabase.from("store_plugin_prices").upsert({ plugin_id: data.pluginId, price_idr: data.priceIDR, updated_at: new Date().toISOString() });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  });
+
+// Creates a one-off plugin purchase order — same order/QR/voucher pipeline
+// as a subscription, just product_type='plugin' and plan_id doubles as the
+// plugin id being bought (no tier/duration; the voucher this order issues
+// unlocks that specific plugin on redeem, not a subscription tier).
+export const createPluginOrder = createServerFn({ method: "POST" })
+  .inputValidator(
+    (input: { pluginId: string; priceIDR: number; buyer: { name: string; email: string; whatsapp: string; note?: string } }) => input,
+  )
+  .handler(async ({ data }): Promise<{ ok: true; order: StoreOrder } | { ok: false; error: string }> => {
+    const supabase = createNobleSupabase();
+    if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi (SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY belum diset)." };
+    if (!data.buyer?.name?.trim() || !data.buyer?.whatsapp?.trim()) {
+      return { ok: false, error: "Nama dan nomor WhatsApp wajib diisi." };
+    }
+    const serial = generateSerial();
+    const { data: row, error } = await supabase
+      .from("store_orders")
+      .insert({
+        serial,
+        product_type: "plugin",
+        plan_id: data.pluginId,
+        tier: null,
+        duration_days: null,
+        price_idr: data.priceIDR,
+        buyer_name: data.buyer.name.trim(),
+        buyer_email: data.buyer.email?.trim() || null,
+        buyer_whatsapp: data.buyer.whatsapp.trim(),
+        buyer_note: data.buyer.note?.trim() || null,
+        plugins: [],
+      })
+      .select()
+      .single();
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, order: rowToOrder(row) };
   });
 
 // ————— Generic site feature toggles (site_features table) — Komerce

@@ -6,6 +6,7 @@ export interface RedeemVoucherResult {
   error?: string;
   tier?: "standard" | "premium";
   durationDays?: number;
+  pluginId?: string;
 }
 
 // Used by the homepage Redeem box: shows only if there's a REAL unused
@@ -16,6 +17,7 @@ export interface MyVoucher {
   code: string;
   tier: "standard" | "premium";
   durationDays: number | null;
+  pluginId: string | null;
 }
 
 // Checks BOTH email and whatsapp (not just whichever the profile happens to
@@ -30,11 +32,16 @@ export const getMyVouchers = createServerFn({ method: "POST" })
     const contacts = [data.email, data.whatsapp].filter(Boolean).map((c) => normalizeContact(c as string));
     if (contacts.length === 0) return { ok: true, vouchers: [] };
     const { data: rows, error } = await supabase
-      .from("noble_vouchers").select("code, tier, duration_days").in("bound_contact", contacts).eq("status", "unused");
+      .from("noble_vouchers").select("code, tier, duration_days, plugin_id").in("bound_contact", contacts).eq("status", "unused");
     if (error) return { ok: false, error: error.message };
     return {
       ok: true,
-      vouchers: (rows ?? []).map((r) => ({ code: r.code as string, tier: r.tier as "standard" | "premium", durationDays: r.duration_days as number | null })),
+      vouchers: (rows ?? []).map((r) => ({
+        code: r.code as string,
+        tier: r.tier as "standard" | "premium",
+        durationDays: r.duration_days as number | null,
+        pluginId: (r.plugin_id as string | null) ?? null,
+      })),
     };
   });
 
@@ -72,5 +79,5 @@ export const redeemVoucher = createServerFn({ method: "POST" })
 
     if (updateError) return { ok: false, error: updateError.message };
 
-    return { ok: true, tier: voucher.tier, durationDays: voucher.duration_days };
+    return { ok: true, tier: voucher.tier, durationDays: voucher.duration_days, pluginId: voucher.plugin_id ?? undefined };
   });

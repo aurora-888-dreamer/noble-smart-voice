@@ -20,6 +20,9 @@ import {
   wipeAllStoreOrders as wipeAllStoreOrdersFn,
   getPlanPrices,
   setPlanPrice,
+  getPluginPrices,
+  setPluginPrice,
+  createPluginOrder,
   getSiteFeature,
   setSiteFeature,
   PLANS,
@@ -33,7 +36,7 @@ import {
 } from "./store.functions";
 import type { PluginId } from "./plugins";
 
-export { PLANS, formatIDR, statusLabel, getPlanPrices, setPlanPrice, getSiteFeature, setSiteFeature };
+export { PLANS, formatIDR, statusLabel, getPlanPrices, setPlanPrice, getPluginPrices, setPluginPrice, createPluginOrder, getSiteFeature, setSiteFeature };
 export type { PlanId, PlanTier, OrderStatus, Plan };
 // Same shape as before, new name upstream — kept as an alias so existing
 // `type OrderRecord` imports elsewhere don't need to change.
