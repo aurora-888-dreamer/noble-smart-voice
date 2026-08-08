@@ -1,18 +1,17 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Plane, GanttChart, NotebookPen, MessageSquare, Calculator, Languages, Camera, MessageCircle, Mail, Music2, Instagram, Facebook, Globe, ExternalLink, StickyNote, CheckSquare, Calendar as CalendarIcon, Video, CalendarClock, Users, BellRing, Crown, GraduationCap, FolderKanban } from "lucide-react";
+import { Plane, GanttChart, NotebookPen, MessageSquare, Calculator, Languages, Camera, MessageCircle, Mail, Music2, Instagram, Facebook, Globe, ExternalLink, StickyNote, CheckSquare, Calendar as CalendarIcon, Video, CalendarClock, Users, BellRing, Crown, GraduationCap } from "lucide-react";
 import { useEnabledShortcuts } from "@/lib/app-shortcuts-store";
 import { AppShell } from "@/components/AppShell";
 import { getDb } from "@/lib/db";
 import { useLang } from "@/lib/settings-store";
 import { t } from "@/lib/i18n";
 import { isOnboarded } from "@/lib/settings-store";
-import { isRegistered, isSignedIn, ensureTrialStarted, useLicenseInfo, shouldShowRedeemPrompt, markVoucherRedeemed, applyRedeemedLicense, getProfile } from "@/lib/auth-store";
+import { isRegistered, isSignedIn, ensureTrialStarted, useLicenseInfo, markVoucherRedeemed, applyRedeemedLicense, getProfile } from "@/lib/auth-store";
 import { usePlugin } from "@/lib/plugins-store";
-import { PLUGIN_REGISTRY } from "@/lib/plugins";
 import { rehydrateReminders } from "@/lib/reminders";
-import { redeemVoucher, hasUnredeemedVoucher } from "@/lib/vouchers.functions";
+import { redeemVoucher, getMyVouchers } from "@/lib/vouchers.functions";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -24,71 +23,67 @@ export const Route = createFileRoute("/")({
  * store.order.tsx marks a new order as placed (same-origin localStorage,
  * shared between Store and NSV). */
 function RedeemBox({ lang }: { lang: "en" | "id" }) {
-  const [visible, setVisible] = useState(false);
-  const [code, setCode] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [vouchers, setVouchers] = useState<{ code: string; tier: "standard" | "premium"; durationDays: number | null }[]>([]);
+  const [busyCode, setBusyCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  async function refresh() {
     const profile = getProfile();
-    const contact = profile?.email || profile?.whatsapp || "";
-    if (!contact) {
-      // No account contact yet to check against — fall back to the local
-      // "just placed an order" flag as a best-effort signal.
-      setVisible(shouldShowRedeemPrompt());
-      return;
-    }
-    hasUnredeemedVoucher({ data: { contact } }).then((r) => {
-      if (r.ok) setVisible(r.has);
-    });
-  }, []);
+    const r = await getMyVouchers({ data: { email: profile?.email, whatsapp: profile?.whatsapp } });
+    if (r.ok) setVouchers(r.vouchers);
+  }
+  useEffect(() => { refresh(); }, []);
 
-  async function redeem() {
-    if (!code.trim()) return;
+  async function redeem(code: string) {
     const profile = getProfile();
     const contact = profile?.email || profile?.whatsapp || "";
-    if (!contact) {
-      setError(lang === "id" ? "Akun kamu belum punya email/WhatsApp terdaftar." : "Your account has no email/WhatsApp on file.");
-      return;
-    }
-    setBusy(true);
+    if (!contact) return;
+    setBusyCode(code);
     setError(null);
     try {
       const res = await redeemVoucher({ data: { code, contact } });
       if (res.ok && res.tier && res.durationDays != null) {
         applyRedeemedLicense({ code: code.trim().toUpperCase(), tier: res.tier, durationDays: res.durationDays });
         markVoucherRedeemed();
-        setVisible(false);
+        setVouchers((v) => v.filter((x) => x.code !== code));
       } else {
         setError(res.error ?? (lang === "id" ? "Kode tidak valid." : "Invalid code."));
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
-    setBusy(false);
+    setBusyCode(null);
   }
 
-  if (!visible) return null;
+  // Every voucher is bound to the buyer's own email/WhatsApp at issuance —
+  // there's no "raw code" path, ever, whether self-purchased, admin-granted,
+  // or a gift bought by someone else. So: nothing found means nothing to
+  // show, full stop — no manual-entry fallback that would keep this box
+  // around when there's genuinely nothing to redeem.
+  if (vouchers.length === 0) return null;
+
   return (
     <div className="mb-4 rounded-2xl border border-primary/40 bg-gradient-to-br from-primary/15 to-primary/5 p-4">
       <p className="text-sm font-semibold flex items-center gap-1.5"><Crown size={16} className="text-primary" /> Redeem Voucher</p>
-      <p className="text-xs text-muted-foreground mt-0.5 mb-3">
-        {lang === "id" ? "Punya serial dari pembelian? Masukkan di sini untuk aktivasi." : "Have a serial from a purchase? Enter it here to activate."}
-      </p>
-      <div className="flex gap-2">
-        <input
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          placeholder="NBL-XXXXXX-XXXX-XX"
-          className="flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm font-mono"
-        />
-        <button
-          onClick={redeem}
-          disabled={busy || !code.trim()}
-          className="rounded-xl bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold disabled:opacity-50"
-        >
-          {busy ? "…" : lang === "id" ? "Aktivasi" : "Redeem"}
-        </button>
+      <div className="mt-3 space-y-2">
+        <p className="text-xs text-muted-foreground">
+          {lang === "id" ? "Ketemu serial yang belum diaktivasi buat akun kamu:" : "Found an unredeemed serial for your account:"}
+        </p>
+        {vouchers.map((v) => (
+          <div key={v.code} className="flex items-center justify-between gap-2 rounded-xl bg-background border border-border px-3 py-2">
+            <div className="min-w-0">
+              <p className="text-sm font-mono truncate">{v.code}</p>
+              <p className="text-[11px] text-muted-foreground capitalize">{v.tier}{v.durationDays ? ` · ${v.durationDays} ${lang === "id" ? "hari" : "days"}` : lang === "id" ? " · seumur hidup" : " · lifetime"}</p>
+            </div>
+            <button
+              onClick={() => redeem(v.code)}
+              disabled={busyCode === v.code}
+              className="shrink-0 rounded-xl bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold disabled:opacity-50"
+            >
+              {busyCode === v.code ? "…" : lang === "id" ? "Aktivasi" : "Redeem"}
+            </button>
+          </div>
+        ))}
       </div>
       {error && <p className="text-xs text-destructive mt-2">{error}</p>}
     </div>
@@ -102,7 +97,6 @@ function Home() {
   const license = useLicenseInfo();
   const shortcuts = useEnabledShortcuts();
   const hasSchool = usePlugin("school");
-  const hasPmd = usePlugin("pmd");
   const isAdmin = license.code === "NOBLE440077";
 
   useEffect(() => {
@@ -174,14 +168,6 @@ function Home() {
     { to: "/projects", label: t(lang, "projects"), Icon: GanttChart },
   ] as const;
 
-  const activePlugins = [
-    { id: "school" as const, to: "/school" as const, Icon: GraduationCap, on: hasSchool || isAdmin },
-    { id: "pmd" as const, to: "/pmd" as const, Icon: FolderKanban, on: hasPmd || isAdmin },
-  ]
-    .filter((p) => p.on)
-    .map((p) => ({ ...p, meta: PLUGIN_REGISTRY.find((m) => m.id === p.id)! }))
-    .filter((p) => !!p.meta);
-
   return (
     <AppShell title={t(lang, "home")}>
       <RedeemBox lang={lang} />
@@ -207,29 +193,22 @@ function Home() {
         </Link>
       )}
 
-      {activePlugins.length > 0 && (
-        <section className="mb-6 grid gap-3 sm:grid-cols-2">
-          {activePlugins.map(({ to, Icon, meta }) => (
-            <Link
-              key={meta.id}
-              to={to}
-              className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 hover:opacity-90"
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <Icon size={20} className="text-primary shrink-0" />
-                <div className="min-w-0">
-                  <div className="text-sm font-semibold truncate">{lang === "id" ? meta.nameId : meta.name}</div>
-                  <div className="text-xs text-muted-foreground line-clamp-2">
-                    {lang === "id" ? meta.descriptionId : meta.description}
-                  </div>
-                </div>
+      {(hasSchool || isAdmin) && (
+        <Link
+          to="/school"
+          className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 hover:opacity-90"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <GraduationCap size={20} className="text-primary shrink-0" />
+            <div className="min-w-0">
+              <div className="text-sm font-semibold truncate">School Dashboard</div>
+              <div className="text-xs text-muted-foreground truncate">
+                Kindergarten · Teacher / Parent / Principal
               </div>
-              <span className="text-xs text-primary font-semibold shrink-0">
-                {lang === "id" ? "Buka →" : "Open →"}
-              </span>
-            </Link>
-          ))}
-        </section>
+            </div>
+          </div>
+          <span className="text-xs text-primary font-semibold shrink-0">Open →</span>
+        </Link>
       )}
 
       <h2 className="mb-4 text-xl font-semibold">{t(lang, "dailyActivities")}</h2>
