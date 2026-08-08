@@ -200,7 +200,7 @@ function Field({
  * it fails (used to hide itself silently — dangerous if Manual Payment is
  * toggled off, since the buyer would be left with literally no way to pay
  * and no explanation why). */
-function KomerceCheckout({ order }: { order: OrderRecord }) {
+export function KomerceCheckout({ order }: { order: OrderRecord }) {
   const [qr, setQr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);

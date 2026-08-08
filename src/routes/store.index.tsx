@@ -1,17 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
 import {
   Mic, Calendar, CheckSquare, Users, MapPin, Bell, Camera, Calculator,
   Languages, Fingerprint, ShieldCheck, WifiOff, Cloud, Sparkles, Check, Crown,
 } from "lucide-react";
-import { formatIDR, useEffectivePlans } from "@/lib/aurora-store";
+import { formatIDR, useEffectivePlans, getPluginPrices } from "@/lib/aurora-store";
 import { useDiscounts, isDiscountValid, discountAppliesToPlan, applyDiscount } from "@/lib/discounts-store";
+import { PLUGIN_REGISTRY } from "@/lib/plugins";
 
 export const Route = createFileRoute("/store/")({
   component: StoreLanding,
 });
 
 const FEATURES = [
-  { icon: Mic,        title: "Voice-first Capture",       desc: "Wake with \"Aurora Start\", dictate notes, tasks, meetings, and appointments hands-free." },
+  { icon: Mic,        title: "Voice-first Capture",       desc: "Tap the mic and dictate notes, tasks, meetings, and appointments hands-free." },
   { icon: Sparkles,   title: "AI Auto-Categorize",        desc: "Phi, Gemma, Qwen and Gemini analyze your voice and file it into the right menu." },
   { icon: Calendar,   title: "Calendar & Reminders",      desc: "Month view, alarm reminders, and dated filters across every menu." },
   { icon: CheckSquare,title: "Tasks & Projects",          desc: "Priorities, due dates, and multi-select bulk actions." },
@@ -30,6 +32,11 @@ const FEATURES = [
 function StoreLanding() {
   const plans = useEffectivePlans();
   const discounts = useDiscounts();
+  const [pluginPrices, setPluginPrices] = useState<Record<string, number>>({});
+  useEffect(() => {
+    getPluginPrices().then((r) => { if (r.ok) setPluginPrices(r.prices); });
+  }, []);
+  const sellablePlugins = PLUGIN_REGISTRY.filter((p) => pluginPrices[p.id] != null);
   return (
     <div className="space-y-16">
       {/* Hero */}
@@ -147,6 +154,33 @@ function StoreLanding() {
           })}
         </div>
       </section>
+
+      {sellablePlugins.length > 0 && (
+        <section>
+          <h2 className="text-2xl md:text-3xl mb-2" style={{ fontFamily: "var(--font-serif, serif)" }}>
+            Plugin Add-ons
+          </h2>
+          <p className="text-sm text-muted-foreground mb-6">
+            Beli satu plugin secara terpisah, tanpa perlu langganan Premium.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {sellablePlugins.map((p) => (
+              <Link
+                key={p.id}
+                to="/store/plugin-order"
+                search={{ plugin: p.id } as never}
+                className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 hover:opacity-90"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold truncate">{p.name}</p>
+                  <p className="text-xs text-muted-foreground truncate">{p.description}</p>
+                </div>
+                <span className="text-sm font-bold text-primary shrink-0">{formatIDR(pluginPrices[p.id])}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* How it works */}
       <section>

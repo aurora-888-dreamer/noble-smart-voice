@@ -12,7 +12,7 @@ import {
   useOrders, useAdmin, adminLogin, adminLogout, getAdminSessionPassword,
   markPaid, markDelivered, cancelOrder, deleteOrder, generateSerialPreview, verifySerial,
   wipeAllOrders, formatIDR, statusLabel, type OrderRecord, type OrderStatus, PLANS, type PlanId, type Plan,
-  getPlanPrices, setPlanPrice, getSiteFeature, setSiteFeature,
+  getPlanPrices, setPlanPrice, getPluginPrices, setPluginPrice, getSiteFeature, setSiteFeature,
 } from "@/lib/aurora-store";
 import {
   useAdminDiscounts, useAdminGroups, upsertDiscount, deleteDiscount, upsertGroup, deleteGroup,
@@ -209,7 +209,7 @@ function AdminDashboard({ adminPassword }: { adminPassword: string }) {
   const orders = useOrders(adminPassword);
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | OrderStatus>("all");
-  const [tab, setTab] = useState<"orders" | "analytics" | "customers" | "discounts" | "premium" | "tools" | "settings">("orders");
+  const [tab, setTab] = useState<"orders" | "analytics" | "customers" | "discounts" | "premium" | "plugin" | "tools" | "settings">("orders");
 
   const filtered = useMemo(() => {
     const qs = q.trim().toLowerCase();
@@ -263,7 +263,7 @@ function AdminDashboard({ adminPassword }: { adminPassword: string }) {
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-border mb-4 overflow-x-auto">
-        {(["orders", "analytics", "customers", "discounts", "premium", "tools", "settings"] as const).map((tKey) => (
+        {(["orders", "analytics", "customers", "discounts", "premium", "plugin", "tools", "settings"] as const).map((tKey) => (
           <button
             key={tKey}
             onClick={() => setTab(tKey)}
@@ -321,6 +321,7 @@ function AdminDashboard({ adminPassword }: { adminPassword: string }) {
       {tab === "customers" && <CustomersTab orders={orders} />}
       {tab === "discounts" && <DiscountsTab adminPassword={adminPassword} />}
       {tab === "premium" && <PremiumTab />}
+      {tab === "plugin" && <PluginTab adminPassword={adminPassword} />}
       {tab === "tools" && <ToolsTab orders={orders} adminPassword={adminPassword} />}
       {tab === "settings" && <SettingsTab orders={orders} adminPassword={adminPassword} />}
     </div>
@@ -1098,7 +1099,6 @@ function DangerZone({ orders, adminPassword }: { orders: OrderRecord[]; adminPas
  * any customer's account — it's a dev/test tool, not customer management. */
 function PremiumTab() {
   const license = useLicenseInfo();
-  const plugins = usePluginState();
   return (
     <div className="space-y-4">
       <section className="rounded-2xl bg-card border border-border p-4">
@@ -1115,6 +1115,74 @@ function PremiumTab() {
         >
           {license.manuallyOff ? "Turn Premium back on" : "Switch off (test Standard)"}
         </button>
+      </section>
+    </div>
+  );
+}
+
+/** Plugins (School Dashboard, PMD, and any future ones) sold à la carte,
+ * separate from the Standard/Premium subscription — split out of Premium
+ * since this list is expected to keep growing. Combines the device-local
+ * test toggle with admin-settable pricing for each sellable plugin. */
+function PluginTab({ adminPassword }: { adminPassword: string }) {
+  const plugins = usePluginState();
+  const [prices, setPrices] = useState<Record<string, number>>({});
+  const [draft, setDraft] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  useEffect(() => {
+    getPluginPrices().then((r) => { if (r.ok) setPrices(r.prices); });
+  }, []);
+
+  async function savePrice(pluginId: string) {
+    const raw = draft[pluginId];
+    const val = raw === undefined || raw.trim() === "" ? null : Number(raw.replace(/\D/g, ""));
+    setBusy(pluginId);
+    setSaveError(null);
+    const r = await setPluginPrice({ data: { adminPassword, pluginId, priceIDR: val } });
+    setBusy(null);
+    if (r.ok) {
+      const fresh = await getPluginPrices();
+      if (fresh.ok) setPrices(fresh.prices);
+      setDraft((d) => ({ ...d, [pluginId]: "" }));
+    } else {
+      setSaveError(r.error);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <section className="rounded-2xl bg-card border border-border p-4">
+        <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Plugin Pricing</p>
+        <p className="text-xs text-muted-foreground mb-3">
+          Kosongkan lalu simpan untuk sembunyikan dari Store lagi (belum dijual). Ini harga jual satuan plugin, terpisah dari harga paket Standard/Premium.
+        </p>
+        {saveError && (
+          <p className="text-xs text-destructive bg-destructive/10 rounded-lg px-3 py-2 mb-3">Gagal menyimpan: {saveError}</p>
+        )}
+        <div className="space-y-2">
+          {PLUGIN_REGISTRY.map((p) => (
+            <div key={p.id} className="flex items-center gap-2">
+              <span className="text-sm flex-1">{p.nameId}</span>
+              <span className="text-xs text-muted-foreground">{prices[p.id] != null ? formatIDR(prices[p.id]) : "belum dijual"}</span>
+              <input
+                value={draft[p.id] ?? ""}
+                onChange={(e) => setDraft((d) => ({ ...d, [p.id]: e.target.value }))}
+                placeholder="harga"
+                inputMode="numeric"
+                className="w-28 rounded-lg bg-background border border-border px-2 py-1 text-xs"
+              />
+              <button
+                onClick={() => savePrice(p.id)}
+                disabled={busy === p.id}
+                className="rounded-lg bg-primary text-primary-foreground px-2.5 py-1 text-xs font-semibold disabled:opacity-50"
+              >
+                Simpan
+              </button>
+            </div>
+          ))}
+        </div>
       </section>
       <section className="rounded-2xl bg-card border border-border p-4">
         <p className="text-xs uppercase tracking-wide text-muted-foreground mb-3">Plugins (test toggle, this device)</p>

@@ -4,6 +4,8 @@ import { ShieldCheck, QrCode } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { activatePremium, isPremium, getProfile, applyRedeemedLicense, markVoucherRedeemed } from "@/lib/auth-store";
 import { redeemVoucher } from "@/lib/vouchers.functions";
+import { setPluginEnabled } from "@/lib/plugins-store";
+import type { PluginId } from "@/lib/plugins";
 import { useLang } from "@/lib/settings-store";
 
 export const Route = createFileRoute("/activate")({
@@ -41,7 +43,12 @@ function ActivatePage() {
 
     try {
       const res = await redeemVoucher({ data: { code, contact } });
-      if (res.ok && res.tier && res.durationDays != null) {
+      if (res.ok && res.pluginId) {
+        setPluginEnabled(res.pluginId as PluginId, true);
+        markVoucherRedeemed();
+        setStatus("ok");
+        setTimeout(() => nav({ to: "/" }), 800);
+      } else if (res.ok && res.tier && res.durationDays != null) {
         applyRedeemedLicense({ code: code.trim().toUpperCase(), tier: res.tier, durationDays: res.durationDays });
         markVoucherRedeemed();
         setStatus("ok");

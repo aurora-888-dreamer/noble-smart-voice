@@ -9,7 +9,8 @@ import { useLang } from "@/lib/settings-store";
 import { t } from "@/lib/i18n";
 import { isOnboarded } from "@/lib/settings-store";
 import { isRegistered, isSignedIn, ensureTrialStarted, useLicenseInfo, markVoucherRedeemed, applyRedeemedLicense, getProfile } from "@/lib/auth-store";
-import { usePlugin } from "@/lib/plugins-store";
+import { usePlugin, setPluginEnabled } from "@/lib/plugins-store";
+import { PLUGIN_REGISTRY, type PluginId } from "@/lib/plugins";
 import { rehydrateReminders } from "@/lib/reminders";
 import { redeemVoucher, getMyVouchers } from "@/lib/vouchers.functions";
 
@@ -23,7 +24,7 @@ export const Route = createFileRoute("/")({
  * store.order.tsx marks a new order as placed (same-origin localStorage,
  * shared between Store and NSV). */
 function RedeemBox({ lang }: { lang: "en" | "id" }) {
-  const [vouchers, setVouchers] = useState<{ code: string; tier: "standard" | "premium"; durationDays: number | null }[]>([]);
+  const [vouchers, setVouchers] = useState<{ code: string; tier: "standard" | "premium"; durationDays: number | null; pluginId: string | null }[]>([]);
   const [busyCode, setBusyCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,7 +43,11 @@ function RedeemBox({ lang }: { lang: "en" | "id" }) {
     setError(null);
     try {
       const res = await redeemVoucher({ data: { code, contact } });
-      if (res.ok && res.tier && res.durationDays != null) {
+      if (res.ok && res.pluginId) {
+        setPluginEnabled(res.pluginId as PluginId, true);
+        markVoucherRedeemed();
+        setVouchers((v) => v.filter((x) => x.code !== code));
+      } else if (res.ok && res.tier && res.durationDays != null) {
         applyRedeemedLicense({ code: code.trim().toUpperCase(), tier: res.tier, durationDays: res.durationDays });
         markVoucherRedeemed();
         setVouchers((v) => v.filter((x) => x.code !== code));
@@ -73,7 +78,11 @@ function RedeemBox({ lang }: { lang: "en" | "id" }) {
           <div key={v.code} className="flex items-center justify-between gap-2 rounded-xl bg-background border border-border px-3 py-2">
             <div className="min-w-0">
               <p className="text-sm font-mono truncate">{v.code}</p>
-              <p className="text-[11px] text-muted-foreground capitalize">{v.tier}{v.durationDays ? ` · ${v.durationDays} ${lang === "id" ? "hari" : "days"}` : lang === "id" ? " · seumur hidup" : " · lifetime"}</p>
+              <p className="text-[11px] text-muted-foreground capitalize">
+                {v.pluginId
+                  ? (PLUGIN_REGISTRY.find((p) => p.id === v.pluginId)?.[lang === "id" ? "nameId" : "name"] ?? v.pluginId)
+                  : <>{v.tier}{v.durationDays ? ` · ${v.durationDays} ${lang === "id" ? "hari" : "days"}` : lang === "id" ? " · seumur hidup" : " · lifetime"}</>}
+              </p>
             </div>
             <button
               onClick={() => redeem(v.code)}
