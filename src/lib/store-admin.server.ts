@@ -45,7 +45,7 @@ export async function verifyAdminPassword(password: string): Promise<boolean> {
 
 export async function storeAdminPassword(password: string): Promise<string | null> {
   const supabase = createNobleSupabase();
-  if (!supabase) return "Backend toko belum dikonfigurasi.";
+  if (!supabase) return "Store backend not configured.";
   const { error } = await supabase
     .from("store_admin_auth")
     .upsert({ id: 1, password_hash: await sha256(password), updated_at: new Date().toISOString() }, { onConflict: "id" });
@@ -69,15 +69,15 @@ export function generateResetCode(): string {
 export async function sendResetCodeEmail(to: string, code: string): Promise<string | null> {
   const apiKey = process.env.LOVABLE_API_KEY;
   const senderDomain = process.env.STORE_EMAIL_SENDER_DOMAIN;
-  if (!apiKey) return "LOVABLE_API_KEY belum tersedia di server.";
-  if (!senderDomain) return "Domain pengirim email belum dikonfigurasi (STORE_EMAIL_SENDER_DOMAIN).";
+  if (!apiKey) return "LOVABLE_API_KEY is not available on the server.";
+  if (!senderDomain) return "Sender email domain not configured (STORE_EMAIL_SENDER_DOMAIN).";
 
   const html = `
     <div style="font-family:Arial,Helvetica,sans-serif;background:#ffffff;padding:24px">
       <h2 style="margin:0 0 8px">AURORA MASTER — Reset Admin PIN</h2>
-      <p style="color:#444;margin:0 0 16px">Gunakan kode berikut untuk mengatur ulang PIN admin toko. Kode berlaku 15 menit.</p>
+      <p style="color:#444;margin:0 0 16px">Use the code below to reset the store admin PIN. This code is valid for 15 minutes.</p>
       <p style="font-size:30px;letter-spacing:8px;font-weight:700;margin:0 0 16px">${code}</p>
-      <p style="color:#777;font-size:12px;margin:0">Abaikan email ini jika kamu tidak meminta reset PIN.</p>
+      <p style="color:#777;font-size:12px;margin:0">Ignore this email if you didn't request a PIN reset.</p>
     </div>`;
 
   try {
@@ -86,16 +86,16 @@ export async function sendResetCodeEmail(to: string, code: string): Promise<stri
         to,
         from: `AURORA MASTER <admin@${senderDomain}>`,
         sender_domain: senderDomain,
-        subject: "Kode reset PIN admin AURORA MASTER",
+        subject: "AURORA MASTER admin PIN reset code",
         html,
-        text: `Kode reset PIN admin AURORA MASTER: ${code} (berlaku 15 menit).`,
+        text: `AURORA MASTER admin PIN reset code: ${code} (valid for 15 minutes).`,
         purpose: "transactional",
       },
       { apiKey },
     );
     return null;
   } catch (e) {
-    return e instanceof Error ? e.message : "Gagal mengirim email reset.";
+    return e instanceof Error ? e.message : "Failed to send reset email.";
   }
 }
 
@@ -106,17 +106,17 @@ export async function sendResetCodeEmail(to: string, code: string): Promise<stri
 export async function sendSerialEmail(to: string, buyerName: string, planName: string, serial: string): Promise<string | null> {
   const apiKey = process.env.LOVABLE_API_KEY;
   const senderDomain = process.env.STORE_EMAIL_SENDER_DOMAIN;
-  if (!apiKey || !senderDomain || !to) return "Email pengirim belum dikonfigurasi atau buyer tidak punya email.";
+  if (!apiKey || !senderDomain || !to) return "Sender email not configured, or the buyer has no email on file.";
 
   const html = `
     <div style="font-family:Arial,Helvetica,sans-serif;background:#ffffff;padding:24px">
-      <h2 style="margin:0 0 8px">AURORA MASTER — Pembayaran Diterima</h2>
-      <p style="color:#444;margin:0 0 4px">Halo ${buyerName},</p>
-      <p style="color:#444;margin:0 0 16px">Terima kasih! Pesanan <b>${planName}</b> kamu sudah dibayar dan siap dipakai.</p>
-      <p style="color:#777;font-size:12px;margin:0 0 4px">Serial Number kamu:</p>
+      <h2 style="margin:0 0 8px">AURORA MASTER — Payment Received</h2>
+      <p style="color:#444;margin:0 0 4px">Hi ${buyerName},</p>
+      <p style="color:#444;margin:0 0 16px">Thank you! Your <b>${planName}</b> order has been paid and is ready to use.</p>
+      <p style="color:#777;font-size:12px;margin:0 0 4px">Your Serial Number:</p>
       <p style="font-size:22px;letter-spacing:2px;font-weight:700;margin:0 0 16px;font-family:monospace">${serial}</p>
-      <p style="color:#444;margin:0 0 8px">Cara aktivasi: buka aplikasi Noble → Activate Premium → tempel serial di atas.</p>
-      <p style="color:#777;font-size:12px;margin:0">Simpan email ini sebagai bukti pembelian.</p>
+      <p style="color:#444;margin:0 0 8px">How to activate: open the Noble app → Activate Premium → paste the serial above.</p>
+      <p style="color:#777;font-size:12px;margin:0">Keep this email as your proof of purchase.</p>
     </div>`;
 
   try {
@@ -125,15 +125,15 @@ export async function sendSerialEmail(to: string, buyerName: string, planName: s
         to,
         from: `AURORA MASTER <admin@${senderDomain}>`,
         sender_domain: senderDomain,
-        subject: `Serial Number kamu — ${planName}`,
+        subject: `Your Serial Number — ${planName}`,
         html,
-        text: `Halo ${buyerName}, pesanan ${planName} kamu sudah dibayar. Serial Number: ${serial}. Aktivasi di Noble -> Activate Premium.`,
+        text: `Hi ${buyerName}, your ${planName} order has been paid. Serial Number: ${serial}. Activate in Noble -> Activate Premium.`,
         purpose: "transactional",
       },
       { apiKey },
     );
     return null;
   } catch (e) {
-    return e instanceof Error ? e.message : "Gagal mengirim email serial.";
+    return e instanceof Error ? e.message : "Failed to send serial email.";
   }
 }

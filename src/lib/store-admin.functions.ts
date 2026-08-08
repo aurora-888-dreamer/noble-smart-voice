@@ -19,11 +19,11 @@ export const requestStoreAdminReset = createServerFn({ method: "POST" })
   .inputValidator((input: { email: string }) => input)
   .handler(async ({ data }): Promise<{ ok: true } | { ok: false; error: string }> => {
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Store backend not configured." };
 
     const target = adminEmail();
     const given = data.email.trim().toLowerCase();
-    if (!target) return { ok: false, error: "Email admin belum dikonfigurasi (STORE_ADMIN_EMAIL)." };
+    if (!target) return { ok: false, error: "Admin email not configured (STORE_ADMIN_EMAIL)." };
     if (given !== target) return { ok: true }; // silent no-op
 
     // Throttle: max 3 requests per 15 minutes.
@@ -32,7 +32,7 @@ export const requestStoreAdminReset = createServerFn({ method: "POST" })
       .from("store_admin_resets")
       .select("id", { count: "exact", head: true })
       .gte("created_at", since);
-    if ((count ?? 0) >= 3) return { ok: false, error: "Terlalu banyak permintaan. Coba lagi dalam 15 menit." };
+    if ((count ?? 0) >= 3) return { ok: false, error: "Too many requests. Try again in 15 minutes." };
 
     const code = generateResetCode();
     const { error } = await supabase.from("store_admin_resets").insert({
@@ -52,9 +52,9 @@ export const requestStoreAdminReset = createServerFn({ method: "POST" })
 export const storeAdminLogin = createServerFn({ method: "POST" })
   .inputValidator((input: { userId: string; pin: string }) => input)
   .handler(async ({ data }): Promise<{ ok: true; pin: string } | { ok: false; error: string }> => {
-    if (!isAdminUserId(data.userId || "")) return { ok: false, error: "UserID atau PIN salah." };
+    if (!isAdminUserId(data.userId || "")) return { ok: false, error: "Wrong UserID or PIN." };
     const pin = (data.pin || "").trim();
-    if (!(await verifyAdminPassword(pin))) return { ok: false, error: "UserID atau PIN salah." };
+    if (!(await verifyAdminPassword(pin))) return { ok: false, error: "Wrong UserID or PIN." };
     return { ok: true, pin };
   });
 
@@ -63,9 +63,9 @@ export const resetStoreAdminPassword = createServerFn({ method: "POST" })
   .inputValidator((input: { code: string; newPassword: string }) => input)
   .handler(async ({ data }): Promise<{ ok: true } | { ok: false; error: string }> => {
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Store backend not configured." };
     const password = data.newPassword.trim();
-    if (!/^\d{6}$/.test(password)) return { ok: false, error: "PIN baru harus 6 angka." };
+    if (!/^\d{6}$/.test(password)) return { ok: false, error: "New PIN must be 6 digits." };
 
     const codeHash = await sha256(data.code.trim());
     const { data: row, error } = await supabase
@@ -76,7 +76,7 @@ export const resetStoreAdminPassword = createServerFn({ method: "POST" })
       .gte("expires_at", new Date().toISOString())
       .maybeSingle();
     if (error) return { ok: false, error: error.message };
-    if (!row) return { ok: false, error: "Kode tidak valid atau sudah kedaluwarsa." };
+    if (!row) return { ok: false, error: "Invalid or expired code." };
 
     const storeError = await storeAdminPassword(password);
     if (storeError) return { ok: false, error: storeError };

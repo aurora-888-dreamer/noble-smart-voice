@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import type { PluginId } from "./plugins";
+import { PLUGIN_REGISTRY, type PluginId } from "./plugins";
+import { isPremium } from "./auth-store";
 
 const PLUGINS_KEY = "noble.plugins";
 
@@ -14,7 +15,16 @@ function savePluginState(state: Partial<Record<PluginId, boolean>>) {
   window.dispatchEvent(new Event("noble:auth"));
 }
 
+function isToolCategory(id: PluginId): boolean {
+  return PLUGIN_REGISTRY.find((p) => p.id === id)?.category === "tool";
+}
+
 export function hasPlugin(id: PluginId): boolean {
+  // Camera/Calculator/Translator ("tool" category) are bundled with any
+  // active Premium subscription — they're never sold or unlocked
+  // separately, so Premium being active is enough on its own. "addon"
+  // plugins (School Dashboard, PMD) still need their own toggle/voucher.
+  if (isToolCategory(id) && isPremium()) return true;
   return !!getPluginState()[id];
 }
 
@@ -54,5 +64,13 @@ export function usePluginState(): Partial<Record<PluginId, boolean>> {
 
 export function usePlugin(id: PluginId): boolean {
   const state = usePluginState();
+  const [premium, setPremium] = useState(false);
+  useEffect(() => {
+    const sync = () => setPremium(isPremium());
+    sync();
+    window.addEventListener("noble:auth", sync);
+    return () => window.removeEventListener("noble:auth", sync);
+  }, []);
+  if (isToolCategory(id) && premium) return true;
   return !!state[id];
 }

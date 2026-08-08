@@ -102,9 +102,9 @@ export const createStoreOrder = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }): Promise<{ ok: true; order: StoreOrder } | { ok: false; error: string }> => {
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi (SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY belum diset)." };
+    if (!supabase) return { ok: false, error: "Store backend not configured (SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY not set)." };
     if (!data.buyer?.name?.trim() || !data.buyer?.whatsapp?.trim()) {
-      return { ok: false, error: "Nama dan nomor WhatsApp wajib diisi." };
+      return { ok: false, error: "Name and WhatsApp number are required." };
     }
 
     const serial = generateSerial();
@@ -139,7 +139,7 @@ export const listStoreOrders = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<{ ok: true; orders: StoreOrder[] } | { ok: false; error: string }> => {
     if (!(await checkAdmin(data.adminPassword))) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Store backend not configured." };
 
     const { data: rows, error } = await supabase.from("store_orders").select("*").order("created_at", { ascending: false });
     if (error) return { ok: false, error: error.message };
@@ -157,7 +157,7 @@ export const markOrderPaid = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<{ ok: true } | { ok: false; error: string }> => {
     if (!(await checkAdmin(data.adminPassword))) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Store backend not configured." };
 
     const { data: order, error: fetchError } = await supabase.from("store_orders").select("*").eq("id", data.orderId).maybeSingle();
     if (fetchError) return { ok: false, error: fetchError.message };
@@ -201,7 +201,7 @@ export const markOrderDelivered = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<{ ok: true } | { ok: false; error: string }> => {
     if (!(await checkAdmin(data.adminPassword))) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Store backend not configured." };
     const { error } = await supabase.from("store_orders").update({ status: "delivered", delivered_at: new Date().toISOString() }).eq("id", data.orderId);
     if (error) return { ok: false, error: error.message };
     return { ok: true };
@@ -212,7 +212,7 @@ export const cancelStoreOrder = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<{ ok: true } | { ok: false; error: string }> => {
     if (!(await checkAdmin(data.adminPassword))) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Store backend not configured." };
     const { error } = await supabase.from("store_orders").update({ status: "cancelled" }).eq("id", data.orderId);
     if (error) return { ok: false, error: error.message };
     return { ok: true };
@@ -223,7 +223,7 @@ export const deleteStoreOrder = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<{ ok: true } | { ok: false; error: string }> => {
     if (!(await checkAdmin(data.adminPassword))) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Store backend not configured." };
     const { error } = await supabase.from("store_orders").delete().eq("id", data.orderId);
     if (error) return { ok: false, error: error.message };
     return { ok: true };
@@ -234,7 +234,7 @@ export const verifyStoreSerial = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<{ ok: true; order: StoreOrder | null } | { ok: false; error: string }> => {
     if (!(await checkAdmin(data.adminPassword))) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Store backend not configured." };
     const { data: row, error } = await supabase
       .from("store_orders")
       .select("*")
@@ -249,7 +249,7 @@ export const wipeAllStoreOrders = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<{ ok: true } | { ok: false; error: string }> => {
     if (!(await checkAdmin(data.adminPassword))) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Store backend not configured." };
     const { error } = await supabase.from("store_orders").delete().neq("id", "00000000-0000-0000-0000-000000000000");
     if (error) return { ok: false, error: error.message };
     return { ok: true };
@@ -271,7 +271,7 @@ export interface Plan {
 export const getPlanPrices = createServerFn({ method: "POST" })
   .handler(async (): Promise<{ ok: true; overrides: Record<string, number> } | { ok: false; error: string }> => {
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Store backend not configured." };
     const { data: rows, error } = await supabase.from("store_plan_overrides").select("*");
     if (error) return { ok: false, error: error.message };
     const overrides: Record<string, number> = {};
@@ -284,7 +284,7 @@ export const setPlanPrice = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<{ ok: true } | { ok: false; error: string }> => {
     if (!(await checkAdmin(data.adminPassword))) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Store backend not configured." };
     if (data.priceIDR == null) {
       const { error } = await supabase.from("store_plan_overrides").delete().eq("plan_id", data.planId);
       if (error) return { ok: false, error: error.message };
@@ -300,7 +300,7 @@ export const setPlanPrice = createServerFn({ method: "POST" })
 export const getPluginPrices = createServerFn({ method: "POST" })
   .handler(async (): Promise<{ ok: true; prices: Record<string, number> } | { ok: false; error: string }> => {
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Store backend not configured." };
     const { data: rows, error } = await supabase.from("store_plugin_prices").select("*");
     if (error) return { ok: false, error: error.message };
     const prices: Record<string, number> = {};
@@ -313,7 +313,7 @@ export const setPluginPrice = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<{ ok: true } | { ok: false; error: string }> => {
     if (!(await checkAdmin(data.adminPassword))) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Store backend not configured." };
     if (data.priceIDR == null) {
       const { error } = await supabase.from("store_plugin_prices").delete().eq("plugin_id", data.pluginId);
       if (error) return { ok: false, error: error.message };
@@ -334,9 +334,9 @@ export const createPluginOrder = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }): Promise<{ ok: true; order: StoreOrder } | { ok: false; error: string }> => {
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi (SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY belum diset)." };
+    if (!supabase) return { ok: false, error: "Store backend not configured (SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY not set)." };
     if (!data.buyer?.name?.trim() || !data.buyer?.whatsapp?.trim()) {
-      return { ok: false, error: "Nama dan nomor WhatsApp wajib diisi." };
+      return { ok: false, error: "Name and WhatsApp number are required." };
     }
     const serial = generateSerial();
     const { data: row, error } = await supabase
@@ -367,7 +367,7 @@ export const getSiteFeature = createServerFn({ method: "POST" })
   .inputValidator((input: { key: string }) => input)
   .handler(async ({ data }): Promise<{ ok: true; enabled: boolean } | { ok: false; error: string }> => {
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Store backend not configured." };
     const { data: row, error } = await supabase.from("site_features").select("enabled").eq("key", data.key).maybeSingle();
     if (error) return { ok: false, error: error.message };
     return { ok: true, enabled: row?.enabled ?? false };
@@ -378,7 +378,7 @@ export const setSiteFeature = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<{ ok: true } | { ok: false; error: string }> => {
     if (!(await checkAdmin(data.adminPassword))) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Store backend not configured." };
     const { error } = await supabase.from("site_features").upsert({ key: data.key, enabled: data.enabled });
     if (error) return { ok: false, error: error.message };
     return { ok: true };

@@ -28,7 +28,7 @@ export const getMyVouchers = createServerFn({ method: "POST" })
   .inputValidator((input: { email?: string; whatsapp?: string }) => input)
   .handler(async ({ data }): Promise<{ ok: true; vouchers: MyVoucher[] } | { ok: false; error: string }> => {
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false, error: "Backend belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Backend not configured." };
     const contacts = [data.email, data.whatsapp].filter(Boolean).map((c) => normalizeContact(c as string));
     if (contacts.length === 0) return { ok: true, vouchers: [] };
     const { data: rows, error } = await supabase
@@ -50,13 +50,13 @@ export const redeemVoucher = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<RedeemVoucherResult> => {
     const supabase = createNobleSupabase();
     if (!supabase) {
-      return { ok: false, error: "Backend voucher belum dikonfigurasi (SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY belum diset)." };
+      return { ok: false, error: "Voucher backend not configured (SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY not set)." };
     }
 
     const code = data.code.trim().toUpperCase();
     const contact = normalizeContact(data.contact);
-    if (!code) return { ok: false, error: "Kode kosong." };
-    if (!contact) return { ok: false, error: "Akun kamu belum punya email/nomor WhatsApp terdaftar." };
+    if (!code) return { ok: false, error: "Code is empty." };
+    if (!contact) return { ok: false, error: "Your account has no email/WhatsApp number on file." };
 
     const { data: voucher, error } = await supabase
       .from("noble_vouchers")
@@ -65,10 +65,10 @@ export const redeemVoucher = createServerFn({ method: "POST" })
       .maybeSingle();
 
     if (error) return { ok: false, error: error.message };
-    if (!voucher) return { ok: false, error: "Kode tidak ditemukan." };
-    if (voucher.status !== "unused") return { ok: false, error: "Kode ini sudah pernah dipakai atau tidak berlaku lagi." };
+    if (!voucher) return { ok: false, error: "Code not found." };
+    if (voucher.status !== "unused") return { ok: false, error: "This code has already been used or is no longer valid." };
     if (voucher.bound_contact !== contact) {
-      return { ok: false, error: "Kode ini terdaftar untuk email/nomor lain, bukan akun kamu." };
+      return { ok: false, error: "This code is registered to a different email/number, not your account." };
     }
 
     const { error: updateError } = await supabase

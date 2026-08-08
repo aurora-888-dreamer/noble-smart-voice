@@ -60,7 +60,7 @@ function discountRow(row: Record<string, unknown>): Discount {
 export const getActiveDiscounts = createServerFn({ method: "POST" }).handler(
   async (): Promise<{ ok: true; discounts: Discount[] } | { ok: false; error: string }> => {
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Store backend not configured." };
     const { data, error } = await supabase.from("store_discounts").select("*").eq("active", true);
     if (error) return { ok: false, error: error.message };
     return { ok: true, discounts: (data ?? []).map(discountRow) };
@@ -71,7 +71,7 @@ export const findGroupByCodePublic = createServerFn({ method: "POST" })
   .inputValidator((input: { code: string }) => input)
   .handler(async ({ data }): Promise<{ ok: true; group: CustomerGroup | null } | { ok: false; error: string }> => {
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Store backend not configured." };
     const { data: row, error } = await supabase
       .from("store_groups")
       .select("*")
@@ -85,7 +85,7 @@ export const findGroupByIdPublic = createServerFn({ method: "POST" })
   .inputValidator((input: { id: string }) => input)
   .handler(async ({ data }): Promise<{ ok: true; group: CustomerGroup | null } | { ok: false; error: string }> => {
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Store backend not configured." };
     const { data: row, error } = await supabase.from("store_groups").select("*").eq("id", data.id).maybeSingle();
     if (error) return { ok: false, error: error.message };
     return { ok: true, group: row ? groupRow(row) : null };
@@ -97,7 +97,7 @@ export const listAllDiscounts = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<{ ok: true; discounts: Discount[] } | { ok: false; error: string }> => {
     if (!(await checkAdmin(data.adminPassword))) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Store backend not configured." };
     const { data: rows, error } = await supabase.from("store_discounts").select("*").order("created_at", { ascending: false });
     if (error) return { ok: false, error: error.message };
     return { ok: true, discounts: (rows ?? []).map(discountRow) };
@@ -108,7 +108,7 @@ export const listAllGroups = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<{ ok: true; groups: CustomerGroup[] } | { ok: false; error: string }> => {
     if (!(await checkAdmin(data.adminPassword))) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Store backend not configured." };
     const { data: rows, error } = await supabase.from("store_groups").select("*").order("name");
     if (error) return { ok: false, error: error.message };
     return { ok: true, groups: (rows ?? []).map(groupRow) };
@@ -119,7 +119,7 @@ export const upsertGroupFn = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<{ ok: true; group: CustomerGroup } | { ok: false; error: string }> => {
     if (!(await checkAdmin(data.adminPassword))) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Store backend not configured." };
     const payload = { name: data.name.trim(), code: data.code.trim().toUpperCase(), note: data.note ?? null };
     const query = data.id
       ? supabase.from("store_groups").update(payload).eq("id", data.id).select().single()
@@ -134,7 +134,7 @@ export const deleteGroupFn = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<{ ok: true } | { ok: false; error: string }> => {
     if (!(await checkAdmin(data.adminPassword))) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Store backend not configured." };
     const { error } = await supabase.from("store_groups").delete().eq("id", data.id);
     if (error) return { ok: false, error: error.message };
     return { ok: true };
@@ -159,7 +159,7 @@ export const upsertDiscountFn = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<{ ok: true; discount: Discount } | { ok: false; error: string }> => {
     if (!(await checkAdmin(data.adminPassword))) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Store backend not configured." };
     const payload = {
       name: data.name.trim(),
       kind: data.kind,
@@ -184,7 +184,7 @@ export const deleteDiscountFn = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<{ ok: true } | { ok: false; error: string }> => {
     if (!(await checkAdmin(data.adminPassword))) return { ok: false, error: "Wrong password." };
     const supabase = createNobleSupabase();
-    if (!supabase) return { ok: false, error: "Backend toko belum dikonfigurasi." };
+    if (!supabase) return { ok: false, error: "Store backend not configured." };
     const { error } = await supabase.from("store_discounts").delete().eq("id", data.id);
     if (error) return { ok: false, error: error.message };
     return { ok: true };
