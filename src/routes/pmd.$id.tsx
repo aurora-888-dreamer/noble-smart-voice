@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { ArrowLeft, Plus, Trash2, Download, MessageCircle, Mail, Paperclip } from "lucide-react";
@@ -6,6 +6,7 @@ import { useLang } from "@/lib/settings-store";
 import { tp, type PmdKey } from "@/lib/pmd-i18n";
 import { shareToWhatsApp, shareToEmail } from "@/lib/share";
 import {
+  deleteProjectCascade,
   exportProject,
   getPmdDb,
   PMD_STATUSES,
@@ -44,6 +45,7 @@ function PmdDetail() {
   const projectId = Number(id);
   const [lang] = useLang();
   const [tab, setTab] = useState<Tab>("profile");
+  const navigate = useNavigate();
 
   const project = useLiveQuery(async () => {
     if (typeof window === "undefined") return undefined;
@@ -102,6 +104,17 @@ function PmdDetail() {
           <button onClick={() => shareSummary("email")} title={tp(lang, "sendEmail")} className="rounded-xl border border-border p-2 text-muted-foreground">
             <Mail size={16} />
           </button>
+          <button
+            onClick={async () => {
+              if (!confirm(tp(lang, "confirmDeleteProject"))) return;
+              await deleteProjectCascade(projectId);
+              navigate({ to: "/pmd" });
+            }}
+            title={tp(lang, "deleteProject")}
+            className="rounded-xl border border-border p-2 text-muted-foreground hover:text-destructive"
+          >
+            <Trash2 size={16} />
+          </button>
         </div>
       </div>
 
@@ -119,7 +132,7 @@ function PmdDetail() {
         ))}
       </div>
 
-      {tab === "profile" && <ProfileTab lang={lang} project={project} />}
+      {tab === "profile" && <ProfileTab key={project.updatedAt ?? project.createdAt} lang={lang} project={project} />}
       {tab === "participants" && <ParticipantsTab lang={lang} project={project} />}
       {tab === "vendors" && <VendorsTab lang={lang} projectId={projectId} />}
       {tab === "documents" && <DocumentsTab lang={lang} projectId={projectId} />}
@@ -136,6 +149,7 @@ async function patch(project: PmdProject, changes: Partial<PmdProject>) {
 
 function ProfileTab({ lang, project }: { lang: "en" | "id"; project: PmdProject }) {
   const [draft, setDraft] = useState<PmdProject>(project);
+  const [saved, setSaved] = useState(false);
   return (
     <div className="space-y-3 rounded-2xl border border-border bg-card p-4">
       <div className="grid gap-3 sm:grid-cols-2">
@@ -195,9 +209,19 @@ function ProfileTab({ lang, project }: { lang: "en" | "id"; project: PmdProject 
       <p className="text-xs text-muted-foreground">
         {tp(lang, "createdAt")}: {fmtDate(project.createdAt)}
       </p>
-      <button onClick={() => patch(project, draft)} className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">
-        {tp(lang, "save")}
-      </button>
+      <div className="flex items-center gap-3">
+        <button
+          onClick={async () => {
+            await patch(project, draft);
+            setSaved(true);
+            setTimeout(() => setSaved(false), 1500);
+          }}
+          className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+        >
+          {tp(lang, "save")}
+        </button>
+        {saved && <span className="text-xs text-primary">{tp(lang, "saved")}</span>}
+      </div>
     </div>
   );
 }
@@ -316,7 +340,12 @@ function VendorsTab({ lang, projectId }: { lang: "en" | "id"; projectId: number 
             <div key={v.id} className="rounded-2xl border border-border bg-card p-4">
               <div className="mb-1 flex items-start justify-between gap-2">
                 <span className="truncate text-sm font-semibold">{v.company}</span>
-                <button onClick={() => getPmdDb().vendors.delete(v.id!)} className="text-muted-foreground hover:text-destructive">
+                <button
+                  onClick={() => {
+                    if (confirm(tp(lang, "confirmDelete"))) getPmdDb().vendors.delete(v.id!);
+                  }}
+                  className="text-muted-foreground hover:text-destructive"
+                >
                   <Trash2 size={14} />
                 </button>
               </div>
@@ -384,13 +413,29 @@ function DocumentsTab({ lang, projectId }: { lang: "en" | "id"; projectId: numbe
               ) : (
                 <div className="mb-2 grid h-32 place-items-center rounded-xl bg-muted text-xs text-muted-foreground">{f.mimeType}</div>
               )}
-              <p className="truncate text-xs font-medium">{f.name}</p>
-              <p className="text-[10px] text-muted-foreground">{Math.round(f.size / 1024)} KB</p>
+              <input
+                className="w-full rounded-lg border border-border bg-background px-2 py-1 text-xs font-medium"
+                value={f.name}
+                aria-label={tp(lang, "rename")}
+                onChange={(e) => getPmdDb().files.update(f.id!, { name: e.target.value })}
+              />
+              <input
+                className="mt-1 w-full rounded-lg border border-border bg-background px-2 py-1 text-[11px]"
+                placeholder={tp(lang, "note")}
+                value={f.note ?? ""}
+                onChange={(e) => getPmdDb().files.update(f.id!, { note: e.target.value })}
+              />
+              <p className="mt-1 text-[10px] text-muted-foreground">{Math.round(f.size / 1024)} KB</p>
               <div className="mt-2 flex gap-3 text-xs">
                 <a href={f.dataUrl} download={f.name} className="text-primary">
                   {tp(lang, "saveFile")}
                 </a>
-                <button onClick={() => getPmdDb().files.delete(f.id!)} className="text-muted-foreground hover:text-destructive">
+                <button
+                  onClick={() => {
+                    if (confirm(tp(lang, "confirmDelete"))) getPmdDb().files.delete(f.id!);
+                  }}
+                  className="text-muted-foreground hover:text-destructive"
+                >
                   {tp(lang, "delete")}
                 </button>
               </div>
