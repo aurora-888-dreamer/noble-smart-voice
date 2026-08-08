@@ -16,7 +16,7 @@ import { createNobleSupabase } from "@/lib/supabase.server";
 
 const KOMERCE_SANDBOX_URL = "https://api-sandbox.collaborator.komerce.id";
 const KOMERCE_PRODUCTION_URL = "https://api.collaborator.komerce.id";
-const CALLBACK_URL = "https://noble-smart-voice.lovable.app/api/public/komerce-webhook";
+const CALLBACK_URL = "https://noble-smart-voice.lovable.app/api/komerce-webhook";
 
 async function getKomerceBaseUrl(supabase: ReturnType<typeof createNobleSupabase>): Promise<string> {
   if (!supabase) return KOMERCE_SANDBOX_URL;

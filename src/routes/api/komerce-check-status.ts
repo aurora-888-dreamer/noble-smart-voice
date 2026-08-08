@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { createNobleSupabase, normalizeContact } from "@/lib/supabase.server";
 import { sendSerialEmail } from "@/lib/store-admin.server";
 import { PLANS } from "@/lib/store.functions";
+import { PLUGIN_REGISTRY } from "@/lib/plugins";
 
 /**
  * GET /api/komerce-check-status?invoiceNo=xxx
@@ -62,19 +63,23 @@ export const Route = createFileRoute("/api/komerce-check-status")({
               .eq("id", order.id);
             if (!updateError) {
               const contact = normalizeContact(order.buyer_email || order.buyer_whatsapp);
+              const isPlugin = order.product_type === "plugin";
               const { error: voucherError } = await supabase.from("noble_vouchers").upsert(
                 {
                   code: order.serial,
                   bound_contact: contact,
-                  tier: order.tier,
-                  duration_days: order.duration_days,
+                  tier: isPlugin ? null : order.tier,
+                  duration_days: isPlugin ? null : order.duration_days,
+                  plugin_id: isPlugin ? order.plan_id : null,
                   status: "unused",
                   note: `Store order ${order.id} (${order.plan_id}) — paid via Komerce (confirmed via status poll)`,
                 },
                 { onConflict: "code" },
               );
               if (!voucherError && order.buyer_email) {
-                const planLabel = PLANS.find((p) => p.id === order.plan_id)?.nameId ?? order.plan_id;
+                const planLabel = isPlugin
+                  ? (PLUGIN_REGISTRY.find((p) => p.id === order.plan_id)?.nameId ?? order.plan_id)
+                  : (PLANS.find((p) => p.id === order.plan_id)?.nameId ?? order.plan_id);
                 await sendSerialEmail(order.buyer_email, order.buyer_name, planLabel, order.serial);
               }
             }
