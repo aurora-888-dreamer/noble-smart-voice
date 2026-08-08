@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Plane, GanttChart, NotebookPen, MessageSquare, Calculator, Languages, Camera, MessageCircle, Mail, Music2, Instagram, Facebook, Globe, ExternalLink, StickyNote, CheckSquare, Calendar as CalendarIcon, Video, CalendarClock, Users, BellRing, Crown, GraduationCap } from "lucide-react";
+import { Plane, GanttChart, NotebookPen, MessageSquare, Calculator, Languages, Camera, MessageCircle, Mail, Music2, Instagram, Facebook, Globe, ExternalLink, StickyNote, CheckSquare, Calendar as CalendarIcon, Video, CalendarClock, Users, BellRing, Crown, GraduationCap, FolderKanban } from "lucide-react";
 import { useEnabledShortcuts } from "@/lib/app-shortcuts-store";
 import { AppShell } from "@/components/AppShell";
 import { getDb } from "@/lib/db";
@@ -97,6 +97,7 @@ function Home() {
   const license = useLicenseInfo();
   const shortcuts = useEnabledShortcuts();
   const hasSchool = usePlugin("school");
+  const hasPmd = usePlugin("pmd");
   const isAdmin = license.code === "NOBLE440077";
 
   useEffect(() => {
@@ -208,6 +209,28 @@ function Home() {
             </div>
           </div>
           <span className="text-xs text-primary font-semibold shrink-0">Open →</span>
+        </Link>
+      )}
+
+      {(hasPmd || isAdmin) && (
+        <Link
+          to="/pmd"
+          className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 hover:opacity-90"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <FolderKanban size={20} className="text-primary shrink-0" />
+            <div className="min-w-0">
+              <div className="text-sm font-semibold truncate">
+                {lang === "id" ? "Dashboard Manajemen Proyek" : "Project Management Dashboard"}
+              </div>
+              <div className="text-xs text-muted-foreground truncate">
+                {lang === "id" ? "Proyek · Vendor · Anggaran · Persetujuan" : "Projects · Vendors · Budget · Approvals"}
+              </div>
+            </div>
+          </div>
+          <span className="text-xs text-primary font-semibold shrink-0">
+            {lang === "id" ? "Buka →" : "Open →"}
+          </span>
         </Link>
       )}
 
